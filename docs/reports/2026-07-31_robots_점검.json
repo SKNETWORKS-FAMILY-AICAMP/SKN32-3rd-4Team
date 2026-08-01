@@ -1,0 +1,213 @@
+[
+  {
+    "group": "손보",
+    "name": "삼성화재",
+    "host": "www.samsungfire.com",
+    "verdict": "allowed",
+    "http_status": "HTTP 200",
+    "detail": "경로 / 기준",
+    "crawl_delay": null,
+    "sitemaps": [],
+    "has_rules": false
+  },
+  {
+    "group": "손보",
+    "name": "메리츠화재",
+    "host": "www.meritzfire.com",
+    "verdict": "allowed",
+    "http_status": "HTTP 200",
+    "detail": "경로 / 기준",
+    "crawl_delay": null,
+    "sitemaps": [],
+    "has_rules": false
+  },
+  {
+    "group": "손보",
+    "name": "DB손해보험",
+    "host": "www.idbins.com",
+    "verdict": "allowed",
+    "http_status": "HTTP 200",
+    "detail": "경로 / 기준",
+    "crawl_delay": null,
+    "sitemaps": [],
+    "has_rules": true
+  },
+  {
+    "group": "손보",
+    "name": "현대해상",
+    "host": "www.hi.co.kr",
+    "verdict": "allowed",
+    "http_status": "HTTP 200",
+    "detail": "경로 / 기준",
+    "crawl_delay": null,
+    "sitemaps": [],
+    "has_rules": true
+  },
+  {
+    "group": "손보",
+    "name": "KB손해보험",
+    "host": "www.kbinsure.co.kr",
+    "verdict": "allowed",
+    "http_status": "HTTP 200",
+    "detail": "경로 / 기준",
+    "crawl_delay": null,
+    "sitemaps": [],
+    "has_rules": false
+  },
+  {
+    "group": "손보",
+    "name": "한화손해보험",
+    "host": "www.hwgeneralins.com",
+    "verdict": "allowed",
+    "http_status": "HTTP 200",
+    "detail": "경로 / 기준",
+    "crawl_delay": null,
+    "sitemaps": [],
+    "has_rules": true
+  },
+  {
+    "group": "손보",
+    "name": "흥국화재",
+    "host": "www.heungkukfire.co.kr",
+    "verdict": "allowed",
+    "http_status": "HTTP 200",
+    "detail": "경로 / 기준",
+    "crawl_delay": null,
+    "sitemaps": [],
+    "has_rules": false
+  },
+  {
+    "group": "손보",
+    "name": "롯데손해보험",
+    "host": "www.lotteins.co.kr",
+    "verdict": "allowed",
+    "http_status": "HTTP 200",
+    "detail": "경로 / 기준",
+    "crawl_delay": null,
+    "sitemaps": [],
+    "has_rules": true
+  },
+  {
+    "group": "손보",
+    "name": "NH농협손해보험",
+    "host": "www.nhfire.co.kr",
+    "verdict": "allowed",
+    "http_status": "HTTP 200",
+    "detail": "경로 / 기준",
+    "crawl_delay": null,
+    "sitemaps": [],
+    "has_rules": false
+  },
+  {
+    "group": "생보",
+    "name": "삼성생명",
+    "host": "www.samsunglife.com",
+    "verdict": "allowed",
+    "http_status": "HTTP 200",
+    "detail": "경로 / 기준",
+    "crawl_delay": null,
+    "sitemaps": [
+      "https://www.samsunglife.com/gw/sitemap.xml"
+    ],
+    "has_rules": false
+  },
+  {
+    "group": "생보",
+    "name": "한화생명",
+    "host": "www.hanwhalife.com",
+    "verdict": "unknown_treated_as_blocked",
+    "http_status": "연결 실패: URLError (3회 재시도 후)",
+    "detail": "robots.txt를 가져오지 못함 → 자동수집 금지로 취급(허용 아님). 다른 망에서 재점검 필요",
+    "crawl_delay": null,
+    "sitemaps": [],
+    "has_rules": false
+  },
+  {
+    "group": "생보",
+    "name": "교보생명",
+    "host": "www.kyobo.co.kr",
+    "verdict": "unknown_treated_as_blocked",
+    "http_status": "연결 실패: URLError (3회 재시도 후)",
+    "detail": "robots.txt를 가져오지 못함 → 자동수집 금지로 취급(허용 아님). 다른 망에서 재점검 필요",
+    "crawl_delay": null,
+    "sitemaps": [],
+    "has_rules": false
+  },
+  {
+    "group": "생보",
+    "name": "흥국생명",
+    "host": "www.heungkuklife.co.kr",
+    "verdict": "allowed",
+    "http_status": "HTTP 200",
+    "detail": "경로 / 기준",
+    "crawl_delay": null,
+    "sitemaps": [],
+    "has_rules": false
+  },
+  {
+    "group": "생보",
+    "name": "DB생명",
+    "host": "www.dblife.co.kr",
+    "verdict": "unknown_treated_as_blocked",
+    "http_status": "연결 실패: URLError (3회 재시도 후)",
+    "detail": "robots.txt를 가져오지 못함 → 자동수집 금지로 취급(허용 아님). 다른 망에서 재점검 필요",
+    "crawl_delay": null,
+    "sitemaps": [],
+    "has_rules": false
+  },
+  {
+    "group": "생보",
+    "name": "동양생명",
+    "host": "www.myangel.co.kr",
+    "verdict": "allowed",
+    "http_status": "HTTP 200",
+    "detail": "경로 / 기준",
+    "crawl_delay": null,
+    "sitemaps": [],
+    "has_rules": true
+  },
+  {
+    "group": "생보",
+    "name": "NH농협생명",
+    "host": "www.nhlife.co.kr",
+    "verdict": "allowed",
+    "http_status": "HTTP 200",
+    "detail": "경로 / 기준",
+    "crawl_delay": null,
+    "sitemaps": [],
+    "has_rules": true
+  },
+  {
+    "group": "협회",
+    "name": "손해보험협회 공시실",
+    "host": "kpub.knia.or.kr",
+    "verdict": "unknown_treated_as_blocked",
+    "http_status": "연결 실패: URLError (3회 재시도 후)",
+    "detail": "robots.txt를 가져오지 못함 → 자동수집 금지로 취급(허용 아님). 다른 망에서 재점검 필요",
+    "crawl_delay": null,
+    "sitemaps": [],
+    "has_rules": false
+  },
+  {
+    "group": "협회",
+    "name": "생명보험협회 공시실",
+    "host": "pub.insure.or.kr",
+    "verdict": "disallowed",
+    "http_status": "HTTP 200",
+    "detail": "경로 / 기준 — Disallow에 걸림",
+    "crawl_delay": null,
+    "sitemaps": [],
+    "has_rules": true
+  },
+  {
+    "group": "공공",
+    "name": "금융소비자정보포털 파인",
+    "host": "fine.fss.or.kr",
+    "verdict": "unknown_treated_as_blocked",
+    "http_status": "오류: RemoteDisconnected (3회 재시도 후)",
+    "detail": "robots.txt를 가져오지 못함 → 자동수집 금지로 취급(허용 아님). 다른 망에서 재점검 필요",
+    "crawl_delay": null,
+    "sitemaps": [],
+    "has_rules": false
+  }
+]

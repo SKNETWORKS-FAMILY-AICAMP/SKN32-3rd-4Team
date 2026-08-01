@@ -1,0 +1,15 @@
+[project]
+name = "unified-mall-agent"
+version = "0.3.0"
+description = "바로봄 AI 커머스 에이전트 플랫폼 (통합 프로젝트)"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+markers = [
+    "llm: 실제 LLM 호출이 필요한 테스트 (기본 CI에서 제외)",
+    "ml: 무거운 로컬 ML 모델 로드가 필요한 테스트 (KoELECTRA/임베딩, 기본 CI에서 제외)",
+    "mcp: MCP stdio 서브프로세스 왕복이 필요한 테스트 (기본 CI에서 제외)",
+    "pg: 실 PostgreSQL+pgvector 연결이 필요한 테스트 (기본 CI에서 제외)",
+]

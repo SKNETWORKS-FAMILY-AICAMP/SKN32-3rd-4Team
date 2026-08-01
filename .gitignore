@@ -1,0 +1,53 @@
+__pycache__/
+*.pyc
+data/mall.db
+data/vector_store/
+.env
+.venv/
+data/pgdata/
+
+# 생성물(실행 시 만들어지는 리포트 산출물) — docs/ 이동에 맞춘 경로
+docs/generated_reports/
+
+# 사용자 요구사항 원본 — 절대 커밋 금지
+# (이전엔 ignore 규칙 없이 add만 안 한 상태라 실수로 커밋될 위험이 있었다 → 명시적 보호)
+프로젝트설명.txt
+docs/프로젝트설명.txt
+
+# 작업 규칙 문서(로컬 전용)
+RULE.md
+
+# 워크스페이스 루트 .gitignore의 `**/plans/`·`**/reports/` 규칙이 이 프로젝트의
+# docs/ 하위까지 잡아가므로, 문서 폴더는 명시적으로 되살린다(추적 대상).
+!docs/plans/
+!docs/history/
+!docs/reports/
+
+# 파인튜닝 생성물(분할·평가 결과) — 재생성 가능
+data/finetune/
+
+# 사용자 개인 기획 자료(ChatGPT 대화 내보내기 등) — 공개 레포에 올리지 않는다.
+# 대화 사이드바에 다른 프로젝트명 등 무관한 개인정보가 함께 담기므로 추적 제외한다.
+docs/my_idea*.mhtml
+*.mhtml
+
+# 수집한 보험약관 원문 — 저작물이므로 저장소에 커밋하지 않는다(권리 확인 없는 재배포 금지).
+# 커밋되는 것은 메타데이터(fetch_manifest.jsonl)뿐이며, 원문은 각자 재수집한다.
+data/raw/insurance_terms/
+
+# ─────────────────────────────────────────────────────────────
+# 약관 파생물 — ★원문과 같은 저작물이다
+#
+# PDF 는 data/raw/insurance_terms/ 로 막아 뒀는데, 그것을 텍스트로 뽑은
+# 산출물은 안 막고 있었다. 형식만 바뀌었을 뿐 **내용은 약관 원문 그대로**다.
+#   data/structured/.../02aaee47b190.clauses.json
+#     "text": "제95조의 2) '중요한 내용'이란 보험료와 보장범위, 보험금 지급사유…"
+# 공개 저장소에 올리면 12개사 약관 전문을 재배포하는 것이 된다.
+# (CLAUDE.md §2 — "약관 원문은 저작물이다. data/raw/ 에만 두고 커밋하지 않는다")
+data/extracted/
+data/structured/
+data/raw/excluded/
+
+# 레거시 보관소 — 압축본이고 현행 프로젝트와 무관하다.
+# 로컬에만 두고 저장소에는 올리지 않는다(ARCH-004 가 참조 금지를 강제한다).
+legacy/

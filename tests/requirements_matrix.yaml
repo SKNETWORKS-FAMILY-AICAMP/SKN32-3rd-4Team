@@ -1,0 +1,201 @@
+# 요구사항 매트릭스 (Phase 10) — Phase 1~9에서 실제로 구현·검증된 MUST 요구사항만 기입한다
+# (계획서의 열망이 아니라 실측). TEST-MATRIX-001(test_requirements_matrix.py)이 각 node가
+# 실제로 존재하고 collect 가능하며 skip/xfail이 아닌지 정적으로 검증한다.
+#
+# basis: 그 테스트의 assertion이 REQ를 "직접" 확인하는지(간접 효과만 보는 게 아닌지) 리뷰용
+# 근거 한 줄. collect 가능 여부만으로는 가짜 매핑을 못 걸러낸다는 지적(Codex)에 대한 보강.
+
+requirements:
+  - id: REQ-QA-BASE-01
+    desc: "원본 프로젝트 결정론 테스트 기준선 재현(Phase 0)"
+    tests:
+      - node: "tests/test_health.py::test_health_ok"
+        basis: "기동 기준선의 최소 스모크(health)를 직접 확인. 182개 전체 재현은 CI 스위트
+          자체가 그 후신(현재 320)이라 이 1개 노드로 대표하지 않는다 — 전체 스위트 합격
+          여부는 test_requirements_matrix.py가 이 매트릭스와 별개로 CI 실행 그 자체로 증명됨"
+    status: DONE
+
+  - id: REQ-RAG-04
+    desc: "AnswerQuestion 유스케이스 — 근거 기반 답변 + 출처 인용"
+    tests:
+      - node: "tests/test_answer_question.py::test_req_rag_04_answer_with_sources"
+        basis: "근거 주입 시 답변에 출처(Citation)가 채워지는지 직접 확인"
+    status: DONE
+
+  - id: REQ-RAG-05
+    desc: "근거 없음 → 생성 없이 abstention(환각 억제)"
+    tests:
+      - node: "tests/test_answer_question.py::test_req_rag_05_abstention_when_no_evidence"
+        basis: "빈 근거일 때 모델 미호출 + NO_ANSWER 반환을 직접 확인"
+    status: DONE
+
+  - id: REQ-LLM-REG-01
+    desc: "모델 ID 하드코딩 금지, registry 검증(latest alias 거부 등)"
+    tests:
+      - node: "tests/test_model_registry.py::test_llm_reg_001_registry_loads_and_validates"
+        basis: "레지스트리 로드·Pydantic 검증을 직접 확인"
+      - node: "tests/test_model_registry.py::test_llm_reg_001_rejects_latest_alias"
+        basis: "'latest' alias 거부를 직접 확인"
+      - node: "tests/test_model_registry.py::test_llm_reg_002_no_hardcoded_model_ids_in_new_code"
+        basis: "application/adapters 신 코드에 리터럴 모델ID가 없는지 정적 스캔으로 직접 확인"
+    status: DONE
+
+  - id: REQ-RAG-01
+    desc: "RAG 품질 고정 — 평가하네스 Hit@3·abstention 측정"
+    tests:
+      - node: "tests/test_rag_eval_retrieval.py::test_rag_v1_retrieval_hit_at_3"
+        basis: "rag_v1 30문항 Hit@3 임계(≥0.85)를 직접 확인"
+      - node: "tests/test_rag_eval_retrieval.py::test_rag_v1_generation_abstains_on_unanswerable"
+        basis: "unanswerable 문항의 생성 abstention을 직접 확인"
+    status: DONE
+
+  - id: REQ-OPS-01
+    desc: "기동/데이터 분리 — 명시 migrate/ingest, readiness 보고(자동 폴백 없음)"
+    tests:
+      - node: "tests/test_readiness.py::test_readiness_reports_expected_fields"
+        basis: "readiness가 db/index 준비 필드를 보고하는지 직접 확인"
+      - node: "tests/test_readiness.py::test_readiness_not_ready_when_index_missing"
+        basis: "인덱스 미준비 시 ready=False(자동 빌드 없음)를 직접 확인"
+    status: DONE
+
+  - id: NFR-OBS-01
+    desc: "관측성 — X-Trace-ID 상관 전파"
+    tests:
+      - node: "tests/test_trace.py::test_response_has_trace_header"
+        basis: "응답에 X-Trace-ID 존재를 직접 확인"
+      - node: "tests/test_trace.py::test_incoming_trace_id_is_propagated"
+        basis: "요청 trace_id가 응답까지 전파되는지 직접 확인"
+    status: DONE
+
+  - id: REQ-VEC-01
+    desc: "pgvector — 동일 RetrieverPort로 FAISS↔pgvector 교체·비교"
+    tests:
+      - node: "tests/test_pgvector.py::test_pgvector_parity_with_faiss"
+        basis: "실 PG에서 FAISS와 동일 상위 출처 반환을 직접 확인(pg 마커)"
+      - node: "tests/test_pgvector.py::test_pgvector_hit_at_3_matches_faiss"
+        basis: "Hit@3 수치 동등을 직접 확인(pg 마커)"
+    status: DONE
+
+  - id: REQ-VEC-02
+    desc: "pgvector 백엔드 미준비 시 명시 오류(무폴백)"
+    tests:
+      - node: "tests/test_pgvector.py::test_get_conn_failure_is_infra_error"
+        basis: "연결 실패 시 InfraError를 직접 확인"
+    status: DONE
+
+  - id: REQ-RAG-03
+    desc: "Hybrid(dense+lexical) RRF 결합"
+    tests:
+      - node: "tests/test_hybrid.py::test_rrf_combines_dense_and_lexical_rankings"
+        basis: "RRF 결합 순위·정규화를 결정론으로 직접 확인"
+      - node: "tests/test_hybrid_pg.py::test_hybrid_hit_at_3_on_rag_v1"
+        basis: "실 PG에서 Hybrid Hit@3 실측(pg 마커)"
+    status: DONE
+
+  - id: REQ-RAG-RERANK-01
+    desc: "Reranker(LLM-as-reranker) 재정렬"
+    tests:
+      - node: "tests/test_hybrid.py::test_reranked_retriever_reorders_by_reranker"
+        basis: "Fake reranker로 base 순서와 다른 재정렬을 직접 확인"
+    status: DONE
+
+  - id: REQ-GRAPH-DESIGN-01
+    desc: "GraphRAG 설계 + DB 결정(PostgreSQL 네이티브 재귀 CTE)"
+    tests:
+      - node: "tests/test_pg_graph.py::test_graph_schema_and_policy_queries"
+        basis: "그래프 스키마·정책 질의(집계·비교·k-hop)를 실 PG로 직접 확인(pg 마커)"
+    status: DONE
+
+  - id: REQ-GRAPH-01
+    desc: "GraphRAG 구현 — 그래프 사실을 Evidence로 언어화, provenance 유지"
+    tests:
+      - node: "tests/test_graph_retriever.py::test_graph_retriever_surfaces_aggregation_facts"
+        basis: "집계 사실이 provenance(원천+locator) 포함 Evidence로 나오는지 직접 확인"
+    status: DONE
+
+  - id: REQ-GRAPH-02
+    desc: "그래프+벡터 결합(FusionRetriever)"
+    tests:
+      - node: "tests/test_graph_retriever.py::test_fusion_combines_graph_and_pgvector"
+        basis: "결합 결과에 두 백엔드 근거가 모두 포함되는지 직접 확인"
+    status: DONE
+
+  - id: REQ-COM-01
+    desc: "주문 미리보기 — 읽기전용, DB 변경 0"
+    tests:
+      - node: "tests/test_commerce_approval.py::test_api_preview_does_not_mutate_db"
+        basis: "미리보기 호출 전후 재고·주문수 불변을 API 레벨에서 직접 확인"
+    status: DONE
+
+  - id: REQ-COM-02
+    desc: "명시 승인 — 미리보기만으로는 주문 생성 안 됨"
+    tests:
+      - node: "tests/test_commerce_approval.py::test_api_preview_only_creates_no_order"
+        basis: "미리보기 3회 반복 후 주문 0건을 직접 확인"
+    status: DONE
+
+  - id: REQ-COM-03
+    desc: "멱등 — 동일 Idempotency-Key 재요청은 같은 주문 1건(재고 1회만 차감)"
+    tests:
+      - node: "tests/test_commerce_approval.py::test_place_is_idempotent_same_key_same_payload"
+        basis: "같은 키 2회 호출 시 place()가 1회만 실행됨(재생)을 직접 확인"
+      - node: "tests/test_commerce_approval.py::test_api_idempotent_create_decrements_stock_once"
+        basis: "API 레벨에서 같은 order_no·재고 1회 차감을 직접 확인"
+    status: DONE
+
+  - id: NFR-REL-01
+    desc: "원자성 — 주문+재고차감+멱등레코드 단일 트랜잭션, 경합 안전"
+    tests:
+      - node: "tests/test_commerce_approval.py::test_is_unique_violation_discriminates_constraint_kind"
+        basis: "멱등키 unique 위반만 경합 수렴 대상으로 판별(다른 무결성 오류와 구분)함을 직접 확인"
+    status: DONE
+
+  - id: REQ-AGT-01
+    desc: "단일 에이전트 닫힌 루프 — RAG+상품+미리보기 수행"
+    tests:
+      - node: "tests/test_agent_verified.py::test_chat_commerce_pipes_agent_then_verifies"
+        basis: "에이전트 턴(도구사용 포함) → 자기검증까지 파이프라인 동작을 직접 확인"
+    status: DONE
+
+  - id: REQ-COT-01
+    desc: "CoT 자기검증 — 근거 미지지 초안 차단"
+    tests:
+      - node: "tests/test_agent_verified.py::test_unsupported_draft_is_blocked_and_not_leaked"
+        basis: "미지지 판정 시 초안이 차단되고 응답에 유출되지 않음을 직접 확인"
+    status: DONE
+
+  - id: REQ-MCP-01
+    desc: "MCP·REST parity — 같은 유스케이스 경유, 응답 동일"
+    tests:
+      - node: "tests/test_mcp_parity.py::test_rest_and_mcp_rag_qa_are_identical"
+        basis: "고정 Fake 유스케이스로 REST/MCP 응답 dict 완전 일치를 직접 확인"
+    status: DONE
+
+  - id: REQ-AUTH-01
+    desc: "RBAC — 401(미인증)/403(권한없음)/200(허용)"
+    tests:
+      - node: "tests/test_rbac_admin.py::test_rbac_401_without_token"
+        basis: "미인증 401을 admin 4개 경로에서 직접 확인"
+      - node: "tests/test_rbac_admin.py::test_rbac_403_for_normal_user"
+        basis: "USER 403을 admin 4개 경로에서 직접 확인"
+      - node: "tests/test_rbac_admin.py::test_rbac_200_for_admin"
+        basis: "ADMIN 200을 admin 4개 경로에서 직접 확인"
+      - node: "tests/test_rbac_admin.py::test_demotion_takes_effect_immediately_with_same_token"
+        basis: "role을 토큰에 넣지 않은 설계의 핵심 속성(같은 토큰으로 즉시 강등 반영)을 직접 확인"
+    status: DONE
+
+  - id: REQ-ADMIN-01
+    desc: "관리자 API — 주문/이벤트/인덱스/지식큐 조회(fail-closed)"
+    tests:
+      - node: "tests/test_rbac_admin.py::test_every_admin_route_is_fail_closed"
+        basis: "관리자 라우터 전역 fail-closed 의존성 존재를 정적으로 직접 확인"
+    status: DONE
+
+  - id: REQ-ADMIN-02
+    desc: "관리자 부트스트랩 — 명시 CLI만, 마지막 ADMIN 강등 금지, 감사기록"
+    tests:
+      - node: "tests/test_rbac_admin.py::test_promote_demote_cli_is_explicit_and_idempotent"
+        basis: "promote/demote CLI 동작·멱등을 직접 확인"
+      - node: "tests/test_rbac_admin.py::test_cannot_demote_last_admin"
+        basis: "마지막 ADMIN 강등 거부(lockout 방지)를 직접 확인"
+    status: DONE

@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>화상 상담 — {{BRAND}}</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header>
+    <h1>🎥 화상 상담</h1>
+    <p class="sub">내 웹캠을 보며 AI 상담원과 음성으로 대화합니다 (STT → 상담 → TTS)</p>
+    <nav class="top-nav">
+      <a href="/static/shop.html">🛍️ 쇼핑</a>
+      <a href="/static/index.html">💬 AI 상담</a>
+      <a href="/static/video.html" class="active">🎥 화상 상담</a>
+      <a href="/static/mypage.html">🙍 마이페이지</a>
+    </nav>
+  </header>
+
+  <main>
+    <p class="ai-disclaimer">
+      ⚠️ 상대는 <strong>AI 상담원</strong>입니다(실제 사람이 아닙니다). 우측 얼굴은 응답을 음성으로
+      말할 때 움직이는 데모용 아바타이며 실제 영상 통화가 아닙니다.
+    </p>
+
+    <section class="video-stage">
+      <!-- 좌: 고객 웹캠 -->
+      <div class="video-tile">
+        <div class="video-tile-label">나 (고객)</div>
+        <video id="selfVideo" autoplay playsinline muted></video>
+        <div id="cameraNotice" class="camera-notice">
+          <p id="cameraNoticeText">카메라를 켜면 내 모습을 보며 상담할 수 있습니다.</p>
+          <div class="camera-actions">
+            <button id="cameraOnBtn" type="button">📷 카메라 켜기</button>
+            <button id="textOnlyBtn" type="button" class="secondary">카메라 없이 텍스트로 계속</button>
+          </div>
+        </div>
+        <button id="cameraOffBtn" type="button" class="camera-off-btn" hidden>카메라 끄기</button>
+      </div>
+
+      <!-- 우: AI 아바타 -->
+      <div class="video-tile">
+        <div class="video-tile-label">AI 상담원</div>
+        <div id="avatar" class="avatar" aria-hidden="true">
+          <svg viewBox="0 0 200 200" width="180" height="180">
+            <circle cx="100" cy="100" r="92" class="av-head" />
+            <circle cx="70" cy="82" r="10" class="av-eye" />
+            <circle cx="130" cy="82" r="10" class="av-eye" />
+            <ellipse id="avMouth" cx="100" cy="135" rx="34" ry="8" class="av-mouth" />
+          </svg>
+          <div id="avatarState" class="avatar-state">대기 중</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="videoTranscript" class="video-transcript" aria-live="polite"></section>
+    <p id="videoStatus" class="voice-status"></p>
+
+    <form id="videoForm" class="video-form">
+      <button id="videoMicBtn" type="button" title="음성으로 말하기">🎤</button>
+      <input id="videoInput" type="text" placeholder="음성 버튼을 누르거나 여기에 입력하세요" autocomplete="off" />
+      <button type="submit">전송</button>
+    </form>
+  </main>
+
+  <script src="/static/common.js"></script>
+  <script src="/static/video.js"></script>
+</body>
+</html>

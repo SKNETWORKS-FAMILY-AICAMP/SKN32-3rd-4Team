@@ -1,0 +1,109 @@
+{
+  "schema_version": "1",
+  "compiled_at": "2026-07-31",
+  "compiled_by": "claude+웹검색",
+  "review_status": "unreviewed",
+  "_주의": [
+    "여기 적힌 날짜는 ★제도 시행일(판매 개시 기준)이며, 개별 상품의 판매개시일과 다르다.",
+    "판매구간은 세대 후보를 '제거하는 보조 제약'으로만 쓰고, 세대를 '부여하는 규칙'으로 쓰지 않는다.",
+    "review_status 가 'unreviewed' 인 동안에는 어떤 문서도 CONFIRMED 로 확정할 수 없다.",
+    "출처는 2차 자료(보도자료·보험사 뉴스룸)다. 금융위/협회 원문으로 재확인이 필요하다."
+  ],
+  "product_types": {
+    "standard": {
+      "label": "일반 실손",
+      "name_markers": ["실손의료비", "실손의료보험"],
+      "exclude_markers": ["노후", "유병력자", "간편", "해외여행", "국내여행"],
+      "launched_on": null,
+      "sources": []
+    },
+    "senior": {
+      "label": "노후실손",
+      "name_markers": ["노후실손"],
+      "exclude_markers": [],
+      "launched_on": "2014-08-01",
+      "launched_precision": "month",
+      "sources": [
+        "https://kpub.knia.or.kr/productDisc/lostHealth/lostHealthAfterRetirement.do",
+        "https://www.bokjiro.go.kr/ssis-tbu/cms/pc/news/news/6516232.html"
+      ],
+      "_주의": "2014년 8월 출시. 일반 실손의 세대 구분과 동일한 축이 아니다 — 별도 프로필이 필요하다."
+    },
+    "simplified_issue": {
+      "label": "유병력자 실손",
+      "name_markers": ["유병력자", "간편"],
+      "exclude_markers": [],
+      "launched_on": "2018-04-02",
+      "launched_precision": "day",
+      "sources": [
+        "https://www.fsc.go.kr/po010101/73088",
+        "https://www.knia.or.kr/m/consumer/anamnesis"
+      ],
+      "_주의": "2018-04-02 출시. 일반 실손 세대와 별개 라인이다."
+    },
+    "travel": {
+      "label": "여행 실손(국내/해외)",
+      "name_markers": ["해외여행", "국내여행", "글로벌케어"],
+      "exclude_markers": [],
+      "launched_on": null,
+      "sources": [],
+      "_주의": "세대 구분 대상이 아니다. 일반 실손 코호트와 섞지 않는다."
+    }
+  },
+  "generations": [
+    {
+      "generation": 1,
+      "label": "1세대 (표준화 이전)",
+      "applies_to": ["standard"],
+      "effective_from": null,
+      "effective_to": "2009-09-30",
+      "verified": true,
+      "sources": ["https://news.kyobo.com/세대별-실손보험-완벽-비교-1-4세대-한눈에-정리/"]
+    },
+    {
+      "generation": 2,
+      "label": "2세대 (표준화)",
+      "applies_to": ["standard"],
+      "effective_from": "2009-10-01",
+      "effective_to": "2017-03-31",
+      "verified": true,
+      "sources": ["https://news.kyobo.com/세대별-실손보험-완벽-비교-1-4세대-한눈에-정리/"]
+    },
+    {
+      "generation": 3,
+      "label": "3세대 (착한실손)",
+      "applies_to": ["standard"],
+      "effective_from": "2017-04-01",
+      "effective_to": "2021-06-30",
+      "verified": true,
+      "sources": ["https://news.kyobo.com/세대별-실손보험-완벽-비교-1-4세대-한눈에-정리/"]
+    },
+    {
+      "generation": 4,
+      "label": "4세대",
+      "applies_to": ["standard"],
+      "effective_from": "2021-07-01",
+      "effective_to": "2026-05-05",
+      "verified": true,
+      "sources": [
+        "https://news.kyobo.com/세대별-실손보험-완벽-비교-1-4세대-한눈에-정리/",
+        "https://www.cardif.co.kr/life-stage/5th-generation-indemnity-insurance-2026.do"
+      ]
+    },
+    {
+      "generation": 5,
+      "label": "5세대",
+      "applies_to": ["standard"],
+      "effective_from": "2026-05-06",
+      "effective_to": null,
+      "verified": true,
+      "sources": ["https://www.cardif.co.kr/life-stage/5th-generation-indemnity-insurance-2026.do"],
+      "_주의": "2026-05-06 출시, 손보 9·생보 7 총 16개사. 프로젝트 초기에 별도로 확인한 사실과 일치한다."
+    }
+  ],
+  "variant_markers": {
+    "contract_conversion": ["[계약전환용]", "계약전환용"],
+    "conversion_resume": ["[전환·재개용]", "[전환.재개용]", "전환·재개용"],
+    "child_conversion": ["[자녀보험전환용]", "자녀보험전환용"]
+  }
+}

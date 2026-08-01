@@ -1,0 +1,370 @@
+<!-- 시스템 구성요소 지도 -->
+<title>시스템 구성요소 지도 — 보장 사전검토</title>
+<style>
+:root{
+  --bg:#F6F7F9; --surface:#FFFFFF; --surface-2:#EEF1F4;
+  --ink:#141922; --ink-2:#4C5768; --ink-3:#7C8798;
+  --line:#DDE2E8; --line-2:#C6CDD6;
+  --accent:#12655F; --accent-soft:#E2EFED;
+  --warn:#9A4A12; --warn-soft:#F8EDE2;
+  --danger:#97262B; --danger-soft:#F9E7E7;
+  --ok:#2C6138;
+  --mono:"Consolas",ui-monospace,"SFMono-Regular",monospace;
+  --sans:-apple-system,"Segoe UI","Malgun Gothic","맑은 고딕",system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#0F131A; --surface:#161C25; --surface-2:#1D242F;
+    --ink:#E8ECF2; --ink-2:#A8B3C2; --ink-3:#77828F;
+    --line:#28313D; --line-2:#3A4552;
+    --accent:#5FCFC4; --accent-soft:#12312F;
+    --warn:#E0A268; --warn-soft:#33261A;
+    --danger:#E88A8E; --danger-soft:#331E20;
+    --ok:#7FC08D;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F131A; --surface:#161C25; --surface-2:#1D242F;
+  --ink:#E8ECF2; --ink-2:#A8B3C2; --ink-3:#77828F;
+  --line:#28313D; --line-2:#3A4552;
+  --accent:#5FCFC4; --accent-soft:#12312F;
+  --warn:#E0A268; --warn-soft:#33261A;
+  --danger:#E88A8E; --danger-soft:#331E20;
+  --ok:#7FC08D;
+}
+:root[data-theme="light"]{
+  --bg:#F6F7F9; --surface:#FFFFFF; --surface-2:#EEF1F4;
+  --ink:#141922; --ink-2:#4C5768; --ink-3:#7C8798;
+  --line:#DDE2E8; --line-2:#C6CDD6;
+  --accent:#12655F; --accent-soft:#E2EFED;
+  --warn:#9A4A12; --warn-soft:#F8EDE2;
+  --danger:#97262B; --danger-soft:#F9E7E7;
+  --ok:#2C6138;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.65;
+  -webkit-font-smoothing:antialiased;margin:0}
+.wrap{max-width:1040px;margin:0 auto;padding:56px 24px 96px;display:flex;flex-direction:column;gap:44px}
+h1,h2,h3{text-wrap:balance;margin:0;line-height:1.25}
+p{margin:0}
+code,.mono{font-family:var(--mono);font-size:.88em}
+
+.hd{display:flex;flex-direction:column;gap:16px;border-bottom:2px solid var(--ink);padding-bottom:26px}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);font-weight:700}
+.hd h1{font-size:clamp(28px,4.6vw,46px);font-weight:800;letter-spacing:-.022em}
+.hd .lede{font-size:clamp(15px,1.9vw,18px);color:var(--ink-2);max-width:62ch}
+.facts{display:flex;flex-wrap:wrap;gap:10px 26px;font-family:var(--mono);font-size:12.5px;color:var(--ink-3)}
+.facts b{color:var(--ink);font-weight:700}
+
+.delta{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(210px,100%),1fr));gap:14px}
+.dcard{background:var(--surface);border:1px solid var(--line);border-radius:3px;padding:16px 18px;
+  display:flex;flex-direction:column;gap:6px}
+.dcard .n{font-family:var(--mono);font-size:27px;font-weight:700;letter-spacing:-.03em}
+.dcard .k{font-size:12.5px;color:var(--ink-3);font-family:var(--mono);letter-spacing:.06em}
+.dcard .d{font-size:13.5px;color:var(--ink-2)}
+.dcard.hot{border-color:var(--accent);border-left-width:4px}
+.dcard.hot .n{color:var(--accent)}
+
+.sec{display:flex;flex-direction:column;gap:18px}
+.sec > h2{font-size:20px;font-weight:800;letter-spacing:-.01em;display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.sec > h2 .tag{font-family:var(--mono);font-size:11.5px;letter-spacing:.14em;color:var(--ink-3);
+  text-transform:uppercase;font-weight:600}
+
+.layer{display:grid;grid-template-columns:78px 1fr;background:var(--surface);
+  border:1px solid var(--line);border-radius:3px;overflow:hidden}
+.layer + .layer{margin-top:-1px}
+.lspine{background:var(--surface-2);border-right:1px solid var(--line);
+  padding:18px 10px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.lspine .lid{font-family:var(--mono);font-size:19px;font-weight:800;letter-spacing:-.02em;color:var(--ink-2)}
+.lspine .own{font-size:15px;letter-spacing:-.04em;color:var(--ink-3)}
+.lbody{padding:18px 20px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.lhead{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px}
+.lhead h3{font-size:16.5px;font-weight:800;letter-spacing:-.01em}
+.lhead .sub{font-size:13px;color:var(--ink-3)}
+.new{font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.1em;
+  background:var(--accent);color:var(--bg);padding:3px 7px;border-radius:2px;text-transform:uppercase}
+.layer.isnew{border-left:4px solid var(--accent)}
+.layer.isnew .lspine{background:var(--accent-soft)}
+.layer.isnew .lspine .lid{color:var(--accent)}
+
+.comps{display:flex;flex-direction:column}
+.c{display:grid;grid-template-columns:30px 1fr auto;gap:12px;align-items:baseline;
+  padding:9px 0;border-top:1px dashed var(--line)}
+.c:first-child{border-top:0}
+.c .num{font-family:var(--mono);font-size:12px;color:var(--ink-3);font-weight:600}
+.c .name{font-weight:700;font-size:14.5px}
+.c .why{display:block;font-weight:400;font-size:13.2px;color:var(--ink-2);margin-top:2px}
+.c.star .name::before{content:"★ ";color:var(--accent)}
+.c.risk .name::before{content:"⚠ ";color:var(--warn)}
+.b{font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.08em;padding:3px 7px;
+  border-radius:2px;white-space:nowrap;border:1px solid var(--line-2);color:var(--ink-3)}
+.b.mvp{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+.b.part{background:var(--warn-soft);color:var(--warn);border-color:transparent}
+
+.call{border:1px solid var(--line);border-left:4px solid var(--warn);background:var(--surface);
+  border-radius:3px;padding:20px 22px;display:flex;flex-direction:column;gap:14px}
+.call.red{border-left-color:var(--danger)}
+.call h3{font-size:16.5px;font-weight:800}
+.call .kicker{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--warn);font-weight:700}
+.call.red .kicker{color:var(--danger)}
+.call p{font-size:14px;color:var(--ink-2)}
+.call strong{color:var(--ink)}
+.call em{font-style:normal;color:var(--accent);font-weight:700}
+.rows{display:flex;flex-direction:column;gap:9px}
+.row{display:grid;grid-template-columns:160px 1fr;gap:14px;font-size:13.6px;
+  padding-top:9px;border-top:1px dashed var(--line)}
+.row:first-child{border-top:0;padding-top:0}
+.row b{color:var(--ink)}
+.row span{color:var(--ink-2)}
+.flow{font-family:var(--mono);font-size:12.5px;background:var(--surface-2);border:1px solid var(--line);
+  border-radius:3px;padding:14px 16px;overflow-x:auto;white-space:pre;color:var(--ink-2);line-height:1.8}
+.flow .no{color:var(--danger);font-weight:700}
+.flow .yes{color:var(--ok);font-weight:700}
+
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:3px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:560px}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--surface-2);font-size:11.5px;font-family:var(--mono);letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-3);font-weight:700}
+tr:last-child td{border-bottom:0}
+td.k{font-family:var(--mono);font-weight:700;color:var(--ink);white-space:nowrap}
+
+.fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(230px,100%),1fr));gap:9px}
+.f code{overflow-wrap:anywhere}
+.f{background:var(--surface-2);border:1px solid var(--line);border-radius:2px;padding:9px 12px}
+.f code{color:var(--accent);font-weight:700}
+.f em{display:block;font-style:normal;font-size:12.6px;color:var(--ink-2);margin-top:2px}
+
+.own-legend{display:flex;flex-wrap:wrap;gap:8px}
+.ow{background:var(--surface);border:1px solid var(--line);border-radius:2px;padding:7px 11px;font-size:13px}
+.ow b{font-size:14px}
+
+footer{border-top:1px solid var(--line);padding-top:20px;color:var(--ink-3);font-size:13px;
+  display:flex;flex-direction:column;gap:7px}
+@media (max-width:620px){
+  .layer{grid-template-columns:1fr}
+  .lspine{flex-direction:row;justify-content:flex-start;gap:12px;border-right:0;
+    border-bottom:1px solid var(--line);padding:10px 16px}
+  .c{grid-template-columns:26px 1fr}
+  .c .b{grid-column:2}
+  .row{grid-template-columns:1fr}
+}
+</style>
+
+<div class="wrap">
+
+<header class="hd">
+  <div class="eyebrow">보장 사전검토 · 시스템 분해</div>
+  <h1>구성요소 지도 — 7개 층, 25개 파트</h1>
+  <p class="lede">팀 논의에서 나온 6개 파트를 확장·교정한 결과다. <strong>두 개 층이 통째로 빠져 있었고</strong>,
+     그 두 층이 이 서비스를 약관 챗봇과 구분해 주는 부분이다.</p>
+  <div class="facts">
+    <span>작성 <b>2026-07-31</b></span>
+    <span>층 <b>7</b></span>
+    <span>구성요소 <b>25</b></span>
+    <span>담당 <b>5명</b></span>
+    <span>MVP 대상 <b>23</b></span>
+  </div>
+</header>
+
+<section class="sec">
+  <h2>처음 6개 → 지금 25개 <span class="tag">무엇이 늘었나</span></h2>
+  <div class="delta">
+    <div class="dcard"><span class="n">6</span><span class="k">처음 나온 파트</span>
+      <span class="d">상호작용 RAG · 약관 RAG · 통합 서버 · 에이전트 API · 전처리 · 프론트엔드</span></div>
+    <div class="dcard hot"><span class="n">+2</span><span class="k">빠져 있던 층</span>
+      <span class="d"><b>L3 판정</b>과 <b>L4 사실 축적</b>. 없으면 이 서비스는 검색 서비스가 된다</span></div>
+    <div class="dcard hot"><span class="n">+1</span><span class="k">위치가 틀린 것</span>
+      <span class="d">상호작용 RAG는 지식층(L2)이 아니라 <b>운영층(L6)</b>이다</span></div>
+    <div class="dcard"><span class="n">+11</span><span class="k">횡단 · 운영</span>
+      <span class="d">인증 · 동의/삭제 · 감사로그 · 레이트리밋 · 오류계약 · 평가 하니스 등</span></div>
+  </div>
+  <div class="own-legend">
+    <span class="ow"><b>①</b> 판정 코어</span>
+    <span class="ow"><b>②</b> 약관 파이프라인</span>
+    <span class="ow"><b>③</b> 집계 · 거버넌스</span>
+    <span class="ow"><b>④</b> 계약 · 통합 · 릴리스</span>
+    <span class="ow"><b>⑤</b> 화면 · 필수기능</span>
+  </div>
+</section>
+
+<section class="sec">
+  <h2>층위 <span class="tag">아래에서 위로 — 문서가 사실이 되고, 사실이 답이 된다</span></h2>
+
+  <div class="layer">
+    <div class="lspine"><span class="lid">L1</span><span class="own">②</span></div>
+    <div class="lbody">
+      <div class="lhead"><h3>수집 · 전처리</h3><span class="sub">문서를 들여오고, 그게 무엇인지 확정한다</span></div>
+      <div class="comps">
+        <div class="c"><span class="num">01</span><span><span class="name">문서 인제스천 · 전처리</span>
+          <span class="why">PDF 파싱 · OCR · 청킹 · 정규화</span></span><span class="b mvp">MVP</span></div>
+        <div class="c star"><span class="num">02</span><span><span class="name">문서 식별</span>
+          <span class="why">이 PDF가 어느 보험사 · 상품 · 몇 세대 · 시행일 언제인가. <b>받아오는 것보다 훨씬 어렵다.</b> 모호하면 <code>Ambiguous</code>로 격리해 사람이 확정</span></span><span class="b mvp">MVP</span></div>
+        <div class="c"><span class="num">03</span><span><span class="name">KCD 정규화</span>
+          <span class="why">코드 문자열만 저장하면 안 된다. <b>KCD 버전을 함께</b> 저장하고 구 · 신버전을 매핑</span></span><span class="b mvp">MVP</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="layer">
+    <div class="lspine"><span class="lid">L2</span><span class="own">②</span></div>
+    <div class="lbody">
+      <div class="lhead"><h3>지식</h3><span class="sub">근거로 인용해도 되는 것만 여기 있다</span></div>
+      <div class="comps">
+        <div class="c"><span class="num">04</span><span><span class="name">약관 RAG</span>
+          <span class="why">조항과 <b>면책조건을 함께</b> 반환 · locator 제공 · 근거가 부족하면 답하지 않는다(abstain)</span></span><span class="b mvp">MVP</span></div>
+        <div class="c"><span class="num">05</span><span><span class="name">신선도 게이트</span>
+          <span class="why">만료된 약관으로는 답하지 않는다. 5세대가 2026-05에 나온 도메인이다 — 약관은 지금도 바뀐다</span></span><span class="b mvp">MVP</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="layer isnew">
+    <div class="lspine"><span class="lid">L3</span><span class="own">①</span></div>
+    <div class="lbody">
+      <div class="lhead"><h3>판정</h3><span class="new">빠져 있던 층</span>
+        <span class="sub">검색으로는 절대 나오지 않는 것</span></div>
+      <div class="comps">
+        <div class="c"><span class="num">06</span><span><span class="name">적용 약관 버전 확정</span>
+          <span class="why">가입일 · 사고일 · 상품 · 특약으로 <b>어느 버전이 적용되는지</b> 결정. 현행판을 구계약에 대입하면 그건 폴백이고 오답의 직접 원인</span></span><span class="b mvp">MVP</span></div>
+        <div class="c star"><span class="num">07</span><span><span class="name">결정적 규칙엔진</span>
+          <span class="why">날짜 · 면책기간 · 특약 가입 여부 · 보장한도는 <b>LLM이 아니라 코드로 계산</b>한다</span></span><span class="b mvp">MVP</span></div>
+        <div class="c"><span class="num">08</span><span><span class="name">4단 판정 + 부족서류</span>
+          <span class="why">보장 가능성 높음 / 낮음 / 추가서류 필요 / 전문가 검토 필요. <b>이진 판정 금지</b></span></span><span class="b mvp">MVP</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="layer isnew">
+    <div class="lspine"><span class="lid">L4</span><span class="own">①③</span></div>
+    <div class="lbody">
+      <div class="lhead"><h3>사실 축적</h3><span class="new">빠져 있던 층 · 제품 코어</span>
+        <span class="sub">"몇 %가 몇 명에게"가 나오는 유일한 곳</span></div>
+      <div class="comps">
+        <div class="c star"><span class="num">09</span><span><span class="name">증빙 검수 파이프라인</span>
+          <span class="why"><code>submitted → consistent → verified / rejected</code>. <b>정합성 통과는 사실 확인이 아니다</b> — 정합적인 위조 문서도 통과한다</span></span><span class="b mvp">MVP</span></div>
+        <div class="c"><span class="num">10</span><span><span class="name">도메인 저장소</span>
+          <span class="why"><code>Case – PolicyVersion – Claim – Outcome – Evidence</code></span></span><span class="b mvp">MVP</span></div>
+        <div class="c"><span class="num">11</span><span><span class="name">코호트 집계 엔진</span>
+          <span class="why">표본수 · 불확실성 · 수집경로를 <b>함께</b> 반환 · 최소표본 게이트 · 생존편향 경고</span></span><span class="b mvp">MVP</span></div>
+        <div class="c star"><span class="num">12</span><span><span class="name">합성 / 실제 물리 분리</span>
+          <span class="why">저장 · 권한 · 집계뷰 · API를 전부 분리. <b>UNION 금지.</b> 이게 없으면 통계를 화면에 띄울 자격이 없다</span></span><span class="b mvp">MVP</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="layer">
+    <div class="lspine"><span class="lid">L5</span><span class="own">④⑤</span></div>
+    <div class="lbody">
+      <div class="lhead"><h3>인터페이스</h3><span class="sub">에이전트에게 하나, 사람에게 하나</span></div>
+      <div class="comps">
+        <div class="c"><span class="num">13</span><span><span class="name">통합 서버 · 오케스트레이션</span>
+          <span class="why">각 층을 포트로 조립. <b>판정 로직이 여기로 새면 안 된다</b></span></span><span class="b mvp">MVP</span></div>
+        <div class="c"><span class="num">14</span><span><span class="name">에이전트 API</span>
+          <span class="why">OpenAPI · <code>llms.txt</code> · MCP 도구 3종(사전검토 · 코호트조회 · 증빙제출). 10종 parity와 A2A 위임은 후순위</span></span><span class="b mvp">MVP</span></div>
+        <div class="c star"><span class="num">15</span><span><span class="name">기계가 읽는 불확실성 응답 계약</span>
+          <span class="why">처음 목록에 없었지만 <b>이게 없으면 포지셔닝이 무너진다</b> — 아래 경고 2 참조</span></span><span class="b mvp">MVP</span></div>
+        <div class="c"><span class="num">16</span><span><span class="name">프론트엔드 CS · 결과 화면</span>
+          <span class="why">근거 사슬이 <b>한 화면에서</b> 이어져야 한다. 이 화면 하나가 제품 설명서다</span></span><span class="b mvp">MVP</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="layer">
+    <div class="lspine"><span class="lid">L6</span><span class="own">③⑤</span></div>
+    <div class="lbody">
+      <div class="lhead"><h3>운영</h3><span class="sub">사람이 개입하는 지점</span></div>
+      <div class="comps">
+        <div class="c"><span class="num">17</span><span><span class="name">관리자 콘솔</span>
+          <span class="why">증빙 교차검증(= <code>verified</code> 승격의 유일한 경로) · <code>Ambiguous</code> 문서 검수 · 지식갭 큐</span></span><span class="b mvp">MVP</span></div>
+        <div class="c"><span class="num">18</span><span><span class="name">관리자 보고서</span>
+          <span class="why">검수 · 집계 결과의 읽기 전용 출력. 개인 원문 제외</span></span><span class="b mvp">MVP</span></div>
+        <div class="c risk"><span class="num">19</span><span><span class="name">상호작용 로그 · 지식갭 인덱스</span>
+          <span class="why">처음 목록의 ①번. <b>지식층이 아니라 여기다</b> — 아래 경고 1 참조</span></span><span class="b part">일부</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="layer">
+    <div class="lspine"><span class="lid">L7</span><span class="own">③④⑤</span></div>
+    <div class="lbody">
+      <div class="lhead"><h3>횡단 관심사</h3><span class="sub">모든 층을 관통한다 — 처음 목록엔 하나도 없었다</span></div>
+      <div class="comps">
+        <div class="c"><span class="num">20</span><span><span class="name">인증 · RBAC · 얼굴 2FA 게이트</span>
+          <span class="why">민감자료 접근 통제. 2FA 실패 시 <b>명시적 대체 인증</b>(조용한 통과 금지)</span></span><span class="b mvp">MVP</span></div>
+        <div class="c"><span class="num">21</span><span><span class="name">동의 · 보존기간 · 삭제 경로</span>
+          <span class="why">처방전 · 음성 · 영상 · 얼굴 <b>원본은 보존하지 않는다</b></span></span><span class="b mvp">MVP</span></div>
+        <div class="c star"><span class="num">22</span><span><span class="name">감사로그</span>
+          <span class="why"><b>누가 언제 무엇을 <code>verified</code>로 바꿨나.</b> 이 서비스에서 가장 중요한 로그</span></span><span class="b mvp">MVP</span></div>
+        <div class="c star"><span class="num">23</span><span><span class="name">에이전트 신원 · 레이트리밋 · 남용 방지</span>
+          <span class="why">에이전트는 사람보다 <b>수백 배 빠르게</b> 호출한다. 사람 기준 제한은 무의미. 대량 조회로 분포를 역추론해 개인을 특정하는 것도 막아야 한다</span></span><span class="b part">일부</span></div>
+        <div class="c"><span class="num">24</span><span><span class="name">오류 계약 · 관측성</span>
+          <span class="why"><code>ConfigError</code> / <code>InfraError</code> / <code>ValidationErr</code>를 API까지 전파. <b>폴백 · 예외 삼키기 금지</b></span></span><span class="b mvp">MVP</span></div>
+        <div class="c"><span class="num">25</span><span><span class="name">평가 · 회귀 하니스</span>
+          <span class="why">골든 케이스 6종을 CI에서 차단 — 면책 누락 · 구약관 혼합 · <code>consistent</code> 집계 시도 · 근거 없음 · 소표본 · 합성/실제 혼합</span></span><span class="b mvp">MVP</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec">
+  <h2>경고 둘 <span class="tag">여기서 틀리면 제품 주장이 무너진다</span></h2>
+
+  <div class="call red">
+    <span class="kicker">경고 1 · 위치</span>
+    <h3>상호작용 RAG는 <em>지식</em>이 아니라 <em>신호</em>다</h3>
+    <p>에이전트가 소통하며 쌓이는 정보를 검색 가능하게 만드는 건 맞다. 다만
+       <strong>약관 RAG와 같은 층에 두면 제품이 무너진다.</strong></p>
+    <div class="rows">
+      <div class="row"><b>순환 참조</b><span>우리가 생성한 답변이 색인에 들어가고 다음 질문의 근거로 다시 인용된다. <b>근거의 출처가 우리 자신</b>이 된다</span></div>
+      <div class="row"><b>코퍼스 오염</b><span>주 고객이 외부 에이전트다. 상호작용이 그대로 색인되면 <b>외부에서 우리 지식베이스에 텍스트를 심을 수 있다</b></span></div>
+      <div class="row"><b>사실성 착시</b><span>같은 질문이 500번 들어왔다는 건 <b>그 답이 맞다는 뜻이 아니다.</b> 빈도를 신뢰도로 착각하기 쉽다</span></div>
+    </div>
+    <div class="flow">상호작용 로그 ─┬─<span class="yes">→</span> 운영 신호   못 답한 것 · 많이 온 질문 · abstain 지점
+               │        └→ 지식갭 큐 → 사람 검수 → FAQ 승격 → 그때 L2 진입
+               └─<span class="no">✗</span> 판정 근거 인용   ← 금지</div>
+    <p><code>consistent</code>가 <code>verified</code>가 아니듯, <strong>자주 물어본 것이 사실은 아니다.</strong> 같은 원칙이다.</p>
+  </div>
+
+  <div class="call">
+    <span class="kicker">경고 2 · 응답 계약</span>
+    <h3>주 고객이 에이전트면 API를 여는 것으로 끝나지 않는다</h3>
+    <p>사람은 화면 구석의 "표본 12건" 회색 글씨를 보고 <strong>알아서 감안</strong>한다.
+       <strong>에이전트는 필드가 없으면 그냥 무시하고, 자기 사용자에게 단정적으로 전달한다.</strong>
+       그래서 불확실성은 문장이 아니라 <strong>필드</strong>여야 한다.</p>
+    <div class="fields">
+      <div class="f"><code>data_source</code><em>synthetic / verified_real — 최우선</em></div>
+      <div class="f"><code>n</code> · <code>min_sample_met</code><em>표본수와 최소표본 충족 여부</em></div>
+      <div class="f"><code>verification_method</code><em>무엇으로 검증했나 (admin_review 등)</em></div>
+      <div class="f"><code>abstained</code> · <code>abstain_reason</code><em>안 한 것과 못 한 것의 구분</em></div>
+      <div class="f"><code>missing_documents</code><em>무엇이 더 있어야 판정되나</em></div>
+      <div class="f"><code>as_of</code> · <code>policy_version</code><em>언제 기준 · 어느 약관 버전</em></div>
+      <div class="f"><code>warnings[]</code><em>생존편향 · 선택편향 등</em></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec">
+  <h2>4주 MVP 범위 <span class="tag">25개를 다 만드는 게 아니다</span></h2>
+  <div class="tw"><table>
+    <thead><tr><th>층</th><th>MVP에 들어가는 것</th><th>후순위</th></tr></thead>
+    <tbody>
+      <tr><td class="k">L1</td><td>전처리 · 식별(소수 문서) · KCD 정규화</td><td>대량 수집(S7) · Ambiguous 검수도구 고도화</td></tr>
+      <tr><td class="k">L2</td><td>약관 RAG(좁은 코퍼스) · 신선도 게이트</td><td>다중 백엔드 비교 · 파인튜닝</td></tr>
+      <tr><td class="k">L3</td><td><b>전부</b></td><td>—</td></tr>
+      <tr><td class="k">L4</td><td><b>전부</b></td><td>실제 코호트 모집 · 층화 보정</td></tr>
+      <tr><td class="k">L5</td><td>통합서버 · OpenAPI · llms.txt · MCP 3종 · 응답계약 · 화면 1개</td><td>MCP 10종 parity · A2A 위임</td></tr>
+      <tr><td class="k">L6</td><td>관리자 교차검증 · 보고서 최소 · 로그 수집/지식갭 큐</td><td>상호작용 검색 UX</td></tr>
+      <tr><td class="k">L7</td><td>인증 · RBAC · 2FA · 동의/삭제 · 감사로그 · 오류계약 · 골든케이스</td><td>레이트리밋 정교화 · 남용 탐지</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<footer>
+  <p>이 지도는 <b>구성요소 목록</b>이지 설계서가 아니다. 각 요소의 포트 시그니처는 P0에서 확정한다.</p>
+  <p>25개는 4주에 다 만드는 목록이 <b>아니다.</b> 위 표의 MVP 열만 4주 대상이다.</p>
+  <p class="mono">근거 문서: docs/plans/2026-07-31_1700_시스템_구성요소_지도.md · 2026-07-31_1600_MVP_기능선정.md · 2026-07-31_1500_팀_역할분담_계획.md</p>
+</footer>
+
+</div>

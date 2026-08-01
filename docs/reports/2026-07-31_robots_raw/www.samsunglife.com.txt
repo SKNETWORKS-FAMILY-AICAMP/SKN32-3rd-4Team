@@ -1,0 +1,8 @@
+# source: https://www.samsunglife.com/robots.txt
+# fetched_at: 2026-07-31T01:06:38+00:00
+# http: HTTP 200
+# sha256: 698031218f8652ec8f6a64e33a0fdf7a86658329a3c71ed43faab25cfeedbd9f
+# ---- 이하 원문(수정 없음) ----
+User-agent: *
+Allow: /
+Sitemap: https://www.samsunglife.com/gw/sitemap.xml
