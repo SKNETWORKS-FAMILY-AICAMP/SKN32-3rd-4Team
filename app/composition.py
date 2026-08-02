@@ -6,6 +6,8 @@ Phase 1: RAG 질문 유스케이스를 FAISS 검색 + 레지스트리 모델 게
 
 from __future__ import annotations
 
+import os
+
 from app.adapters.faiss_retriever import FaissRetriever
 from app.adapters.llm_gateway import LlmGateway
 from app.application.answer_question import AnswerQuestion
@@ -91,14 +93,35 @@ def build_hybrid_answer_question(top_k: int | None = None, rerank: bool = False)
     return AnswerQuestion(retriever=retriever, model=model, top_k=top_k)
 
 
+#: 조항을 어디서 읽을 것인가. `file`(추출 산출물) | `pg`(인덱스 A).
+#:
+#: ★기본은 `file` 이다. 인덱스 A 적재는 CPU 로 4~5시간 걸리는 긴 작업이라
+#:   기계마다 상태가 다르다. **없는 것을 있는 척하지 않는다** —
+#:   PG 를 쓰려면 `CLAUSE_STORE=pg` 로 **명시**한다.
+_CLAUSE_STORE = os.getenv("CLAUSE_STORE", "file").strip().lower()
+
+
 def build_precheck():
     """보장 사전판정에 쓸 어댑터 묶음.
 
     ★구체 구현을 고르는 것은 **조립 지점의 일**이다.
       라우터가 어댑터를 직접 import 하면 "어느 저장소를 쓰는가"가
-      HTTP 계층에 흩어진다. DB 적재가 끝나면 여기 두 줄만 바꾸면 된다.
+      HTTP 계층에 흩어진다.
+
+    ★조항 저장소는 두 구현이 **같은 포트**를 만족한다.
+        file  data/structured/…  추출 산출물을 직접 읽는다(불변·재생성 근거)
+        pg    인덱스 A            내용 한 벌 + 발생 여러 벌 (중복 65.4% 해소)
+      통합 저장소를 파일로 또 만들지 않는다 — 같은 본문이 세 곳에 생기면
+      어긋났을 때 무엇이 맞는지 판단할 근거가 없어진다.
     """
-    from app.adapters import file_clause_store, manifest_policy_resolver
+    from app.adapters import manifest_policy_resolver
+
+    if _CLAUSE_STORE == "pg":
+        from app.adapters import pg_clause_store
+
+        return {"policies": manifest_policy_resolver, "clauses": pg_clause_store}
+
+    from app.adapters import file_clause_store
 
     return {"policies": manifest_policy_resolver, "clauses": file_clause_store}
 

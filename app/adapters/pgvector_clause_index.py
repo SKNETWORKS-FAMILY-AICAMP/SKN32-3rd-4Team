@@ -178,7 +178,13 @@ def search(
         ORDER BY distance
         LIMIT %(k)s
     """
-    params = {"q": query_vec, "k": limit, "shas": sha256s}
+    #: ★파이썬 리스트를 그냥 넘기면 `double precision[]` 로 가서
+    #:   `operator does not exist: vector <-> double precision[]` 로 죽는다.
+    #:   `register_vector()` 가 알아보는 것은 **numpy 배열**이다.
+    import numpy as np
+
+    q = np.asarray(query_vec, dtype=np.float32)
+    params = {"q": q, "k": limit, "shas": sha256s}
     with conn.cursor() as cur:
         cur.execute(sql, params)
         return [ClauseHit(*row) for row in cur.fetchall()]

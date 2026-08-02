@@ -12,9 +12,12 @@
 
 ★재개 가능하다
 
-    이미 들어간 `content_hash` 는 건너뛴다. 27분짜리 작업이 중간에 끊겨도
-    처음부터 다시 하지 않는다. 끊긴 것을 모르고 "다 됐다"고 하지 않기 위해
-    **끝에 현황을 다시 세어 출력한다.**
+    이미 들어간 `content_hash` 는 건너뛴다. 중간에 끊겨도 처음부터 다시 하지 않는다.
+    끊긴 것을 모르고 "다 됐다"고 하지 않기 위해 **끝에 현황을 다시 세어 출력한다.**
+
+    ★긴 작업이다. 실측(이 기계, CPU 전용): 조각 **132,535개** · 초당 7~9개 →
+      **4~5시간**. GPU 가 없어 어쩔 수 없다. 부풀려 말하지 않는다 —
+      "곧 끝난다"고 하면 다음 사람이 중간 결과를 완성본으로 오해한다.
 
 ★건너뛴 것을 **센다**
 
@@ -125,6 +128,21 @@ def main(argv: list[str] | None = None) -> int:
     if not todo:
         print(json.dumps(ix.stats(conn), ensure_ascii=False, indent=2))
         return 0
+
+    #: ★스레드를 다 쓴다. torch 기본값은 **물리 코어 수**라 8코어 기계에서 4개만 썼다.
+    #:   임베딩이 이 작업의 전부이므로 여기서 20~30%가 갈린다.
+    try:
+        import os as _os
+
+        import torch
+
+        n = _os.cpu_count() or 1
+        if torch.get_num_threads() < n:
+            torch.set_num_threads(n)
+            print(f"[임베딩] torch 스레드 {n}개로 올림", flush=True)
+    except Exception as exc:  # noqa: BLE001
+        #: ★조용히 넘어가지 않는다. 느린 이유를 나중에 못 찾게 된다.
+        print(f"[임베딩] 스레드 조정 실패(그대로 진행): {exc}", flush=True)
 
     from app.rag.embeddings import get_embeddings
 
