@@ -66,17 +66,75 @@ _MODEL_ID_PATTERNS = [
 _NEW_CODE_DIRS = [_APP / "application", _APP / "adapters"]
 
 
+def _code_only(source: str) -> str:
+    """주석과 문서화 문자열을 **뺀** 소스만 돌려준다.
+
+    ★설명문에 적힌 모델 이름은 하드코딩이 아니다.
+
+        `pgvector_clause_index.py` 주석에 "지금 모델의 최대 입력이 512인 줄 알았는데
+        실제로는 128이었다"는 **결함 기록**을 적었더니 이 가드가 잡았다.
+        지우면 다음 사람이 같은 함정을 다시 밟는다 —
+        **규칙이 기록을 죽이면 안 된다**(`ARCH-004` 에서도 같은 결정을 했다).
+
+    ★그렇다고 느슨해지지 않는다. 주석은 실행되지 않으므로 모델을 고를 수 없다.
+      실제 하드코딩(변수 대입·함수 인자)은 그대로 잡힌다.
+    """
+    import ast
+
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return source
+
+    #: 문서화 문자열이 차지하는 줄을 모은다.
+    doc_lines: set[int] = set()
+    for node in ast.walk(tree):
+        if not isinstance(
+            node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
+        ):
+            continue
+        body = getattr(node, "body", None)
+        if not body:
+            continue
+        first = body[0]
+        if isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant):
+            if isinstance(first.value.value, str):
+                doc_lines.update(range(first.lineno, (first.end_lineno or first.lineno) + 1))
+
+    kept: list[str] = []
+    for i, line in enumerate(source.splitlines(), 1):
+        if i in doc_lines:
+            continue
+        #: 줄 주석(전체 줄 · 꼬리 주석 모두)을 잘라 낸다.
+        #: 문자열 안의 `#` 까지 정확히 가리려면 토큰화가 필요하지만,
+        #: 모델 ID 가 `#` 뒤 문자열 안에 숨는 경우는 없다 — 과하게 복잡해질 뿐이다.
+        cut = line.find("#")
+        kept.append(line if cut < 0 else line[:cut])
+    return "\n".join(kept)
+
+
 def test_llm_reg_002_no_hardcoded_model_ids_in_new_code():
     """휴리스틱: 신 Clean Arch 코드(application/adapters)에 리터럴 모델ID 0.
 
     한계(정직): 동적 조합·미등록 패턴·범위 밖 디렉터리는 못 잡는다. 전면 보장은 legacy 수렴
     (Phase 8) + 이 스캔의 지속 보강으로 달성한다.
+    ★주석·문서화 문자열은 검사하지 않는다 — 실행되지 않으므로 모델을 고를 수 없다.
     """
     offenders: list[str] = []
     for root in _NEW_CODE_DIRS:
         for py in root.rglob("*.py"):
-            text = py.read_text(encoding="utf-8")
+            code = _code_only(py.read_text(encoding="utf-8"))
             for pat in _MODEL_ID_PATTERNS:
-                for m in re.finditer(pat, text, re.IGNORECASE):
+                for m in re.finditer(pat, code, re.IGNORECASE):
                     offenders.append(f"{py.name}: '{m.group(0)}'")
     assert offenders == [], f"신 코드에 하드코딩 모델ID: {offenders}"
+
+
+def test_주석_제외가_실제_하드코딩까지_눈감지_않는다():
+    """★가드를 느슨하게 했으면 **여전히 잡는지** 확인해야 한다."""
+    real = "MODEL = 'jhgan/ko-sroberta-multitask'\n"
+    doc = '"""설명: ko-sroberta 를 쓰던 때 128토큰에서 잘렸다."""\n'
+    comment = "#: ko-sroberta 는 128토큰이었다\n"
+    assert "sroberta" in _code_only(real)
+    assert "sroberta" not in _code_only(doc)
+    assert "sroberta" not in _code_only(comment)

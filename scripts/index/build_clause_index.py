@@ -15,9 +15,21 @@
     이미 들어간 `content_hash` 는 건너뛴다. 중간에 끊겨도 처음부터 다시 하지 않는다.
     끊긴 것을 모르고 "다 됐다"고 하지 않기 위해 **끝에 현황을 다시 세어 출력한다.**
 
-    ★긴 작업이다. 실측(이 기계, CPU 전용): 조각 **132,535개** · 초당 7~9개 →
-      **4~5시간**. GPU 가 없어 어쩔 수 없다. 부풀려 말하지 않는다 —
+    ★**조항 단위로 넣는다.** 처음엔 조각 256개씩 묶었는데, 한 조항의 조각이
+      배치 경계에 걸치면 중간에 죽었을 때 **반쪽이 남고**
+      다음 실행이 "이미 있다"고 건너뛴다. 실측(중단 지점): 내용 12,507개 중
+      2개가 그렇게 잘려 있었다. 이제 `n_chunks` 로 개수를 맞춰 본다.
+
+    ★긴 작업이다. 실측(2026-08-02, 이 기계 CPU 8스레드):
+      조항당 조각 **3.19** → 전량 약 **168,600조각** · 초당 8개 → **약 6시간**.
+      토큰 기준으로 바꾸면서 조각이 27% 늘었다(구 800자 방식 132,535).
+      GPU 라면 14~47분이다. 부풀려 말하지 않는다 —
       "곧 끝난다"고 하면 다음 사람이 중간 결과를 완성본으로 오해한다.
+
+    ★**`nohup` 으로 띄우지 마라.** 실제로 사고가 났다(2026-08-02) —
+      셸을 죽였는데 파이썬이 살아남아 **옛 코드로 계속 DB 에 썼다.**
+      스키마를 바꾼 뒤라 `n_chunks=0` 인 고아 조각 1,803개가 쌓였다.
+      끝낼 때는 프로세스를 직접 확인하고 죽인다.
 
 ★건너뛴 것을 **센다**
 
@@ -48,14 +60,25 @@ def _iter_docs(limit: int | None):
         yield p, json.loads(p.read_text(encoding="utf-8"))
 
 
-def _chunks(text: str, size: int, overlap: int) -> list[str]:
-    if len(text) <= size:
-        return [text]
-    out, i = [], 0
-    while i < len(text):
-        out.append(text[i : i + size])
-        i += size - overlap
-    return out
+def _token_counter():
+    """임베딩 모델의 **실제 토크나이저**로 센다.
+
+    ★글자 수로 세면 안 된다. `ko-sroberta` 의 한계는 **512토큰**인데
+      800자 조각의 1.4%가 그걸 넘어 뒤가 조용히 잘렸다(실측 2026-08-02).
+    """
+    from functools import lru_cache
+
+    from transformers import AutoTokenizer
+
+    from app.core.config import get_settings
+
+    tok = AutoTokenizer.from_pretrained(get_settings().ST_EMBEDDING_MODEL)
+
+    @lru_cache(maxsize=200_000)
+    def count(text: str) -> int:
+        return len(tok.encode(text, add_special_tokens=True))
+
+    return count
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -65,6 +88,8 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="인덱스 A 적재")
     ap.add_argument("--limit", type=int, default=0, help="문서 수 제한(맛보기)")
     ap.add_argument("--stats", action="store_true", help="현황만 출력")
+    ap.add_argument("--ignore-citation-gate", action="store_true",
+                    help="★구조 모순 문서도 색인한다. 끈 사실이 출력에 남는다")
     args = ap.parse_args(argv)
 
     conn = get_conn()
@@ -79,12 +104,29 @@ def main(argv: list[str] | None = None) -> int:
     texts: dict[str, str] = {}
     occurrences: list[tuple] = []
     n_docs = n_skip_doc = n_clause = n_skip_clause = 0
+    n_skip_cite = 0     # citation_eligible=false 로 건너뛴 문서
 
     for p, doc in _iter_docs(args.limit or None):
         status = doc.get("parse_status") or "unknown"
         if status != "ok":
             #: ★추출이 의심스러운 문서의 조항은 판정 근거가 될 수 없다.
             n_skip_doc += 1
+            continue
+        #: ★★`parse_status` 만으로는 부족하다. **축이 다르다.**
+        #:
+        #:   `parse_status` — 파싱이 됐나(길이·개수가 말이 되나)
+        #:   `citation_eligible` — **인용해도 되나**(조 경계가 서로 모순이 아닌가)
+        #:
+        #:   실측 반례 `16b227ff95b8`: `parse_status=ok` 인데
+        #:     · 조 번호가 `제4 → 제5 → 제4` 로 되돌아온다(본문이 앞 조로 오귀속)
+        #:     · `제27조(준용규정)` 이 붙임·질병분류표를 삼켰다
+        #:   그대로 색인하면 **KCD 코드가 잘못된 조항에 인용된다.**
+        #:
+        #:   ★신호의 precision 은 아직 검증되지 않았다(정답셋 없음). 그래서 이 게이트는
+        #:     **보수적**이다 — 지금 통과하는 문서는 161건뿐이다.
+        #:     `--ignore-citation-gate` 로 끌 수 있게 두되, **끈 사실을 출력에 남긴다.**
+        if not args.ignore_citation_gate and doc.get("citation_eligible") is False:
+            n_skip_cite += 1
             continue
         n_docs += 1
         src = doc.get("source") or {}
@@ -113,14 +155,21 @@ def main(argv: list[str] | None = None) -> int:
             )
 
     print(
-        f"[모음] ok 문서 {n_docs:,} (건너뜀 {n_skip_doc:,}) · "
+        f"[모음] 적재 대상 문서 {n_docs:,} · "
+        f"건너뜀: parse_status {n_skip_doc:,} + citation_eligible {n_skip_cite:,} · "
         f"조항 등장 {n_clause:,} → 고유 {len(texts):,} "
-        f"(내용/해시 없음 {n_skip_clause:,})",
+        f"(내용/해시 없음 {n_skip_clause:,})"
+        + ("  ★인용 게이트를 껐다(--ignore-citation-gate)" if args.ignore_citation_gate else ""),
         flush=True,
     )
 
     n_occ = ix.upsert_occurrences(conn, occurrences)
     print(f"[발생] {n_occ:,}행 새로 기록 (총 {len(occurrences):,}건 시도)", flush=True)
+
+    #: ★반쪽으로 남은 것을 먼저 지운다. 남겨 두면 검색에 잘린 본문이 올라온다.
+    dropped = ix.drop_incomplete(conn)
+    if dropped:
+        print(f"[정리] 미완성 조항 {dropped:,}개를 지우고 다시 넣는다", flush=True)
 
     done = ix.existing_hashes(conn)
     todo = [(h, t) for h, t in texts.items() if h not in done]
@@ -148,24 +197,51 @@ def main(argv: list[str] | None = None) -> int:
 
     embed = get_embeddings()
 
-    pending: list[tuple[str, int, str]] = []
+    #: ★**조항 단위**로 묶는다. 한 조항의 조각이 배치 경계에 걸치면
+    #:   중간에 죽었을 때 반쪽이 남는다.
+    count = _token_counter()
+    plan: list[tuple[str, str, list[str]]] = []
+    n_chunks_total = 0
     for h, body in todo:
-        for i, part in enumerate(_chunks(body, ix.CHUNK_SIZE, ix.CHUNK_OVERLAP)):
-            pending.append((h, i, part))
-    print(f"[임베딩] 조각 {len(pending):,}개", flush=True)
+        parts = ix.chunk_clause(body, count)
+        if not parts:
+            n_skip_clause += 1
+            continue
+        plan.append((h, body, parts))
+        n_chunks_total += len(parts)
+    print(
+        f"[임베딩] 조항 {len(plan):,}개 → 조각 {n_chunks_total:,}개 "
+        f"(토큰 예산 {ix.MAX_TOKENS}, 겹침 {ix.OVERLAP_TOKENS})",
+        flush=True,
+    )
 
     t0 = time.time()
     written = 0
-    for s in range(0, len(pending), _BATCH):
-        batch = pending[s : s + _BATCH]
-        vecs = embed.embed_documents([b[2] for b in batch])
-        written += ix.upsert_chunks(conn, [(b[0], b[1], b[2], v) for b, v in zip(batch, vecs)])
-        done_n = s + len(batch)
+    done_chunks = 0
+    i = 0
+    while i < len(plan):
+        #: 배치를 조각 수로 채우되 **조항을 쪼개지 않는다.**
+        batch: list[tuple[str, str, list[str]]] = []
+        size = 0
+        while i < len(plan) and (not batch or size + len(plan[i][2]) <= _BATCH):
+            batch.append(plan[i])
+            size += len(plan[i][2])
+            i += 1
+
+        flat = [(h, ci, len(parts), part)
+                for h, _, parts in batch
+                for ci, part in enumerate(parts)]
+        vecs = embed.embed_documents([f[3] for f in flat])
+        ix.upsert_content(conn, [(h, body, len(parts)) for h, body, parts in batch])
+        written += ix.upsert_chunks(
+            conn, [(f[0], f[1], f[2], f[3], v) for f, v in zip(flat, vecs)]
+        )
+        done_chunks += len(flat)
         el = time.time() - t0
-        rate = done_n / el if el else 0
-        left = (len(pending) - done_n) / rate if rate else 0
+        rate = done_chunks / el if el else 0
+        left = (n_chunks_total - done_chunks) / rate if rate else 0
         print(
-            f"  {done_n:,}/{len(pending):,} 조각 · {rate:.0f}/s · 남은 시간 {left/60:.1f}분",
+            f"  {done_chunks:,}/{n_chunks_total:,} 조각 · {rate:.0f}/s · 남은 시간 {left/60:.1f}분",
             flush=True,
         )
 

@@ -83,20 +83,23 @@ def _rows_to_clauses(rows) -> list[ClauseRow]:
 def load_clauses(sha256: str, *, usable_only: bool = True) -> list[ClauseRow]:
     """한 약관 문서의 조항 전부.
 
-    ★조각을 이어 붙여 본문을 복원한다. 겹친 부분은 한 번만 남긴다.
-    """
-    from app.adapters.pgvector_clause_index import CHUNK_OVERLAP
+    ★조각을 **이어 붙이지 않는다.** 본문 한 벌을 그대로 읽는다.
 
+        처음엔 조각을 이어 붙여 복원하려 했는데, 겹침이 **토큰 기준**이라
+        글자 수로 잘라 낼 수 없다. 복원을 추측으로 하면 근거 인용문이
+        미세하게 틀리고, 그건 인용 검증이 잡아내지 못한다.
+        `policy_clause_content` 에 원본을 한 벌 둔다(중복 없음).
+    """
     try:
         with _conn() as conn, conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT o.content_hash, c.chunk_ix, c.text,
+                SELECT o.content_hash, ct.text,
                        o.sha256, o.qualified_no, o.section, o.title, o.page_from, o.page_to
                 FROM policy_clause_occurrence o
-                JOIN policy_clause_chunk c ON c.content_hash = o.content_hash
+                JOIN policy_clause_content ct ON ct.content_hash = o.content_hash
                 WHERE o.sha256 = %s
-                ORDER BY o.page_from, o.qualified_no, c.chunk_ix
+                ORDER BY o.page_from, o.qualified_no
                 """,
                 (sha256,),
             )
@@ -109,22 +112,7 @@ def load_clauses(sha256: str, *, usable_only: bool = True) -> list[ClauseRow]:
             f"이 약관의 조항 산출물이 없습니다: {sha256[:12]}. "
             "인덱스 A 에 적재했는지 확인하세요(python -m scripts.index.build_clause_index)."
         )
-
-    #: 같은 (발생, 내용)의 조각들을 이어 붙인다.
-    merged: dict[tuple, list] = {}
-    for h, ix, text, sha, qno, section, title, pf, pt in fetched:
-        key = (h, sha, qno, pf)
-        if key not in merged:
-            merged[key] = [h, "", sha, qno, section, title, pf, pt]
-        body = merged[key][1]
-        #: ★겹침을 잘라 낸다. 그냥 붙이면 경계 문장이 두 번 나온다.
-        merged[key][1] = text if not body else body + text[CHUNK_OVERLAP:]
-
-    rows = [
-        (m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7])
-        for m in merged.values()
-    ]
-    return _rows_to_clauses(rows)
+    return _rows_to_clauses(fetched)
 
 
 def stats(sha256: str) -> dict:
@@ -161,15 +149,22 @@ def search(sha256: str, query: str, *, limit: int = 8) -> Sequence[ClauseRow]:
         with _conn() as conn, conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT DISTINCT ON (o.content_hash, o.qualified_no, o.page_from)
-                       o.content_hash, c.text, o.sha256, o.qualified_no,
-                       o.section, o.title, o.page_from, o.page_to,
-                       similarity(c.text, %(q)s) AS sim
-                FROM policy_clause_chunk c
-                JOIN policy_clause_occurrence o ON o.content_hash = c.content_hash
-                WHERE o.sha256 = %(sha)s AND similarity(c.text, %(q)s) >= %(min)s
-                ORDER BY o.content_hash, o.qualified_no, o.page_from, sim DESC
-                LIMIT %(k)s
+                WITH ranked AS (
+                    SELECT DISTINCT ON (o.content_hash, o.qualified_no, o.page_from)
+                           o.content_hash, ct.text, o.sha256, o.qualified_no,
+                           o.section, o.title, o.page_from, o.page_to,
+                           similarity(c.text, %(q)s) AS sim
+                    FROM policy_clause_chunk c
+                    JOIN policy_clause_occurrence o ON o.content_hash = c.content_hash
+                    JOIN policy_clause_content ct ON ct.content_hash = c.content_hash
+                    WHERE o.sha256 = %(sha)s AND similarity(c.text, %(q)s) >= %(min)s
+                    ORDER BY o.content_hash, o.qualified_no, o.page_from, sim DESC
+                )
+                --: ★정렬을 **바깥에서** 다시 한다.
+                --:   `DISTINCT ON` 은 그룹 키 순서로 정렬해야 하므로,
+                --:   그 상태로 LIMIT 을 걸면 유사도 상위가 아니라
+                --:   **해시 순서 앞쪽**이 나온다. (코덱스 지적 2026-08-02)
+                SELECT * FROM ranked ORDER BY sim DESC LIMIT %(k)s
                 """,
                 {"q": q, "sha": sha256, "min": _MIN_SIMILARITY, "k": limit},
             )

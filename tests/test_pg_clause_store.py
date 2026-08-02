@@ -84,7 +84,8 @@ def test_적재된_약관을_읽고_찾는다():
     vec = [0.0] * 768
     vec[3] = 1.0
     body = "회사는 피보험자가 상해로 인하여 의료기관에 입원하여 치료를 받은 경우 보상합니다."
-    ix.upsert_chunks(conn, [(h, 0, body, vec)])
+    ix.upsert_content(conn, [(h, body, 1)])
+    ix.upsert_chunks(conn, [(h, 0, 1, body, vec)])
     ix.upsert_occurrences(conn, [(h, sha, "테스트보험", "보통약관/3.", "보통약관", "보상내용", 7, 7)])
     conn.commit()
 
@@ -104,6 +105,7 @@ def test_적재된_약관을_읽고_찾는다():
 
     with conn.cursor() as cur:
         cur.execute("DELETE FROM policy_clause_chunk WHERE content_hash = %s", (h,))
+        cur.execute("DELETE FROM policy_clause_content WHERE content_hash = %s", (h,))
         cur.execute("DELETE FROM policy_clause_occurrence WHERE content_hash = %s", (h,))
     conn.commit()
     conn.close()

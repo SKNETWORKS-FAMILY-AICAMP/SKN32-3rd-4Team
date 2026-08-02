@@ -63,3 +63,6 @@ _gap.txt
 
 # 용어 정의 구절 색인 — 약관 원문 조각이다. 저작물이므로 커밋하지 않는다.
 data/glossary/
+
+# 임베딩 평가셋 — 약관 원문 조각이다. 결과 지표만 커밋한다.
+data/eval/embed_bench.json

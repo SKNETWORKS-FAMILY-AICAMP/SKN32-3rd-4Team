@@ -47,6 +47,19 @@ def _deps():
         _DEPS = build_precheck()
     return _DEPS
 
+#: 판정 흐름. 매 요청마다 다시 조립하지 않는다.
+_GRAPH = None
+
+
+def _graph():
+    global _GRAPH
+    if _GRAPH is None:
+        from app.workflow.precheck_graph import build
+
+        _GRAPH = build()
+    return _GRAPH
+
+
 #: 약관 버전 목록은 매 요청마다 읽을 필요가 없다.
 _VERSIONS = None
 
@@ -138,12 +151,11 @@ def create_precheck(body: PrecheckRequest) -> PrecheckResult:
       추측해서 "보장됩니다"라고 말하지 않는다.
     """
     try:
-        outcome = precheck.run(
-            _to_input(body),
-            policies=_deps()["policies"],
-            clauses=_deps()["clauses"],
-            versions=_versions(),
-        )
+        #: ★흐름은 **그래프가 소유한다.** 라우터가 유스케이스를 직접 부르면
+        #:   같은 판단이 두 곳(라우터·그래프)에 생기고 반드시 어긋난다.
+        #:   그래프는 판정을 바꾸지 않고 잇고·분기하고·재시도만 통제한다
+        #:   (`docs/handoff/06_계약_Agent.md` §1).
+        outcome, _state = _graph().invoke(_to_input(body))
         return _to_dto(outcome)
     except ValidationErr as e:
         raise HTTPException(
