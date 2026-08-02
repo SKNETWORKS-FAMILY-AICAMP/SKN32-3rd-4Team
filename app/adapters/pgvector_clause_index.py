@@ -166,6 +166,14 @@ class ClauseHit:
         return f"{self.sha256[:12]}/{self.qualified_no}{tail}"
 
 
+#: ★★현재 세대. **조항 JSON 스키마 버전과 맞춘다.**
+#:
+#:   검색은 이 세대의 발생행만 본다. 옛 세대는 지우지 않고 남겨 두되
+#:   **사용자 경로에는 안 보인다.** 지우면 6시간짜리 임베딩을 버리고,
+#:   그냥 두면 오염된 옛 근거가 계속 올라온다 — 가르는 것이 답이다.
+CURRENT_GENERATION = "s6"
+
+
 def ensure_schema(conn) -> None:
     """테이블·인덱스 생성(멱등)."""
     with conn.cursor() as cur:
@@ -214,6 +222,55 @@ def ensure_schema(conn) -> None:
         cur.execute(
             "ALTER TABLE policy_clause_chunk "
             "ADD COLUMN IF NOT EXISTS n_chunks integer NOT NULL DEFAULT 0"
+        )
+        #: ★★**세대(generation)를 행에 박는다.**
+        #:
+        #:   조항 스키마가 오르면 `content_hash` 가 바뀐다(s6 에서 부록을 본문에서 뺐다).
+        #:   구·신 해시가 한 테이블에 같이 남으면 **오염된 옛 근거가 계속 검색된다**(코덱스).
+        #:   그렇다고 지우면 6시간짜리 임베딩을 버린다.
+        #:   그래서 **지우지 않고 갈라 놓는다** — 검색은 현재 세대만 본다.
+        #:
+        #:   ★기존 행의 기본값을 `s5-mixed` 로 둔다. `s5` 라고 하지 않는다 —
+        #:     실제로 s5 적재 중간에 s6 발생행이 섞여 들어간 적이 있어
+        #:     그 안이 순수한 s5 라고 **말할 수 없다.** 모르면 모른다고 적는다(§0).
+        cur.execute(
+            "ALTER TABLE policy_clause_occurrence "
+            "ADD COLUMN IF NOT EXISTS index_generation text NOT NULL DEFAULT 's5-mixed'"
+        )
+        #: ★조항인가 부록인가. 판정이 인용 문구를 다르게 써야 한다 —
+        #:   부록을 `제27조(준용규정)` 이라 부르면 출처가 틀린다.
+        cur.execute(
+            "ALTER TABLE policy_clause_occurrence "
+            "ADD COLUMN IF NOT EXISTS source_kind text NOT NULL DEFAULT 'clause'"
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS policy_clause_occurrence_gen "
+            "ON policy_clause_occurrence (index_generation)"
+        )
+        #: ★★**세대를 기본키에 넣는다.** 이걸 빠뜨리면 조용히 새는 곳이 생긴다 —
+        #:   `upsert_occurrences` 는 `ON CONFLICT DO NOTHING` 이라,
+        #:   `(hash, sha, no, page)` 가 같은 옛 세대 행이 이미 있으면
+        #:   **새 세대 행이 버려지고** 그 자리는 계속 `s5-mixed` 로 남는다.
+        #:   검색은 현재 세대만 보므로 그 조항은 **영원히 안 나온다.**
+        #:   적재 로그에는 "이미 있음"으로 찍혀 정상처럼 보인다. 최악의 실패다.
+        cur.execute(
+            """
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.key_column_usage
+                    WHERE table_name = 'policy_clause_occurrence'
+                      AND constraint_name = 'policy_clause_occurrence_pkey'
+                      AND column_name = 'index_generation'
+                ) THEN
+                    ALTER TABLE policy_clause_occurrence
+                        DROP CONSTRAINT IF EXISTS policy_clause_occurrence_pkey;
+                    ALTER TABLE policy_clause_occurrence
+                        ADD PRIMARY KEY (content_hash, sha256, qualified_no,
+                                         page_from, index_generation);
+                END IF;
+            END $$;
+            """
         )
         cur.execute(
             "CREATE INDEX IF NOT EXISTS policy_clause_chunk_hnsw "
@@ -310,16 +367,22 @@ def upsert_chunks(conn, rows) -> int:
     return n
 
 
-def upsert_occurrences(conn, rows) -> int:
-    """조항이 **어느 문서 어디에** 실렸는지. 같은 자리는 한 번만."""
+def upsert_occurrences(conn, rows, *, generation: str = CURRENT_GENERATION) -> int:
+    """조항이 **어느 문서 어디에** 실렸는지. 같은 자리는 한 번만.
+
+    ★`rows` 는 `(hash, sha, insurer, qualified_no, section, title, page_from, page_to)`
+      또는 뒤에 `source_kind` 를 하나 더 붙인 9튜플.
+    """
     n = 0
     with conn.cursor() as cur:
         for r in rows:
+            kind = r[8] if len(r) > 8 else "clause"
             cur.execute(
                 "INSERT INTO policy_clause_occurrence "
-                "(content_hash, sha256, insurer, qualified_no, section, title, page_from, page_to) "
-                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING",
-                r,
+                "(content_hash, sha256, insurer, qualified_no, section, title, "
+                " page_from, page_to, index_generation, source_kind) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING",
+                (*r[:8], generation, kind),
             )
             n += cur.rowcount
     conn.commit()
@@ -352,9 +415,13 @@ def search(
     #:   범위 밖 조항이 자리를 차지하지 못하게 한다), 내용마다 대표 발생 하나를 붙인다.
     filt = (
         "AND EXISTS (SELECT 1 FROM policy_clause_occurrence o2 "
-        "WHERE o2.content_hash = c.content_hash AND o2.sha256 = ANY(%(shas)s))"
+        "WHERE o2.content_hash = c.content_hash AND o2.sha256 = ANY(%(shas)s) "
+        "AND o2.index_generation = %(gen)s)"
         if sha256s is not None
-        else ""
+        #: ★약관을 안 가둬도 **세대는 가둔다.** 옛 세대 조각이 올라오면
+        #:   부록을 삼킨 조항이 근거로 붙는다.
+        else "AND EXISTS (SELECT 1 FROM policy_clause_occurrence o2 "
+             "WHERE o2.content_hash = c.content_hash AND o2.index_generation = %(gen)s)"
     )
     sql = f"""
         WITH best AS (
@@ -372,6 +439,7 @@ def search(
         JOIN LATERAL (
             SELECT * FROM policy_clause_occurrence o
             WHERE o.content_hash = b.content_hash
+              AND o.index_generation = %(gen)s
               {"AND o.sha256 = ANY(%(shas)s)" if sha256s is not None else ""}
             ORDER BY o.sha256, o.page_from
             LIMIT 1
@@ -385,7 +453,7 @@ def search(
     import numpy as np
 
     q = np.asarray(query_vec, dtype=np.float32)
-    params = {"q": q, "k": limit, "shas": sha256s}
+    params = {"q": q, "k": limit, "shas": sha256s, "gen": CURRENT_GENERATION}
     with conn.cursor() as cur:
         cur.execute(sql, params)
         return [ClauseHit(*row) for row in cur.fetchall()]
@@ -403,6 +471,13 @@ def stats(conn) -> dict:
                 "SELECT count(*), count(DISTINCT sha256) FROM policy_clause_occurrence"
             )
             occ, docs = cur.fetchone()
+            #: ★세대·종류별로 **쪼개서** 보여준다. 합계만 보면 옛 세대가 섞인 걸 못 본다.
+            cur.execute(
+                "SELECT index_generation, source_kind, count(*), count(DISTINCT sha256) "
+                "FROM policy_clause_occurrence GROUP BY 1,2 ORDER BY 1,2"
+            )
+            by_gen = {f"{g}/{k}": {"occurrences": n, "documents": d}
+                      for g, k, n, d in cur.fetchall()}
     except Exception as exc:  # noqa: BLE001
         raise InfraError(f"인덱스 A 현황을 읽지 못했습니다: {exc}") from exc
     return {
@@ -411,6 +486,9 @@ def stats(conn) -> dict:
         "bodies": bodies,
         "occurrences": occ,
         "documents": docs,
+        #: ★검색이 실제로 보는 세대. 합계와 나란히 놓아야 오염이 눈에 띈다.
+        "current_generation": CURRENT_GENERATION,
+        "by_generation": by_gen,
     }
 
 

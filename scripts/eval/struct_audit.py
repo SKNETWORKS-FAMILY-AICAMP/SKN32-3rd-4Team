@@ -114,36 +114,51 @@ def structure_faults(blocks: list[dict]) -> dict:
     if not n:
         return {}
     aba = gap = embedded = annex = 0
+    #: ★어느 **조항**이 걸렸는지 기록한다. 문서 단위로만 세면
+    #:   결함 4개 때문에 문서의 조항 155개를 통째로 버리게 된다
+    #:   (실측: 문서 게이트 897조항 0.42% → 조항 게이트 168,523조항 93.95%).
+    gated: set[int] = set()
     #: 번호 체계별로 따로 본다.
-    by_kind: dict[str, list[int]] = collections.defaultdict(list)
-    for b in blocks:
+    by_kind: dict[str, list[tuple[int, int]]] = collections.defaultdict(list)
+    for i, b in enumerate(blocks):
         if isinstance(b.get("no"), int):
-            by_kind[b.get("kind", "article")].append(b["no"])
+            by_kind[b.get("kind", "article")].append((i, b["no"]))
 
     for seq in by_kind.values():
         for i in range(2, len(seq)):
             #: A-B-A 재진입 — `제4 → 제5 → 제4`. 부모 오귀속의 가장 선명한 신호.
-            if seq[i] == seq[i - 2] and seq[i] != seq[i - 1]:
+            if seq[i][1] == seq[i - 2][1] and seq[i][1] != seq[i - 1][1]:
                 aba += 1
+                #: ★첫 A 는 살리고 **B 와 두 번째 A** 를 끈다(코덱스 합의).
+                #:   어느 경계가 거짓인지 A-B-A 만으로는 확정할 수 없기 때문이다.
+                gated |= {seq[i - 1][0], seq[i][0]}
         for a, b in zip(seq, seq[1:]):
             #: 번호 비연속 — `제18 → 제20`. ★단독 사용 금지.
             #:   원문 자체의 결번·발췌 문서도 걸린다(저정밀 신호).
-            if b > a + 1:
+            #:   ★그래서 `gated` 에 **넣지 않는다.** 검수 우선순위일 뿐이다.
+            if b[1] > a[1] + 1:
                 gap += 1
 
-    for b in blocks:
+    for bi, b in enumerate(blocks):
         body = b["text"]
         #: ★블록 **안**에 다른 조 머리가 매몰 — 경계를 놓친 확정 신호.
         #:   첫 줄(자기 머리)은 빼고 센다.
         tail = body.split("\n", 1)[1] if "\n" in body else ""
-        embedded += len(re.findall(r"^[ \t]{0,6}제\s*\d{1,3}\s*조[（(\[【]", tail, re.M))
+        n_emb = len(re.findall(r"^[ \t]{0,6}제\s*\d{1,3}\s*조[（(\[【]", tail, re.M))
+        if n_emb:
+            embedded += n_emb
+            #: ★삼킨 조항(carrier)은 끈다. 삼켜진 조항은 **복구되지 않는다** —
+            #:   별도 ordinal 로 존재하지 않기 때문이다(코덱스). 아래 목록에 남긴다.
+            gated.add(bi)
         #: 부록 흡수 — 붙임·별표·분류표가 **줄머리에서** 시작하고
         #:   그 뒤로 본문이 이어지면 그 조가 부록을 삼킨 것이다.
         m = _ANNEX.search(body)
         if m and len(body) - m.start() >= ANNEX_MIN_TAIL:
             annex += 1
+            gated.add(bi)
 
-    return {"S1_aba_reentry": aba, "S2_number_gap": gap,
+    return {"gated_ordinals": sorted(gated),
+            "S1_aba_reentry": aba, "S2_number_gap": gap,
             "S3_embedded_header": embedded, "S4_annex_absorption": annex,
             "n_blocks": n}
 

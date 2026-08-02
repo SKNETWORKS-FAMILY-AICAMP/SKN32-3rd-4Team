@@ -30,6 +30,7 @@ from app.routers import (
     admin,
     auth,
     bounty,
+    chat,
     cohort,
     face,
     health,
@@ -89,6 +90,8 @@ def create_app(role: str = "full") -> FastAPI:
     app.include_router(cohort.router)
     #: 용어 설명 — 판정과 **다른 유스케이스**다. 응답에 verdict 가 없다.
     app.include_router(terms.router)
+    #: 용어 챗봇 — ★보장 여부는 답하지 않는다. 판정 양식으로 넘긴다.
+    app.include_router(chat.router)
     app.include_router(voice.router)
     app.include_router(face.router)
 

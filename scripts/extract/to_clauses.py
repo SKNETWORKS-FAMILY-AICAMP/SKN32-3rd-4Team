@@ -51,9 +51,13 @@ _ROOT = Path(__file__).resolve().parents[2]
 _IN = _ROOT / "data" / "extracted"
 _OUT = _ROOT / "data" / "structured"
 
+#: v6 — 부록(별표·붙임·분류표)을 `annexes[]` 로 분리 + 조항 단위 인용 게이트.
+#:      ★`content_hash` 가 바뀐다(부록을 뺀 본문 + 제목 글리프 정리).
+#:        그래서 s5 를 덮어쓰지 않고 **새 버전**으로 낸다.
+#:        구·신 해시가 DB 에 함께 남으면 오염된 옛 근거가 계속 검색된다(코덱스).
+#:
 #: v5 — 목차 판정을 비율에서 **구조**로 교체(본문 25,252쪽 복구).
-#:      s4 를 덮어쓰지 않는다. 두 벌을 나란히 놓고 비교할 수 있어야 한다.
-SCHEMA_VERSION = "5"
+SCHEMA_VERSION = "6"
 
 
 def _version_tag() -> str:
@@ -122,6 +126,12 @@ CLAUSE_MAX_CHARS = 30_000
 
 #: 목차 판정용(줄 위치 무관). 목차는 조 번호가 촘촘히 나열되므로 전체 검색이 맞다.
 _ARTICLE_ANY = re.compile(r"제\s*\d{1,3}\s*조")
+#: ★`제N조` 바로 뒤에 오면 **상호참조**라는 신호. 제목 없는 머리에만 적용한다.
+#:   `제42조제1항…` 처럼 항·호가 이어지거나, `에 의한/에 따라/에서 정한` 조사가 붙는다.
+_REF_TAIL = re.compile(
+    r"^\s*(?:제\s*\d|의\s*\d|에\s*(?:따라|따른|의하여|의해|의한|정한|규정)"
+    r"|에서\s*정한|의\s*규정|와\s|과\s|및\s|부터|까지|내지)"
+)
 #: ★항(項)과 호(號)는 **다른 층이다.** v4 의 `_PARA` 는 둘을 섞었다
 #:   (`([①-⑳]|\d{1,2}\.)` — `①` 과 `1.` 을 같은 것으로 봤다).
 #:   그래서 `paragraph_count` 가 항 수도 호 수도 아닌 값이었고,
@@ -338,6 +348,10 @@ _STATUTE_ZONE = re.compile(
 #: ★`○` 뒤에 **공백이 있어야** 한다. 없으면 `○보험금지급안내및심사절차조회방법` 같은
 #:   안내 문구가 `…방법` 의 `법` 때문에 걸린다(실측).
 _STATUTE_LAW = re.compile(r"^\s*○\s+(.{2,20}법(?:\s*시행령|\s*시행규칙)?)\s*$")
+#: ★역순 판본 — 법 이름 줄 **다음 줄**에 `○` 만 있다(글리프 순서 뒤집힘).
+#:   `○` 짝을 **반드시** 요구한다. 이름 줄만 보면 `…하는 방법` 류가 다 걸린다.
+_STATUTE_LAW_REV = re.compile(r"^\s*(.{2,30}?(?:법|법률|시행령|시행규칙))\s*$")
+_STATUTE_BULLET = re.compile(r"^\s*[○ㅇ●]\s*$")
 
 #: ★부 경계를 넓힌다 — 위 규칙만으로는 403쪽 약관의 부가 2개뿐이었고,
 #:   그래서 조 번호가 **52종 충돌**했다(제2조가 51회). 특별약관마다 조 번호가
@@ -405,6 +419,102 @@ TOC_MIN_HEADS = 6
 def _norm(text: str) -> str:
     """해시 계산용 정규화. 공백·줄바꿈 차이로 다른 조항이 되지 않게 한다."""
     return re.sub(r"\s+", " ", text).strip()
+
+
+#: ★부록(별표·붙임·분류표) 시작 마커. **줄머리에 있는 것만** 인정한다.
+#:
+#:   문장 안 인용을 잡으면 조항 본문이 잘린다. 실측 반례(코덱스, 10건 확인):
+#:     `[별표 2] …에서 정한 이율`  ·  `<붙임2>에서 정한 이율`
+#:     `[별표1]의 보험금지급기준표에서 적용하는 …`
+#:   그래서 **마커 뒤에 조사·서술어가 이어지면 참조**로 보고 거부한다.
+#:
+#:   표기는 보험사마다 다르다(코덱스 전수, s5 기준 발생 수):
+#:     `[별표 N]` 2,171 · `[별표N]` 1,794 · `【별표N】` 1,121 · `<붙임N…>` 998
+#:     `<붙임>` 604 · `[붙임N]` 480 · `[별첨 N]` 98 · `[별표-…]` 206(삼성화재)
+#:     질병표 단독 줄: 특정질병분류표 430 · 특정신체부위분류표 245 · 재해분류표 106
+#: ★★마커가 **줄바꿈으로 깨져 있다.** 글리프 중복 렌더링 때문이다.
+#:   실측(`16b227ff95b8` p13) — `[붙임]` 하나가 이렇게 나온다:
+#:       `[붙임`  /  `붙임`  /  `붙임`  /  `붙임] `
+#:   닫는 괄호를 **같은 줄에서** 요구하면 진짜 경계를 통째로 놓친다(코덱스 지적).
+#:   그래서 닫는 괄호까지 **줄바꿈을 건너뛰며** 찾되, 30자 안이어야 한다.
+#:   (`[별표` 만 허용하면 과탐한다 — 닫힘은 여전히 요구한다.)
+_ANNEX_HEAD = re.compile(
+    r"^[ \t]{0,6}(?:"
+    r"[\[［【]\s*(?:별\s*표|붙\s*임|별\s*첨)[^\]］】]{0,30}?[\]］】]"
+    r"|[＜<]\s*(?:별\s*표|붙\s*임)[^＞>]{0,30}?[＞>]"
+    r"|(?:특정질병|특정신체부위|특정부위|질병|재해|장해)\s*분류표"
+    r")",
+    re.MULTILINE,
+)
+#: 마커 **직후**에 이런 게 오면 부록 시작이 아니라 본문 안의 참조다.
+_ANNEX_REF_TAIL = re.compile(
+    r"^\s*(?:에서|에\s|의\s|중에서|과\s|와\s|을\s|를\s|이\s|가\s|참조|따라|같이|정한|규정)"
+)
+
+
+#: ★겹침 렌더링으로 같은 토큰이 여러 번 찍히는 아티팩트.
+#:   `[붙임 / 붙임 / 붙임 / 붙임]` 처럼 줄바꿈으로 갈리기도 하고,
+#:   제목이 `준용규정 준용규정 준용규정 준용규정` 으로 나오기도 한다.
+#:   ★**라벨·제목에만** 쓴다. 본문에 쓰면 정당한 반복까지 지운다.
+_WS_ANY = re.compile(r"\s+")
+_GLYPH_DUP = re.compile(r"(\S{1,12})(?:\s+\1){2,}")
+
+
+def _collapse_dup(s: str) -> str:
+    """겹침 글리프를 1회로 줄인다. **3회 이상** 연속일 때만."""
+    return _GLYPH_DUP.sub(r"\1", _WS_ANY.sub(" ", s)).strip()
+
+
+def _annex_events(pages, toc_pages) -> list[tuple[int, int, str]]:
+    """부록 시작 지점을 `(page, offset, 라벨)` 로 모은다.
+
+    ★페이지 단위 `current` 가 아니라 **`(page, char_offset)` 이벤트**여야 한다.
+      같은 페이지에서 조항 뒤에 별표가 시작하면 페이지 단위로는 표현할 수 없다(코덱스).
+    """
+    out = []
+    for pg in pages:
+        if pg["page"] in toc_pages:
+            continue
+        t = pg["text"]
+        for m in _ANNEX_HEAD.finditer(t):
+            tail = t[m.end():m.end() + 12]
+            if _ANNEX_REF_TAIL.match(tail):
+                continue          # 본문 안의 참조다
+            out.append((pg["page"], m.start(), _collapse_dup(m.group(0))))
+    return out
+
+
+def _statute_events(pages, toc_pages) -> list[tuple[int, int]]:
+    """인용 법령이 시작하는 지점을 `(page, offset)` 로 모은다.
+
+    ★`statute_of_page` 는 **페이지 단위**라 부록 종료 판단에 쓸 수 없다(코덱스).
+      한 페이지에서 별표가 먼저 나오고 그 아래 법령이 시작하면
+      그 페이지는 이미 `True` 라 `if not statute_of_page[ap]` 에 걸려
+      법령 경계 검사를 통째로 건너뛴다. 실측: `e87074365e0f` 의
+      `장해분류표` 가 p79~136·114,724자로 호스피스 법률조문까지 삼켰는데
+      페이지 단위 규칙이 **발동조차 하지 않았다.**
+    """
+    out = []
+    for pg in pages:
+        if pg["page"] in toc_pages:
+            continue
+        lines = pg["text"].splitlines(keepends=True)
+        bare = [l.rstrip("\n") for l in lines]
+        off = 0
+        for i, line in enumerate(lines):
+            s = bare[i]
+            hit = bool(_STATUTE_HEAD.match(s) or _STATUTE_LAW.match(s) or _STATUTE_ZONE.match(s))
+            #: ★글리프 순서가 뒤집힌 판본이 있다 — 법 이름 줄 **다음**에 `○` 줄이 온다.
+            #:   실측: 정순 `○ 상법` 515건/106문서, 역순 283건/**9문서**.
+            #:   역순 9문서는 정순 형태를 하나도 안 쓴다 — 못 잡으면 그 문서는
+            #:   관계법령 경계가 **통째로 없다.** 실제로 `e87074365e0f` 의
+            #:   `장해분류표` 가 법령 58쪽을 삼킨 원인이 이것이었다.
+            if not hit and i + 1 < len(bare):
+                hit = bool(_STATUTE_LAW_REV.match(s) and _STATUTE_BULLET.match(bare[i + 1]))
+            if hit:
+                out.append((pg["page"], off))
+            off += len(line)
+    return out
 
 
 def _split_paragraphs(body: str, clause_cite: str) -> tuple[list[dict], int]:
@@ -501,6 +611,20 @@ def _split_paragraphs(body: str, clause_cite: str) -> tuple[list[dict], int]:
     return paras, unresolved
 
 
+#: 조 번호 파서. ★`to_clauses` 와 `struct_audit` 이 **같은 것을 써야** 한다.
+#:   두 곳이 어긋나면 산출물의 `structure_faults` 와 감사 결과가 다른 말을 한다.
+_CLAUSE_NO = re.compile(r"^제(\d{1,3})조|^(\d{1,3})(?:-\d{1,2})?\.")
+
+
+def _clause_num(clause_no: str) -> int | None:
+    """`제12조` -> 12 · `4-1.` -> 4 · 그 밖 -> None."""
+    m = _CLAUSE_NO.match(clause_no or "")
+    if not m:
+        return None
+    g = m.group(1) or m.group(2)
+    return int(g) if g else None
+
+
 def _clause_hash(section: str, title: str, body: str) -> str:
     """★조항의 정체성. **번호를 넣지 않는다** — 번호가 바뀌어도 내용이 같으면 같은 조항이다."""
     return hashlib.sha256(f"{section}\x1f{title}\x1f{_norm(body)}".encode()).hexdigest()
@@ -572,10 +696,26 @@ def build(page_doc: dict) -> dict:
     # ── 6) 조항 경계 찾기 (목차 페이지 제외) ──
     #: (페이지, 페이지내 오프셋, 조번호, 가지번호, 제목)
     heads: list[tuple[int, int, str, str, str]] = []
+    n_ref_head = 0              # 상호참조로 판정해 버린 가짜 머리 (조용히 버리지 않는다)
     for pg in pages:
         if pg["page"] in toc_pages:
             continue
-        for m in _ARTICLE.finditer(pg["text"]):
+        t = pg["text"]
+        for m in _ARTICLE.finditer(t):
+            #: ★★**제목 없는 `제N조` 뒤에 참조 꼬리가 오면 머리가 아니다.**
+            #:
+            #:   `_ARTICLE` 은 줄머리만 보지만 제목 괄호가 **선택**이라,
+            #:   긴 문장이 줄바꿈되며 줄머리로 온 상호참조가 그대로 머리가 된다.
+            #:   실측(표본 300문서): 머리 후보 10,924개 중 제목 없음 2,607(23.9%),
+            #:   그중 참조 꼬리가 **1,056개(전체의 9.67%)** —
+            #:     `제42조제1항제2호에 의한 약국, 동법 제42조제1항제3호에 의한`
+            #:   이것들이 조항을 쪼개 100자 미만 조각을 만들고,
+            #:   부록 종료 판단에도 걸려 별표를 **조기 절단**한다(코덱스 지적).
+            #:
+            #:   ★제목이 **있으면** 거르지 않는다. `제3조(용어의 정의)` 는 진짜 머리다.
+            if not (m.group(3) or "").strip() and _REF_TAIL.match(t[m.end():m.end() + 12]):
+                n_ref_head += 1
+                continue
             heads.append(
                 (pg["page"], m.start(), m.group(1), m.group(2) or "", (m.group(3) or "").strip())
             )
@@ -626,6 +766,10 @@ def build(page_doc: dict) -> dict:
 
     text_of = {pg["page"]: pg["text"] for pg in pages}
     tables_of = {pg["page"]: pg.get("tables", []) for pg in pages}
+    #: ★부록 시작 이벤트. 조항 본문을 여기서 끊고, 별도 배열로 뺀다.
+    annex_ev = sorted(_annex_events(pages, toc_pages))
+    #: ★부록 종료용. 페이지 단위 `statute_of_page` 로는 같은 페이지 안의 경계를 못 본다.
+    statute_ev = sorted(_statute_events(pages, toc_pages))
 
     clauses: list[dict] = []
     doc_unresolved = 0          # 번호를 못 읽은 항 (문서 전체)
@@ -646,6 +790,23 @@ def build(page_doc: dict) -> dict:
             end_page, end_off = heads[i + 1][0], heads[i + 1][1]
         else:
             end_page, end_off = pages[-1]["page"], len(text_of[pages[-1]["page"]])
+
+        #: ★★부록이 먼저 오면 **거기서 끊는다.**
+        #:
+        #:   안 끊으면 마지막 조가 문서 끝까지 삼킨다. 실측 `16b227ff95b8`:
+        #:   `제27조(준용규정)` 이 p12~16·4,162자로 `[붙임] 용어의 정의` 와
+        #:   `[별표] 임신질환 분류표(O00~O08 … O80~O84)` 를 통째로 먹었다.
+        #:   그러면 판정이 **"제27조(준용규정)에 따르면 분만은 O80~O84"** 라고 답한다 —
+        #:   내용은 표에 있지만 **출처가 틀렸다.** KCD 오인용이다.
+        #:
+        #:   ★`_split_paragraphs` **보다 먼저** 끊어야 한다. 나중에 `text` 만
+        #:     잘라내면 `paragraphs` 안에는 부록이 그대로 남는다(코덱스 지적).
+        for ap, ao, _lab in annex_ev:
+            if (ap, ao) <= (page, off):
+                continue          # 이 조항 앞
+            if (ap, ao) < (end_page, end_off):
+                end_page, end_off = ap, ao
+                break
 
         parts: list[str] = []
         for p in range(page, end_page + 1):
@@ -672,6 +833,9 @@ def build(page_doc: dict) -> dict:
 
         # ── 9) 계층형 청킹: 부 → 조 → **항** ──
         #: ★조 수준 인용 문자열. 판정 근거에 그대로 실린다.
+        #: ★제목의 겹침 글리프를 정리한다 — `준용규정 준용규정 준용규정 준용규정`.
+        #:   `content_hash` 입력이라 **해시가 바뀐다.** s6 이므로 괜찮다.
+        title = _collapse_dup(title) if title else title
         clause_cite = f"{label}({title})" if title else label
         is_statute = statute_of_page.get(page, False)
         paragraphs, n_unresolved = _split_paragraphs(body, clause_cite)
@@ -727,6 +891,70 @@ def build(page_doc: dict) -> dict:
                 "content_hash": _clause_hash(section_name, title, body),
             }
         )
+
+    #: ── 부록을 **별도 배열**로 뺀다 ──
+    #:
+    #: ★`clauses` 사이에 끼워 넣으면 안 된다. 그러면 이후 모든 `ordinal` 이 밀려
+    #:   `(sha, ordinal)` 결정적 식별자가 깨진다(코덱스 지적). 배열도 ordinal 도 따로 둔다.
+    annexes: list[dict] = []
+    for ai, (ap, ao, lab) in enumerate(annex_ev):
+        #: 끝 = 다음 부록 시작, 없으면 문서 끝
+        if ai + 1 < len(annex_ev):
+            e_pg, e_off = annex_ev[ai + 1][0], annex_ev[ai + 1][1]
+        else:
+            e_pg, e_off = pages[-1]["page"], len(text_of[pages[-1]["page"]])
+
+        #: ★★**다음 조 머리에서도 끊는다.** 이걸 빼면 문서 중간의 별표가
+        #:   그 뒤 조항을 전부 삼킨다. 조항 본문은 따로 잘려 있으므로
+        #:   같은 글이 조항과 부록에 **두 벌** 남는다.
+        #:
+        #:   실측(끊기 전, s6 1차): 부록 9,342개에 108,940,010자 —
+        #:   본문 총량의 **0.72배**다. 한 문서(`3dea54cde8ad`)에 `【별표1】` 이
+        #:   204,869자와 198,157자로 겹쳐 있었다(뒤 것이 앞 것에 포함).
+        #:   이대로 색인하면 같은 문장이 조항으로도 부록으로도 검색되고,
+        #:   부록 쪽 인용은 **출처가 틀린다.**
+        for hp, ho, *_ in heads:
+            if (hp, ho) <= (ap, ao):
+                continue          # 이 부록 앞의 조 머리
+            if (hp, ho) < (e_pg, e_off):
+                e_pg, e_off = hp, ho
+            break
+
+        #: ★**인용 법령 시작에서도 끊는다.** 문서 끝의 부록은 뒤에 조 머리가 없어서
+        #:   위 규칙에 안 걸리고 「관계법령」까지 삼킨다. 실측(끊기 전):
+        #:   `e87074365e0f` 의 `장해분류표` 가 p79~136(58쪽)·114,724자였고
+        #:   끝이 호스피스 **법률 조문**이었다. 그대로 두면 판정이
+        #:   "장해분류표에 따르면 …" 하며 **법령을 약관 별표로 인용한다.**
+        for sp, so in statute_ev:
+            if (sp, so) <= (ap, ao):
+                continue
+            if (sp, so) < (e_pg, e_off):
+                e_pg, e_off = sp, so
+            break
+        parts = []
+        for pnum in range(ap, e_pg + 1):
+            if pnum in toc_pages:
+                continue
+            t = text_of.get(pnum, "")
+            parts.append(t[(ao if pnum == ap else 0):(e_off if pnum == e_pg else len(t))])
+        body = chr(10).join(parts)
+        if not body.strip():
+            continue
+        sec = section_of_page.get(ap, "미상")
+        annexes.append({
+            "ordinal": len(annexes),
+            "label": lab,
+            "section": sec,
+            "locator": {"page_from": ap, "page_to": e_pg, "char_offset": ao},
+            "text": body,
+            "char_length": len(body),
+            #: ★어느 조항 것인지 **추정하지 않는다.** 판정은 부록 자체를 인용한다.
+            "owner_clause_ordinal": None,
+            "tables_on_pages": {str(pnum): len(tables_of.get(pnum, []))
+                                for pnum in range(ap, e_pg + 1) if tables_of.get(pnum)},
+            "content_hash": _clause_hash(sec, lab, body),
+            #: ★라벨은 정리하되 본문(`text`)은 **원문 그대로** 둔다.
+        })
 
     dup: dict[str, int] = {}
     for c in clauses:
@@ -817,9 +1045,11 @@ def build(page_doc: dict) -> dict:
     #:   두 곳이 어긋나면 감사와 산출물이 다른 말을 한다.
     from scripts.eval.struct_audit import structure_faults
 
+    #: ★alternation 에서 `group(1)` 만 읽으면 **`N.` 형이 통째로 `None`** 이 된다.
+    #:   `제N조` 는 group(1), `N-M.` 은 group(2) 다. 실측: 그래서 numbered 형식의
+    #:   A-B-A 재진입 **7건을 놓쳤다**(4,714 → 4,721). 코덱스가 잡았다.
     audit_blocks = [
-        {"no": (int(m.group(1)) if (m := re.match(r"제(\d{1,3})조|(\d{1,3})[-.]",
-                                                  c["clause_no"])) and m.group(1) else None),
+        {"no": _clause_num(c["clause_no"]),
          "kind": numbering, "title": c["title"], "text": c["text"]}
         for c in clauses
     ]
@@ -845,9 +1075,24 @@ def build(page_doc: dict) -> dict:
     #: ★판정 근거로 인용해도 되는가. **`parse_status` 와 다른 축이다.**
     #:   길이·개수는 멀쩡한데 경계가 모순인 문서가 있다(위 반례).
     #:   `precheck` 는 `parse_status == "ok"` 만 보고 있다 — 이 값도 봐야 한다.
-    citation_eligible = not (faults.get("S1_aba_reentry")
-                             or faults.get("S3_embedded_header")
-                             or faults.get("S4_annex_absorption"))
+    #: ★★게이트를 **조항 단위**로 내린다.
+    #:
+    #:   처음엔 문서 단위로 껐다가 판정 가능 조항이 **897개(0.42%)** 로 줄었다.
+    #:   그 161문서는 조항 중앙 3개·2쪽짜리 제도성 특약이고
+    #:   **「보상하지 않는 사항」 조항이 0건** — 사실상 전면 기권이다.
+    #:   결함 4개 때문에 그 문서의 조항 155개를 통째로 버린 셈이었다.
+    #:   조항 단위로 내리면 **168,523개(93.95%)** 가 살고 면책 조항도 2,099개가 산다.
+    gated = set(faults.get("gated_ordinals") or [])
+    for c in clauses:
+        #: `False` 면 이 조항을 **판정 근거로 인용하면 안 된다.**
+        c["citation_eligible"] = c["ordinal"] not in gated
+        #: ★옆 조항이 꺼졌다는 **문서 완전성 신호**(앞뒤 1개).
+        #:   경고일 뿐 기권 사유가 아니다 — 다만 "면책 조항이 없다" 같은
+        #:   **부재 기반 결론**은 이 값이 True 면 내리면 안 된다(코덱스 합의).
+        c["has_gated_neighbors"] = bool(gated & {c["ordinal"] - 1, c["ordinal"] + 1})
+
+    #: 문서 수준은 **요약**으로만 남긴다. 판정은 조항 값을 봐야 한다.
+    citation_eligible = not gated
 
     return {
         "schema_version": SCHEMA_VERSION,
@@ -858,7 +1103,10 @@ def build(page_doc: dict) -> dict:
         #: ★판정 근거로 인용해도 되는가. `parse_status` 와 **다른 축**이다.
         #:   `precheck` 는 지금 `parse_status == "ok"` 만 본다 — 이 값도 봐야 한다.
         "citation_eligible": citation_eligible,
-        "structure_faults": {k: v for k, v in faults.items() if k != "n_blocks"},
+        #: ★조항 단위 요약. 판정은 `clauses[].citation_eligible` 을 봐야 한다.
+        "gated_clause_count": len(gated),
+        "structure_faults": {k: v for k, v in faults.items()
+                             if k not in ("n_blocks", "gated_ordinals")},
         #: 어떤 번호 체계로 쪼갰나. `제N조` 인지 특별약관의 `N.` 인지.
         "numbering": numbering,
         "toc_pages": sorted(toc_pages),
@@ -887,9 +1135,16 @@ def build(page_doc: dict) -> dict:
             "ambiguous_paragraph_citations": doc_ambiguous_cite,
             #: 인용 법령 원문으로 잡힌 조항 수(약관 조항이 아니다).
             "statute_clauses": sum(1 for c in clauses if c["statute"]),
+            "annexes": len(annexes),
+            #: ★버린 것을 **센다**(CLAUDE.md §3). 이 값이 갑자기 크면 그 문서는
+            #:   진짜 머리를 참조로 오인했을 수 있다 — 조용히 줄어들면 못 찾는다.
+            "ref_heads_dropped": n_ref_head,
+            "annex_chars": sum(a["char_length"] for a in annexes),
         },
         "sections": sorted(set(section_of_page.values())),
         "clauses": clauses,
+        #: ★별표·붙임·분류표. **약관 조항이 아니다.** 별도 ordinal 을 쓴다.
+        "annexes": annexes,
     }
 
 

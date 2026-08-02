@@ -52,8 +52,13 @@ _STRUCT = _ROOT / "data" / "structured"
 _BATCH = 256
 
 
+#: ★읽을 조항 JSON 버전. **한 곳에서만 정한다** — 여기가 s5 로 남아 있으면
+#:   s6 를 만들어 놓고도 옛 산출물을 색인한다(실제로 그럴 뻔했다).
+_CLAUSE_TAG = "s6_"
+
+
 def _iter_docs(limit: int | None):
-    files = sorted(_STRUCT.glob("*/s5_*/*.clauses.json"))
+    files = sorted(_STRUCT.glob(f"*/{_CLAUSE_TAG}*/*.clauses.json"))
     if limit:
         files = files[:limit]
     for p in files:
@@ -104,7 +109,8 @@ def main(argv: list[str] | None = None) -> int:
     texts: dict[str, str] = {}
     occurrences: list[tuple] = []
     n_docs = n_skip_doc = n_clause = n_skip_clause = 0
-    n_skip_cite = 0     # citation_eligible=false 로 건너뛴 문서
+    n_skip_cite = 0     # citation_eligible=false 로 건너뛴 **조항**
+    n_annex = n_skip_annex = 0   # 부록(별표·붙임·분류표)
 
     for p, doc in _iter_docs(args.limit or None):
         status = doc.get("parse_status") or "unknown"
@@ -125,14 +131,19 @@ def main(argv: list[str] | None = None) -> int:
         #:   ★신호의 precision 은 아직 검증되지 않았다(정답셋 없음). 그래서 이 게이트는
         #:     **보수적**이다 — 지금 통과하는 문서는 161건뿐이다.
         #:     `--ignore-citation-gate` 로 끌 수 있게 두되, **끈 사실을 출력에 남긴다.**
-        if not args.ignore_citation_gate and doc.get("citation_eligible") is False:
-            n_skip_cite += 1
-            continue
+        #: ★★게이트는 **조항 단위**다. 문서 전체를 건너뛰면 안 된다 —
+        #:   결함 4개 때문에 그 문서의 조항 155개를 통째로 버린다.
+        #:   실측: 문서 게이트 897조항(0.42%) → 조항 게이트 168,523(93.95%),
+        #:   「보상하지 않는 사항」 조항이 0 → 2,224개.
         n_docs += 1
         src = doc.get("source") or {}
         sha = src.get("sha256") or ""
         insurer = src.get("insurer") or ""
         for c in doc.get("clauses") or []:
+            #: ★조항 단위 게이트. 구조 모순이 걸린 조항만 뺀다.
+            if not args.ignore_citation_gate and c.get("citation_eligible") is False:
+                n_skip_cite += 1
+                continue
             h = c.get("content_hash") or ""
             body = c.get("text") or ""
             if not h or not body.strip():
@@ -151,14 +162,42 @@ def main(argv: list[str] | None = None) -> int:
                     c.get("title") or "",
                     int(loc.get("page_from") or c.get("page_from") or 0),
                     int(loc.get("page_to") or c.get("page_to") or 0),
+                    "clause",
                 )
             )
 
+        #: ★★**부록도 넣는다.** s6 부터 별표·붙임·분류표가 `annexes[]` 로 빠졌는데
+        #:   여기서 안 읽으면 **질병분류표가 검색에 아예 없어진다.**
+        #:   KCD 코드 대조의 근거가 대부분 거기 있다 — 조항만 넣으면
+        #:   판정이 "확인 불가"만 내거나, 더 나쁘게는 표를 삼킨 옛 조항을 인용한다.
+        #:
+        #:   ★`qualified_no` 자리에 `label`(`[별표1] 특정질병 분류표`)을 넣는다.
+        #:     조 번호를 지어내지 않는다 — 부록은 조가 아니다.
+        #:     `owner_clause_ordinal` 이 `None` 인 것도 같은 이유다.
+        for a in doc.get("annexes") or []:
+            h = a.get("content_hash") or ""
+            body = a.get("text") or ""
+            if not h or not body.strip():
+                n_skip_annex += 1
+                continue
+            n_annex += 1
+            texts.setdefault(h, body)
+            loc = a.get("locator") or {}
+            occurrences.append((
+                h, sha, insurer,
+                a.get("label") or "부록",
+                a.get("section") or "",
+                a.get("label") or "",
+                int(loc.get("page_from") or 0),
+                int(loc.get("page_to") or 0),
+                "annex",
+            ))
+
     print(
         f"[모음] 적재 대상 문서 {n_docs:,} · "
-        f"건너뜀: parse_status {n_skip_doc:,} + citation_eligible {n_skip_cite:,} · "
-        f"조항 등장 {n_clause:,} → 고유 {len(texts):,} "
-        f"(내용/해시 없음 {n_skip_clause:,})"
+        f"건너뜀: 문서 parse_status {n_skip_doc:,} · 조항 citation_eligible {n_skip_cite:,} · "
+        f"조항 등장 {n_clause:,} + 부록 {n_annex:,} → 고유 {len(texts):,} "
+        f"(내용/해시 없음: 조항 {n_skip_clause:,} · 부록 {n_skip_annex:,})"
         + ("  ★인용 게이트를 껐다(--ignore-citation-gate)" if args.ignore_citation_gate else ""),
         flush=True,
     )

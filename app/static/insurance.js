@@ -124,8 +124,14 @@ function renderResult(status, b) {
       </dl>` : ''}
 
       ${(b.candidates || []).length ? `<h2 style="margin-top:16px">후보 약관</h2>
-        <div class="small muted">어느 것인지 특정하지 못했습니다. 하나를 고르면 다시 판정합니다.</div>
-        ${b.candidates.map((c) => `<div class="chip">${esc(c.product_name)} · ${esc(c.sale_start)}</div>`).join('')}` : ''}
+        <div class="small muted">어느 것인지 특정하지 못했습니다.
+          ★<strong>고르지 않으면 판정하지 않습니다</strong> — 아무거나 골라 답하면
+          다른 약관의 조항을 근거로 대게 됩니다.</div>
+        <div style="margin-top:8px">
+        ${b.candidates.map((c, i) => `<button class="chip-btn cand" data-i="${i}"
+            data-name="${esc(c.product_name)}">${esc(c.product_name)} ·
+            ${esc(c.sale_start)}${c.generation_label ? ' · ' + esc(c.generation_label) : ''}</button>`).join('')}
+        </div>` : ''}
 
       ${(b.per_code || []).length ? `<h2 style="margin-top:16px">질병기호별</h2>
         ${b.per_code.map((a) => {
@@ -143,7 +149,17 @@ function renderResult(status, b) {
     </section>`;
 }
 
-async function runPrecheck() {
+/* ── 컷③ 되묻기 ──────────────────────────────────────────────────
+ * ★후보를 고르면 **그 상품명을 실어 다시 판정한다.**
+ *   화면이 후보 중 하나를 임의로 고르지 않는다 — 고르는 것은 사용자다.
+ *   임의로 고르면 다른 약관의 조항을 근거로 대게 된다.
+ */
+function bindCandidates() {
+  document.querySelectorAll('.cand').forEach((b) =>
+    b.addEventListener('click', () => runPrecheck(b.dataset.name)));
+}
+
+async function runPrecheck(productName) {
   const codes = $('codes').value.split(',').map((s) => s.trim()).filter(Boolean);
   $('status').textContent = '판정 중…';
   $('go').disabled = true;
@@ -155,12 +171,15 @@ async function runPrecheck() {
       insurer: $('insurer').value.trim(),
       enrolled_on: $('enrolled').value.trim(),
       kcd_codes: codes,
+      //: ★사용자가 후보를 고른 경우에만 실린다. 화면이 지어내지 않는다.
+      ...(productName ? { product_name: productName } : {}),
     }),
   });
 
   $('status').textContent = '';
   $('go').disabled = !$('consent').checked;
   renderResult(status, body);
+  bindCandidates();
   if (codes.length) loadCohorts(codes[0]);
 }
 
@@ -199,37 +218,123 @@ function loadCohorts(code) {
   loadCohort('/v1/demo/cohorts' + q, 'cohortDemo', true);
 }
 
-/* ── 용어 설명 ────────────────────────────────────────────────── */
+/* ── 용어 챗봇 ────────────────────────────────────────────────── */
 
-async function explainTerm() {
-  const term = $('term').value.trim();
-  if (!term) return;
-  const out = $('termOut');
-  out.innerHTML = '<p class="small muted">약관에서 찾는 중…</p>';
-  const { status, body } = await api('/v1/terms/explain?term=' + encodeURIComponent(term));
+/* ★대화창이 판정하지 않는다.
+ *   서버가 `intent="precheck"` 를 주면 **답을 만들지 않고** 판정 양식으로 올려보낸다.
+ *   화면에서 "아마 보장될 거예요" 같은 말을 한 마디라도 만들면
+ *   약관버전 확정·인용검증·4단 판정을 통째로 우회한 답이 된다.
+ */
 
-  if (status === 422) { out.innerHTML = `<div class="banner warn">${esc(body?.detail || '')}</div>`; return; }
-  if (status === 503) { out.innerHTML = `<div class="banner danger">용어 색인을 사용할 수 없습니다 — ${esc(body?.detail || '')}</div>`; return; }
-  if (status !== 200) { out.innerHTML = `<div class="banner danger">HTTP ${status}</div>`; return; }
+function bubble(cls, html) {
+  const d = document.createElement('div');
+  d.className = 'msg ' + cls;
+  d.innerHTML = html;
+  const log = $('chatLog');
+  log.appendChild(d);
+  log.scrollTop = log.scrollHeight;
+  return d;
+}
 
-  if (!body.found) {
-    //: ★못 찾은 것을 지어내 메우지 않는다.
-    out.innerHTML = `<div class="banner">${esc(body.message)}</div>`;
+async function sendChat(text) {
+  const msg = (text ?? $('chatIn').value).trim();
+  if (!msg) return;
+  $('chatIn').value = '';
+  bubble('me', esc(msg));
+  const thinking = bubble('bot muted', '약관에서 찾는 중…');
+
+  const { status, body } = await api('/v1/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: msg }),
+  });
+  thinking.remove();
+
+  if (status === 503) {
+    bubble('bot', `<span style="color:var(--danger)">용어 색인을 사용할 수 없습니다 — ${esc(body?.detail || '')}</span>`);
+    return;
+  }
+  if (status !== 200 || !body) {
+    bubble('bot', `<span style="color:var(--danger)">응답을 받지 못했습니다 (HTTP ${status}).</span>`);
+    return;
+  }
+
+  let html = esc(body.message).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+  if (body.found && body.quotes.length) {
+    html += `<div class="small muted" style="margin-top:8px">정의 구절 ${body.total_passages}개 · 보험사 ${body.insurers.length}곳</div>`;
+    html += body.quotes.map((q) => `
+      <div class="cite">
+        <div class="small muted">${esc(q.insurer)} · ${esc(q.title)}${q.kind === 'appendix' ? ' (붙임 정의표)' : ''}</div>
+        <div class="quote">${esc(q.quote)}</div>
+        <div class="loc">${esc(q.locator)}</div>
+      </div>`).join('');
+  }
+
+  //: ★경고를 접지 않는다. 특히 "보장 여부는 판정하지 않습니다".
+  if (body.warnings.length) {
+    html += body.warnings.map((w) => `<div class="small muted" style="margin-top:6px">⚠ ${esc(w)}</div>`).join('');
+  }
+  bubble('bot', html);
+
+  //: ★보장 질문이면 판정 양식으로 **올려보낸다.** 여기서 답하지 않는다.
+  if (body.next_action === 'precheck_form') {
+    document.getElementById('insurer').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    document.getElementById('insurer').focus();
+  }
+}
+
+/* ── 컷⑨ 증빙 제출 ────────────────────────────────────────────── */
+
+/* ★제출 결과를 "반영되었습니다"로 그리지 않는다.
+ *   서버는 `verification="unverified"` 로 고정해 저장하고, 검증 전까지
+ *   통계에 넣지 않는다. 화면이 그보다 강하게 말하면 거짓말이 된다.
+ */
+async function submitObservation() {
+  const out = $('obOut');
+  const insurer = $('obInsurer').value.trim();
+  if (!insurer) {
+    out.innerHTML = '<div class="banner warn small">보험사를 적어 주세요.</div>';
+    return;
+  }
+  $('obGo').disabled = true;
+  const { status, body } = await api('/v1/observations', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      client_ref: 'web-ui',
+      insurer,
+      enrolled_on: $('enrolled').value.trim(),
+      kcd_codes: $('obCodes').value.split(',').map((s) => s.trim()).filter(Boolean),
+      outcome: $('obOutcome').value,
+      outcome_reason: $('obReason').value.trim(),
+    }),
+  });
+  $('obGo').disabled = false;
+
+  if (status === 503) {
+    out.innerHTML = `<div class="banner danger small">저장하지 못했습니다 — ${esc(body?.detail || '')}</div>`;
+    return;
+  }
+  if (status !== 202 || !body) {
+    out.innerHTML = `<div class="banner danger small">제출하지 못했습니다 (HTTP ${status}).</div>`;
     return;
   }
   out.innerHTML = `
-    <div class="banner ok small">${esc(body.message)} · 정의 구절 ${body.total_passages}개 · 보험사 ${body.insurers.length}곳</div>
-    ${body.quotes.map((q) => `<div class="cite">
-      <div class="small muted">${esc(q.insurer)} · ${esc(q.title)} ${q.kind === 'appendix' ? '(붙임 정의표)' : ''}</div>
-      <div class="quote">${esc(q.quote)}</div>
-      <div class="loc">${esc(q.locator)}</div></div>`).join('')}
-    ${(body.warnings || []).map((w) => `<div class="small muted">⚠ ${esc(w)}</div>`).join('')}`;
+    <div class="banner ok small">${esc(body.note || '')}</div>
+    <div class="small muted">
+      검증 상태 <code>${esc(body.verification)}</code>
+      ${body.duplicate ? ' · 이미 접수된 보고입니다(중복으로 쌓지 않았습니다)' : ''}
+    </div>`;
 }
 
 /* ── 시작 ─────────────────────────────────────────────────────── */
 
 $('consent').addEventListener('change', (e) => { $('go').disabled = !e.target.checked; });
 $('go').addEventListener('click', runPrecheck);
-$('termGo').addEventListener('click', explainTerm);
-$('term').addEventListener('keydown', (e) => { if (e.key === 'Enter') explainTerm(); });
+$('obGo').addEventListener('click', submitObservation);
+$('chatGo').addEventListener('click', () => sendChat());
+$('chatIn').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendChat(); });
+document.querySelectorAll('.chip-btn').forEach((b) =>
+  b.addEventListener('click', () => sendChat(b.dataset.q)));
 loadScope();

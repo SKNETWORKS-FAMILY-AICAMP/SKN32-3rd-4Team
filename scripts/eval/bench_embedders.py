@@ -82,7 +82,8 @@ def _purge(model_id: str) -> str:
     return f"{size/1e9:.1f}GB 삭제"
 
 
-def run(model_id: str, *, q_prefix: str, d_prefix: str, batch: int, device: str) -> dict:
+def run(model_id: str, *, q_prefix: str, d_prefix: str, batch: int, device: str,
+        no_fp16: bool = False) -> dict:
     import numpy as np
     import torch
     from sentence_transformers import SentenceTransformer
@@ -96,6 +97,19 @@ def run(model_id: str, *, q_prefix: str, d_prefix: str, batch: int, device: str)
     kw = {"trust_remote_code": True}
     if device:
         kw["device"] = device
+    #: ★가중치를 **fp16 으로 바로 GPU 에** 올린다.
+    #:
+    #:   fp32 로 받으면 CPU 에 전체 사본이 한 벌 생겼다가 GPU 로 복사된다.
+    #:   측정 기계는 RAM 15.6GB 중 **여유 2.5GB** 인 작업용 PC 라
+    #:   2.2GB 모델에서 `memory allocation of 57462376 bytes failed` 로 죽었다.
+    #:   fp16 은 그 절반이고, 임베딩 추론에서 순위가 뒤집힐 만한 차이는 아니다.
+    #:   ★그래도 **결과에 dtype 을 적는다** — fp32 와 섞어 비교하면 안 되기 때문이다.
+    dtype = "float32"
+    if device.startswith("cuda") and not no_fp16:
+        import torch as _t
+
+        kw["model_kwargs"] = {"torch_dtype": _t.float16}
+        dtype = "float16"
     model = SentenceTransformer(model_id, **kw)
     load_s = time.time() - t0
 
@@ -150,6 +164,7 @@ def run(model_id: str, *, q_prefix: str, d_prefix: str, batch: int, device: str)
         "cuda": torch.cuda.is_available(),
         "gpu": torch.cuda.get_device_name(0) if torch.cuda.is_available() else "",
         "dim": dim,
+        "dtype": dtype,
         "max_seq_length": max_len,
         "load_sec": round(load_s, 1),
         "corpus": len(corpus),
@@ -201,7 +216,10 @@ def report() -> None:
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="임베딩 모델 벤치")
     ap.add_argument("--model")
+    #: ★64 로 두었더니 32K 문맥 모델(granite)이 어텐션 마스크에서 CUDA OOM 났다.
+    #:   조각이 448토큰이라 배치를 키워도 얻는 게 적다.
     ap.add_argument("--batch", type=int, default=16)
+    ap.add_argument("--no-fp16", action="store_true", help="fp32 로 잰다(대조용)")
     ap.add_argument("--device", default="")
     ap.add_argument("--purge", action="store_true", help="측정 후 캐시 삭제")
     ap.add_argument("--list", action="store_true")
@@ -223,7 +241,8 @@ def main(argv=None) -> int:
     _, _, qp, dp, note = known.get(a.model, (a.model, 0, "", "", ""))
     print(f"[{a.model}] {note}", flush=True)
 
-    res = run(a.model, q_prefix=qp, d_prefix=dp, batch=a.batch, device=a.device)
+    res = run(a.model, q_prefix=qp, d_prefix=dp, batch=a.batch, device=a.device,
+              no_fp16=a.no_fp16)
     print(json.dumps(res, ensure_ascii=False, indent=2))
     if res["proviso_blind_count"]:
         print(

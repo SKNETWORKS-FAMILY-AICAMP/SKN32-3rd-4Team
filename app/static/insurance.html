@@ -65,6 +65,13 @@
   pre{background:var(--bg);border:1px solid var(--line);border-radius:8px;
     padding:10px;overflow-x:auto;font-size:.8rem;margin:8px 0 0}
   .hide{display:none}
+  .chatlog{max-height:420px;overflow-y:auto;padding:2px}
+  .msg{margin:0 0 12px;padding:10px 13px;border-radius:12px;font-size:.94rem;
+    white-space:pre-wrap;word-break:break-word}
+  .msg.me{background:var(--accent);color:#fff;margin-left:auto;max-width:82%}
+  .msg.bot{background:var(--bg);border:1px solid var(--line);max-width:100%}
+  .chip-btn{background:transparent;border:1px solid var(--line);color:var(--fg);
+    border-radius:999px;padding:5px 12px;font-size:.82rem;margin:0 6px 6px 0}
 </style>
 </head>
 <body>
@@ -113,16 +120,26 @@
 
   <div id="result"></div>
 
-  <!-- 용어 설명 -->
+  <!-- 용어 챗봇 -->
   <section class="card">
-    <h2>약관 용어 찾아보기</h2>
-    <div class="row">
-      <div><label for="term">용어</label>
-        <input id="term" placeholder="예: 도수치료" autocomplete="off"></div>
+    <h2>약관 용어 물어보기</h2>
+    <p class="small muted" style="margin:0 0 12px">
+      약관에 적힌 <strong>용어의 뜻</strong>을 원문 그대로 찾아 드립니다.
+      <br>★보장 여부는 이 대화창에서 답하지 않습니다 — 위 판정 양식으로 안내합니다.
+    </p>
+    <div id="chatLog" class="chatlog"></div>
+    <div class="row" style="margin-top:12px">
+      <div><label for="chatIn">질문</label>
+        <input id="chatIn" placeholder="예: 도수치료가 뭐야" autocomplete="off"></div>
       <div style="flex:0 0 auto;align-self:end">
-        <button class="ghost" id="termGo">약관에서 찾기</button></div>
+        <button class="ghost" id="chatGo">보내기</button></div>
     </div>
-    <div id="termOut"></div>
+    <div style="margin-top:8px">
+      <button class="chip-btn" data-q="도수치료가 뭐야">도수치료가 뭐야</button>
+      <button class="chip-btn" data-q="통원 뜻">통원 뜻</button>
+      <button class="chip-btn" data-q="본인부담금">본인부담금</button>
+      <button class="chip-btn" data-q="도수치료 보장되나요?">도수치료 보장되나요?</button>
+    </div>
   </section>
 
   <!-- 컷⑧ 코호트 — ★실제와 합성을 다른 구역에 그린다 -->
@@ -138,6 +155,36 @@
         <div class="muted small">시연용입니다. 실제 지급 통계가 아닙니다.</div>
       </div>
     </div>
+  </section>
+
+  <!-- 컷⑨ 증빙 제출 -->
+  <section class="card" style="margin-top:26px">
+    <h2>실제 청구 결과 알려주기</h2>
+    <p class="small muted" style="margin:0 0 14px">
+      실제로 청구해 보신 결과를 알려주시면 통계와 <strong>우리 판정의 사후 검증</strong>에 씁니다.
+      <br>★이 보고는 <strong>다른 사람의 판정 근거로 쓰이지 않습니다</strong> —
+      약관 조항과 같은 등급으로 인용하지 않습니다.
+      <br>★검증 전까지 <strong>통계에도 반영되지 않습니다</strong>.
+    </p>
+    <div class="row">
+      <div><label for="obInsurer">보험사</label>
+        <input id="obInsurer" list="insurers" placeholder="예: DB손해보험" autocomplete="off"></div>
+      <div><label for="obCodes">질병기호</label>
+        <input id="obCodes" placeholder="F32" autocomplete="off"></div>
+      <div><label for="obOutcome">결과</label>
+        <select id="obOutcome">
+          <option value="paid">지급됨</option>
+          <option value="partial">일부 지급</option>
+          <option value="denied">부지급</option>
+          <option value="pending">심사 중</option>
+        </select></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <div><label for="obReason">보험사가 밝힌 사유 (선택)</label>
+        <input id="obReason" placeholder="예: 면책기간 미경과" autocomplete="off"></div>
+    </div>
+    <button class="ghost" id="obGo" style="margin-top:12px">제출하기</button>
+    <div id="obOut" style="margin-top:12px"></div>
   </section>
 
   <p class="small muted" style="margin-top:34px">

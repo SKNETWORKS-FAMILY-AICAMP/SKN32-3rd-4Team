@@ -66,3 +66,12 @@ data/glossary/
 
 # 임베딩 평가셋 — 약관 원문 조각이다. 결과 지표만 커밋한다.
 data/eval/embed_bench.json
+
+# handoff 계약의 반출용 동결본(zip) — ★백업이 아니다.
+# 권위 있는 이력은 git 커밋이고, 이 zip 은 거기서 언제든 다시 만들 수 있다:
+#   git archive --format=zip -o out.zip <커밋> docs/handoff/
+# 폴더째 막지 않고 zip·manifest 만 좁게 제외한다 — 폴더 ignore 는 압축 해제본이나
+# 실수로 만든 파일까지 git status 에서 숨겨 버린다(코덱스 지적).
+# ★압축을 풀어 저장소 안에 두지 마라. 검색·IDE·AI 가 구버전을 현행 계약으로 읽는다.
+/backups/handoff/*.zip
+/backups/handoff/*.manifest.txt
