@@ -26,6 +26,7 @@
 | [erd_briefing.html](erd_briefing.html) | 전원 | ERD·스키마 브리핑 — **왜 이렇게 설계했나**(브라우저로 열기) |
 | [erd_tables.html](erd_tables.html) | 백엔드·전원 | ★**테이블·컬럼 사전** — 27테이블+뷰1의 전 컬럼·타입·제약·enum(브라우저로 열기) |
 | [system_diagrams.html](system_diagrams.html) | 전원 | ★**시스템 시각화 6장** — 아키텍처·오프라인/온라인·기권 게이트·실패 전파·검증 확장·12GB 예산(브라우저로 열기) |
+| [preprocess_viz.html](preprocess_viz.html) | 모델팀·전원 | ★**전처리 v5 산출물 시각화** — 그림 7장 + DB 적재 정합성 + Tad 행 단위 캡처 5장(브라우저로 열기) |
 | [storyboard.html](storyboard.html) | 전원 | **데모 흐름 스토리보드(브라우저로 열기)** |
 
 ---
@@ -47,6 +48,33 @@ curl -X POST localhost:8000/v1/prechecks -H 'Content-Type: application/json' -d 
   "product_name": "프로미라이프 실손의료비"
 }'
 ```
+
+---
+
+## 전처리 산출물을 직접 뒤져 보려면
+
+집계는 [preprocess_viz.html](preprocess_viz.html) 로, **행 단위 탐색은 Parquet + Tad** 로 나눴다.
+수십만 행을 단일 HTML 에 넣으면 파일 크기와 브라우저 메모리가 문제가 된다.
+
+**Tad** — 무료(MIT) · DuckDB 기반 · Parquet 를 그냥 더블클릭해서 정렬·필터·피벗한다.
+[tadviewer.com](https://www.tadviewer.com/) 에서 Windows 설치파일을 받는다.
+
+| 파일 | 내용 |
+|---|---|
+| `data/exports/s5_clauses.parquet` | **211,131행 · 22컬럼.** 조항 본문 + `reuse_docs`(재사용 문서 수) · `para_ambiguous` · `statute` |
+| `data/exports/s5_documents.parquet` | 1,367행. 문서별 쪽수·조항수·항수·suspect·모호·미해결 |
+| `data/exports/views/v1~v5.parquet` | ★**행 단위로만 보이는 것 5개.** HTML §H 의 캡처와 같은 화면이 그대로 열린다 |
+
+```
+v1_clause_boundary  조항 경계 붕괴 (30,000자 초과 133행)
+v2_page_fallback    페이지 덩어리 438행 — 조항이 아니다
+v3_reuse            170문서에 실린 같은 조항 2,843행
+v4_para_marker      항 표지 충돌 2,795행
+v5_pua              못 읽은 보조 PUA 515행 — 문맥 스니펫 포함
+```
+
+`s5_clauses.parquet` 에서 `reuse_docs` 내림차순 정렬 → 중복 조항,
+`para_ambiguous=true` 필터 → 인용 못 대는 조항 9,838건이 바로 나온다.
 
 ---
 
