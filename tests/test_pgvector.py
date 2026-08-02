@@ -39,7 +39,13 @@ def test_get_conn_failure_is_infra_error():
         get_conn("host=127.0.0.1 port=9 user=x dbname=nope connect_timeout=2")
 
 
+#: ★이 테스트는 **커머스 실습 코퍼스**(`data/docs/`)가 pgvector 에 적재돼 있어야 한다.
+#:   보험 프로젝트에서는 그걸 적재하지 않는다 — 레거시 데이터 의존성이 생긴다.
+#:   PG 가 떠 있으면 `pg` 마커만으로는 안 걸러져 **영구히 빨간 테스트**가 된다.
+#:   영구 실패는 앞서 51건을 숨겼던 그 함정이므로 `legacy_data` 도 붙인다.
+#:   되살리려면: python -m scripts.pg setup   (커머스 문서를 적재한다)
 @pytest.mark.pg
+@pytest.mark.legacy_data
 def test_pgvector_parity_with_faiss():
     from app.adapters.faiss_retriever import FaissRetriever
     from app.adapters.pgvector_retriever import PgVectorRetriever
@@ -56,7 +62,13 @@ def test_pgvector_parity_with_faiss():
     assert faiss[0].source == pg[0].source  # 상위 출처 일치(동일 임베딩)
 
 
+#: ★이 테스트는 **커머스 실습 코퍼스**(`data/docs/`)가 pgvector 에 적재돼 있어야 한다.
+#:   보험 프로젝트에서는 그걸 적재하지 않는다 — 레거시 데이터 의존성이 생긴다.
+#:   PG 가 떠 있으면 `pg` 마커만으로는 안 걸러져 **영구히 빨간 테스트**가 된다.
+#:   영구 실패는 앞서 51건을 숨겼던 그 함정이므로 `legacy_data` 도 붙인다.
+#:   되살리려면: python -m scripts.pg setup   (커머스 문서를 적재한다)
 @pytest.mark.pg
+@pytest.mark.legacy_data
 def test_pgvector_hit_at_3_matches_faiss():
     from app.adapters.faiss_retriever import FaissRetriever
     from app.adapters.pgvector_retriever import PgVectorRetriever

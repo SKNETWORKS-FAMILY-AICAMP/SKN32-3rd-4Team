@@ -109,3 +109,56 @@ def test_적재된_약관을_읽고_찾는다():
         cur.execute("DELETE FROM policy_clause_occurrence WHERE content_hash = %s", (h,))
     conn.commit()
     conn.close()
+
+
+@pytest.mark.pg
+def test_짧은_질의가_긴_조각에서_찾아진다():
+    """★`similarity()` 로는 **0건**이 나왔다.
+
+    `similarity()` 는 문자열 **전체**끼리 비교하므로 10자 질의와 800자 조각은
+    아무리 잘 맞아도 0.02 수준이다. 실측 —
+
+        "보상하지 않는 손해"  similarity 0.066 · word_similarity 0.727
+        "보험금의 지급사유"   similarity 0.106 · word_similarity 1.000
+
+    `word_similarity(질의, 본문)` 은 질의가 본문의 **어느 부분과** 맞는지를 잰다.
+    검색이 조용히 0건을 돌려주면 판정은 근거 없이 기권한다 — 고장이 안 보인다.
+    """
+    conn = _conn_or_skip()
+    with conn.cursor() as cur:
+        cur.execute("""SELECT o.sha256 FROM policy_clause_occurrence o
+                       JOIN policy_clause_chunk c ON c.content_hash = o.content_hash
+                       GROUP BY 1 ORDER BY count(*) DESC LIMIT 1""")
+        row = cur.fetchone()
+    conn.close()
+    if not row:
+        pytest.skip("인덱스 A 가 비어 있음 — build_clause_index 미실행")
+    sha = row[0]
+    hits = pg_clause_store.search(sha, "보험금의 지급사유", limit=5)
+    assert hits, "짧은 질의가 0건입니다 — similarity/word_similarity 를 확인하세요"
+
+
+@pytest.mark.pg
+def test_현황이_조회_결과와_어긋나지_않는다():
+    """★"조항 444개" 라고 세어 놓고 `load_clauses()` 가 0개를 돌려준 적이 있다.
+
+    발생 행은 전 문서에 먼저 쌓고 본문은 `citation_eligible` 로 걸러 넣었기
+    때문이다. 실측(2026-08-02): 발생 156,946 중 **91.4%가 본문 없음**.
+    현황이 조회 결과와 어긋나면 판정이 근거 없이 기권한다.
+    """
+    conn = _conn_or_skip()
+    with conn.cursor() as cur:
+        cur.execute("""SELECT o.sha256 FROM policy_clause_occurrence o
+                       JOIN policy_clause_chunk c ON c.content_hash = o.content_hash
+                       GROUP BY 1 ORDER BY count(*) DESC LIMIT 1""")
+        row = cur.fetchone()
+    conn.close()
+    if not row:
+        pytest.skip("인덱스 A 가 비어 있음")
+    sha = row[0]
+    st = pg_clause_store.stats(sha)
+    rows = pg_clause_store.load_clauses(sha)
+    assert st["clauses"] == len(rows), (
+        f"stats 는 {st['clauses']}개라는데 실제로는 {len(rows)}개가 나옵니다"
+    )
+    assert "missing_bodies" in st, "본문 없는 기록 수를 숨기면 안 됩니다"

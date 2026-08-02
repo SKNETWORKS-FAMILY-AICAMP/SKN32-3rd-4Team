@@ -25,6 +25,7 @@
 | [12_모델팀_개선사항.md](12_모델팀_개선사항.md) | 서유현·송채영 | ★**`feature-ai1` 점검 결과 — 재색인 전 고칠 것** (P0 1건 · P1 7건 · P2 2건) |
 | [erd_briefing.html](erd_briefing.html) | 전원 | ERD·스키마 브리핑 — **왜 이렇게 설계했나**(브라우저로 열기) |
 | [erd_tables.html](erd_tables.html) | 백엔드·전원 | ★**테이블·컬럼 사전** — 27테이블+뷰1의 전 컬럼·타입·제약·enum(브라우저로 열기) |
+| [system_diagrams.html](system_diagrams.html) | 전원 | ★**시스템 시각화 6장** — 아키텍처·오프라인/온라인·기권 게이트·실패 전파·검증 확장·12GB 예산(브라우저로 열기) |
 | [storyboard.html](storyboard.html) | 전원 | **데모 흐름 스토리보드(브라우저로 열기)** |
 
 ---
@@ -56,7 +57,7 @@ curl -X POST localhost:8000/v1/prechecks -H 'Content-Type: application/json' -d 
 "보장됩니다"라고 잘못 말하면 사용자가 청구했다가 거절당하거나, 받을 걸 포기한다.
 그래서 정확도보다 **정직성**이 앞선다.
 
-- 근거 조항을 못 대면 `verdict="unknown"` 으로 답한다. 이건 **정상 결과**다(HTTP 200).
+- 근거 조항을 못 대면 `verdict="needs_expert"` · `abstained=true` 로 답한다. 이건 **정상 결과**다(HTTP 200).
 - **면책 목록에 없다 ≠ 보장된다.** 보장은 '보상하는 사항' 조항이 정한다.
 - 추론과 사실을 구분해 저장한다(`date_confidence`, `inferred`, `verification`).
 - 외부에서 받은 데이터를 약관과 같은 근거로 쓰지 않는다(`evidence_tier`).

@@ -37,7 +37,12 @@ from app.core.errors import InfraError
 from app.core.ports.precheck import ClauseRow
 
 #: trigram 유사도 하한. 낮추면 무관한 조항이 근거로 붙는다.
-_MIN_SIMILARITY = 0.15
+#:
+#: ★`similarity()` 를 쓰면 안 된다 — 문자열 **전체**끼리 비교하므로
+#:   10자 질의와 800자 조각은 아무리 잘 맞아도 값이 0.02 수준이다.
+#:   실제로 "보상하지 않는 손해" 로 찾았더니 **0건**이 나왔다.
+#:   `word_similarity(질의, 본문)` 은 질의가 본문의 **어느 부분과** 맞는지를 잰다.
+_MIN_SIMILARITY = 0.45
 
 
 def _conn():
@@ -108,9 +113,12 @@ def load_clauses(sha256: str, *, usable_only: bool = True) -> list[ClauseRow]:
         raise InfraError(f"조항을 읽지 못했습니다(sha={sha256[:12]}): {exc}") from exc
 
     if not fetched:
+        #: ★"적재 안 됨"과 "인용 불가라 일부러 뺐음"은 **다른 사실**이다.
+        #:   섞어 말하면 팀이 적재를 다시 돌리는 헛수고를 한다.
         raise InfraError(
-            f"이 약관의 조항 산출물이 없습니다: {sha256[:12]}. "
-            "인덱스 A 에 적재했는지 확인하세요(python -m scripts.index.build_clause_index)."
+            f"이 약관의 조항 본문이 색인에 없습니다: {sha256[:12]}. "
+            "인용 불가(citation_eligible=false)로 제외됐거나 아직 적재 전입니다. "
+            "GET /v1/support-manifest 로 대상 여부를 확인하세요."
         )
     return _rows_to_clauses(fetched)
 
@@ -119,19 +127,42 @@ def stats(sha256: str) -> dict:
     """이 문서가 인덱스에 얼마나 들어와 있나."""
     try:
         with _conn() as conn, conn.cursor() as cur:
+            #: ★**실제로 조회되는 것**을 센다.
+            #:
+            #:   처음엔 `policy_clause_occurrence` 만 셌더니 어떤 약관이
+            #:   "조항 444개" 라고 나오는데 `load_clauses()` 는 0개를 돌려줬다.
+            #:   발생 행은 전 문서에 대해 먼저 쌓았고, 본문 임베딩은 그 뒤에
+            #:   `citation_eligible` 로 걸러 **161문서만** 넣었기 때문이다.
+            #:   실측(2026-08-02): 발생 156,946 중 **91.4%가 본문 없음**.
+            #:
+            #:   현황이 조회 결과와 어긋나면 그게 더 나쁘다 —
+            #:   "있다"고 세어 놓고 못 꺼내면 판정이 근거 없이 기권한다.
             cur.execute(
-                "SELECT count(*), count(DISTINCT content_hash) "
-                "FROM policy_clause_occurrence WHERE sha256 = %s",
+                """
+                SELECT count(*) FILTER (WHERE c.h IS NOT NULL),
+                       count(DISTINCT c.h),
+                       count(*)
+                FROM policy_clause_occurrence o
+                LEFT JOIN LATERAL (
+                    SELECT k.content_hash AS h FROM policy_clause_chunk k
+                    WHERE k.content_hash = o.content_hash LIMIT 1
+                ) c ON true
+                WHERE o.sha256 = %s
+                """,
                 (sha256,),
             )
-            occ, uniq = cur.fetchone()
+            usable, uniq, recorded = cur.fetchone()
     except Exception as exc:  # noqa: BLE001
         raise InfraError(f"조항 현황을 읽지 못했습니다: {exc}") from exc
-    if not occ:
-        raise InfraError(f"이 약관의 조항 산출물이 없습니다: {sha256[:12]}")
+    if not recorded:
+        raise InfraError(f"이 약관의 조항 기록이 없습니다: {sha256[:12]}")
     return {
-        "clauses": occ,
+        #: 조회 가능한 조항 수. `load_clauses()` 와 **같은 기준**이다.
+        "clauses": usable,
         "distinct_contents": uniq,
+        #: ★기록은 있으나 본문이 없는 것. 숨기지 않는다.
+        "recorded_occurrences": recorded,
+        "missing_bodies": recorded - usable,
         "parse_status": "ok",
         "source": "pg/index_a",
     }
@@ -153,11 +184,11 @@ def search(sha256: str, query: str, *, limit: int = 8) -> Sequence[ClauseRow]:
                     SELECT DISTINCT ON (o.content_hash, o.qualified_no, o.page_from)
                            o.content_hash, ct.text, o.sha256, o.qualified_no,
                            o.section, o.title, o.page_from, o.page_to,
-                           similarity(c.text, %(q)s) AS sim
+                           word_similarity(%(q)s, c.text) AS sim
                     FROM policy_clause_chunk c
                     JOIN policy_clause_occurrence o ON o.content_hash = c.content_hash
                     JOIN policy_clause_content ct ON ct.content_hash = c.content_hash
-                    WHERE o.sha256 = %(sha)s AND similarity(c.text, %(q)s) >= %(min)s
+                    WHERE o.sha256 = %(sha)s AND word_similarity(%(q)s, c.text) >= %(min)s
                     ORDER BY o.content_hash, o.qualified_no, o.page_from, sim DESC
                 )
                 --: ★정렬을 **바깥에서** 다시 한다.

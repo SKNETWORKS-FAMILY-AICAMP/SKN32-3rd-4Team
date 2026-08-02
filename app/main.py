@@ -49,9 +49,13 @@ from app.routers import (
 _STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 # 고객 포트에서 서빙하지 않을 운영/개발 정적 페이지·스크립트(고객 웹 노출 금지).
+#: ★없어진 파일 이름이 남아 있으면 **차단이 잘 되는 것처럼 보인다.**
+#:   `mcp.html`·`orders.html` 은 레거시로 갔는데 목록에 남아 있었다 —
+#:   목록만 보면 "막고 있다"로 읽히지만 실은 막을 것이 없었다.
+#:   `tests/test_static_ui.py` 가 목록과 실제 파일을 대조한다.
 _OPS_STATIC = {
     "admin.html", "admin.js", "facebench.html", "facebench.js",
-    "mcp.html", "mcp.js", "rag.html", "rag.js", "orders.html", "orders.js",
+    "rag.html", "rag.js",
 }
 
 

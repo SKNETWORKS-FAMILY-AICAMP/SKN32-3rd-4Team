@@ -23,7 +23,13 @@ def _ensure_trgm() -> None:
         conn.close()
 
 
+#: ★이 테스트는 **커머스 실습 코퍼스**(`data/docs/`)가 pgvector 에 적재돼 있어야 한다.
+#:   보험 프로젝트에서는 그걸 적재하지 않는다 — 레거시 데이터 의존성이 생긴다.
+#:   PG 가 떠 있으면 `pg` 마커만으로는 안 걸러져 **영구히 빨간 테스트**가 된다.
+#:   영구 실패는 앞서 51건을 숨겼던 그 함정이므로 `legacy_data` 도 붙인다.
+#:   되살리려면: python -m scripts.pg setup   (커머스 문서를 적재한다)
 @pytest.mark.pg
+@pytest.mark.legacy_data
 def test_pg_lexical_ranks_by_word_similarity():
     from app.adapters.pg_lexical_retriever import PgLexicalRetriever
 
@@ -37,7 +43,13 @@ def test_pg_lexical_ranks_by_word_similarity():
     assert evs[0].backend == "pg_lexical"
 
 
+#: ★이 테스트는 **커머스 실습 코퍼스**(`data/docs/`)가 pgvector 에 적재돼 있어야 한다.
+#:   보험 프로젝트에서는 그걸 적재하지 않는다 — 레거시 데이터 의존성이 생긴다.
+#:   PG 가 떠 있으면 `pg` 마커만으로는 안 걸러져 **영구히 빨간 테스트**가 된다.
+#:   영구 실패는 앞서 51건을 숨겼던 그 함정이므로 `legacy_data` 도 붙인다.
+#:   되살리려면: python -m scripts.pg setup   (커머스 문서를 적재한다)
 @pytest.mark.pg
+@pytest.mark.legacy_data
 def test_pg_lexical_source_filter():
     from app.adapters.pg_lexical_retriever import PgLexicalRetriever
 
@@ -46,7 +58,13 @@ def test_pg_lexical_source_filter():
     assert evs and all(e.source == "환불교환정책.pdf" for e in evs)
 
 
+#: ★이 테스트는 **커머스 실습 코퍼스**(`data/docs/`)가 pgvector 에 적재돼 있어야 한다.
+#:   보험 프로젝트에서는 그걸 적재하지 않는다 — 레거시 데이터 의존성이 생긴다.
+#:   PG 가 떠 있으면 `pg` 마커만으로는 안 걸러져 **영구히 빨간 테스트**가 된다.
+#:   영구 실패는 앞서 51건을 숨겼던 그 함정이므로 `legacy_data` 도 붙인다.
+#:   되살리려면: python -m scripts.pg setup   (커머스 문서를 적재한다)
 @pytest.mark.pg
+@pytest.mark.legacy_data
 def test_hybrid_hit_at_3_on_rag_v1():
     from app.adapters.hybrid_retriever import HybridRetriever
     from app.adapters.pg_lexical_retriever import PgLexicalRetriever
