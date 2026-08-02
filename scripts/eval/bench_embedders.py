@@ -59,6 +59,10 @@ CANDIDATES = [
     ("google/embeddinggemma-300m", 1.2, "task: search result | query: ", "title: none | text: ", "게이트"),
     ("Qwen/Qwen3-Embedding-4B", 8.0, "@qwen", "", "instruction 필요"),
     ("Qwen/Qwen3-Embedding-8B", 16.0, "@qwen", "", "instruction 필요 · 4bit 필요"),
+    #: ★Nemotron 계열은 접두어가 필수다. 1B 에서 이미 확인했다(0.088 → 0.548).
+    #:   8B 를 접두어 없이 재서 MRR 0.260 이 나왔는데, 같은 실수를 반복한 것이다.
+    ("nvidia/llama-embed-nemotron-8b", 16.0, "query: ", "passage: ", "접두어 필수 · 4bit"),
+    ("sionic-ai/comsat-embed-ko-8b-preview", 16.0, "", "", "★CC BY-NC · 4bit"),
     ("jhgan/ko-sroberta-multitask", 0.5, "", "", "★현재 모델. 회귀 기준선"),
     #: ── 파인튜닝 10선 중 미측정분 ──────────────────────────────────
     #: ★접두어를 **확신하지 못하는 것은 그렇게 적는다.** Nemotron 을 빈 접두어로

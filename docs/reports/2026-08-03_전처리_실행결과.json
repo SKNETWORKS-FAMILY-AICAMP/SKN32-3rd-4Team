@@ -1,10 +1,10 @@
 {
- "extractor_tag": "s4_pymupdf-1.28.0",
+ "extractor_tag": "s5_pymupdf-1.28.0",
  "targets": 1367,
  "pages_built": 0,
- "pages_skipped": 0,
- "clauses_built": 1367,
- "clauses_skipped": 0,
- "elapsed_sec": 133.0,
+ "pages_skipped": 1367,
+ "clauses_built": 1366,
+ "clauses_skipped": 1,
+ "elapsed_sec": 69.6,
  "failures": []
 }

@@ -31,7 +31,13 @@ CLAUSE_TAG = "s6_pymupdf-1.28.0"
 
 
 def _norm(s: str) -> str:
-    return _WS.sub("", s or "")
+    """공백과 **쉼표**를 지운다.
+
+    ★쉼표를 정답에서만 지우고 레코드에서는 안 지웠더니
+      `관절병증, 연골병증` 이 "못 찾음"으로 찍혔다. 실제로는 실려 있었다 —
+      **측정이 만든 가짜 실패**다. 양쪽에 같은 정규화를 건다.
+    """
+    return _WS.sub("", (s or "").replace(",", "").replace("，", ""))
 
 
 def main() -> int:
@@ -75,7 +81,7 @@ def main() -> int:
         n_ok = n_miss = n_pair = 0
         for g in recs:
             tot += 1
-            name = _norm(g["name"]).replace(",", "")
+            name = _norm(g["name"])
             want = want_by_no[g["no"]]
             others = set().union(*(v for k, v in want_by_no.items() if k != g["no"]))
             #: 이름이 들어 있는 레코드를 찾는다. `no` 로 찾지 않는다 —
