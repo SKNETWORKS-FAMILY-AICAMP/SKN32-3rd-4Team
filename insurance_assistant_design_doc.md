@@ -49,7 +49,8 @@
 ---
 
 ## 3. 최종 DB 스키마
-
+![ERD](./erd.png)   
+🔗링크: https://dbdiagram.io/d/6a6e1ac5067336e1de404869
 ### session_manager (세션 관리)
 | 컬럼 | 타입 | 제약 | 설명 |
 |---|---|---|---|
