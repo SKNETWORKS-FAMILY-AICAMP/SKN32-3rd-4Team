@@ -1,0 +1,935 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>관리자 대시보드 — {{BRAND}}</title>
+  <link rel="stylesheet" href="/static/style.css" />
+
+  <style>
+    :root {
+      --header: #2f3640;
+      --accent: #4a69bd;
+      --accent-dark: #3c58a0;
+      --border: #dcdde1;
+      --background: #f5f6fa;
+      --surface: #ffffff;
+      --text: #2f3640;
+      --muted: #718093;
+      --success: #218c74;
+      --success-bg: #e8f6f1;
+      --warning: #cc8e35;
+      --warning-bg: #fff5e5;
+      --danger: #c23616;
+      --danger-bg: #fdeeea;
+      --info: #40739e;
+      --info-bg: #edf5fb;
+      --shadow: 0 2px 10px rgba(47, 54, 64, 0.07);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-width: 1080px;
+      color: var(--text);
+      background: var(--background);
+      font-family:
+        Inter, Pretendard, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", "Noto Sans KR", sans-serif;
+      font-size: 14px;
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    .app-header {
+      height: 68px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 30px;
+      color: #fff;
+      background: var(--header);
+      box-shadow: 0 2px 8px rgba(47, 54, 64, 0.2);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-mark {
+      width: 13px;
+      height: 13px;
+      border: 3px solid rgba(255, 255, 255, 0.45);
+      border-radius: 50%;
+      background: #78e08f;
+      box-shadow: 0 0 0 4px rgba(120, 224, 143, 0.13);
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 19px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .brand p {
+      margin: 3px 0 0;
+      color: #c8cdd4;
+      font-size: 12px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .refresh-status {
+      color: #c8cdd4;
+      font-size: 12px;
+    }
+
+    .refresh-button {
+      min-width: 92px;
+      height: 36px;
+      padding: 0 15px;
+      border: 1px solid rgba(255, 255, 255, 0.23);
+      border-radius: 6px;
+      color: #fff;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .refresh-button:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .refresh-button:disabled {
+      cursor: wait;
+      opacity: 0.55;
+    }
+
+    .dashboard {
+      width: calc(100% - 60px);
+      max-width: 1500px;
+      margin: 28px auto 50px;
+    }
+
+    .auth-notice,
+    .error-banner {
+      margin-bottom: 18px;
+      padding: 14px 17px;
+      border: 1px solid #f0c8be;
+      border-radius: 7px;
+      color: #8d2b16;
+      background: var(--danger-bg);
+    }
+
+    .error-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .error-banner button {
+      border: 0;
+      color: #8d2b16;
+      background: transparent;
+      font-weight: 700;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+      margin-bottom: 22px;
+    }
+
+    .summary-card {
+      position: relative;
+      min-height: 150px;
+      padding: 21px 22px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .summary-card::before {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      width: 4px;
+      background: var(--accent);
+      content: "";
+    }
+
+    .summary-card.is-success::before {
+      background: var(--success);
+    }
+
+    .summary-card.is-warning::before {
+      background: var(--warning);
+    }
+
+    .summary-card.is-danger::before {
+      background: var(--danger);
+    }
+
+    .summary-label {
+      margin: 0 0 13px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .summary-value {
+      display: flex;
+      align-items: baseline;
+      gap: 7px;
+      min-height: 43px;
+      margin: 0;
+      color: var(--text);
+      font-size: 34px;
+      font-weight: 750;
+      line-height: 1;
+      letter-spacing: -1px;
+    }
+
+    .summary-value.is-text {
+      font-size: 25px;
+      letter-spacing: -0.7px;
+    }
+
+    .summary-unit {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .summary-description {
+      margin: 14px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .component-statuses {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 12px;
+    }
+
+    .component-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 7px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--muted);
+      background: #fafafa;
+      font-size: 11px;
+    }
+
+    .component-chip::before {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #a4b0be;
+      content: "";
+    }
+
+    .component-chip.is-ready::before {
+      background: var(--success);
+    }
+
+    .component-chip.is-not-ready::before {
+      background: var(--danger);
+    }
+
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.55fr) minmax(380px, 0.75fr);
+      gap: 22px;
+      align-items: start;
+    }
+
+    .left-column,
+    .right-column {
+      display: grid;
+      gap: 22px;
+    }
+
+    .panel {
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .panel-header {
+      min-height: 64px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px 18px;
+      padding: 15px 19px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .panel-title {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .panel-subtitle {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .panel-count {
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .table-wrap {
+      overflow: auto;
+    }
+
+    .orders-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    .orders-table th,
+    .orders-table td {
+      height: 50px;
+      padding: 0 15px;
+      border-bottom: 1px solid #edf0f3;
+      text-align: left;
+      vertical-align: middle;
+    }
+
+    .orders-table th {
+      height: 43px;
+      color: var(--muted);
+      background: #fafbfc;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .orders-table tbody tr:hover {
+      background: #f8f9fc;
+    }
+
+    .orders-table tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .orders-table th:nth-child(1) {
+      width: 25%;
+    }
+
+    .orders-table th:nth-child(2) {
+      width: 21%;
+    }
+
+    .orders-table th:nth-child(3) {
+      width: 18%;
+    }
+
+    .orders-table th:nth-child(4) {
+      width: 13%;
+      text-align: right;
+    }
+
+    .orders-table th:nth-child(5) {
+      width: 23%;
+      text-align: right;
+    }
+
+    .orders-table td:nth-child(4),
+    .orders-table td:nth-child(5) {
+      text-align: right;
+    }
+
+    .order-number {
+      color: var(--accent-dark);
+      font-weight: 700;
+    }
+
+    .secondary-text {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 25px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .status-pending {
+      color: #9b671c;
+      background: var(--warning-bg);
+    }
+
+    .status-paid,
+    .status-confirmed {
+      color: #315e8a;
+      background: var(--info-bg);
+    }
+
+    .status-processing,
+    .status-shipped {
+      color: #425da8;
+      background: #edf0fc;
+    }
+
+    .status-delivered,
+    .status-completed,
+    .status-resolved {
+      color: #176d59;
+      background: var(--success-bg);
+    }
+
+    .status-cancelled,
+    .status-canceled,
+    .status-failed,
+    .status-refunded,
+    .status-unresolved {
+      color: #9d2f19;
+      background: var(--danger-bg);
+    }
+
+    .status-unknown {
+      color: #596275;
+      background: #eef0f3;
+    }
+
+    .timeline {
+      position: relative;
+      margin: 0;
+      padding: 7px 19px 15px 33px;
+      list-style: none;
+    }
+
+    .timeline::before {
+      position: absolute;
+      top: 25px;
+      bottom: 28px;
+      left: 27px;
+      width: 2px;
+      background: #e4e7eb;
+      content: "";
+    }
+
+    .timeline-item {
+      position: relative;
+      padding: 15px 0 17px 20px;
+      border-bottom: 1px solid #edf0f3;
+    }
+
+    .timeline-item:last-child {
+      border-bottom: 0;
+    }
+
+    .timeline-dot {
+      position: absolute;
+      top: 20px;
+      left: -12px;
+      width: 12px;
+      height: 12px;
+      border: 3px solid #fff;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent);
+    }
+
+    .timeline-dot.is-error {
+      background: var(--danger);
+      box-shadow: 0 0 0 2px var(--danger);
+    }
+
+    .timeline-dot.is-success {
+      background: var(--success);
+      box-shadow: 0 0 0 2px var(--success);
+    }
+
+    .timeline-dot.is-warning {
+      background: var(--warning);
+      box-shadow: 0 0 0 2px var(--warning);
+    }
+
+    .timeline-heading {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .timeline-kind {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 700;
+      word-break: break-word;
+    }
+
+    .timeline-time {
+      flex: 0 0 auto;
+      color: var(--muted);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .trace-id {
+      display: block;
+      margin-top: 5px;
+      color: var(--muted);
+      font-family: Consolas, "SFMono-Regular", monospace;
+      font-size: 11px;
+      word-break: break-all;
+    }
+
+    .event-summary {
+      margin: 10px 0 0;
+      color: #4b5563;
+      font-size: 12px;
+      line-height: 1.55;
+      overflow-wrap: anywhere;
+    }
+
+    .event-detail {
+      margin-top: 10px;
+    }
+
+    .event-detail summary {
+      width: fit-content;
+      color: var(--accent-dark);
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 650;
+    }
+
+    .event-detail pre {
+      max-height: 240px;
+      margin: 9px 0 0;
+      padding: 12px;
+      overflow: auto;
+      border: 1px solid #e4e7eb;
+      border-radius: 6px;
+      color: #dfe4ea;
+      background: #353b48;
+      font-family: Consolas, "SFMono-Regular", monospace;
+      font-size: 11px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .filters {
+      display: flex;
+      flex-shrink: 0;
+      gap: 8px;
+    }
+
+    .filter-select,
+    .filter-input {
+      height: 34px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      outline: 0;
+      background: #fff;
+    }
+
+    .filter-select {
+      min-width: 104px;
+      padding: 0 28px 0 10px;
+    }
+
+    .filter-input {
+      width: 195px;
+      padding: 0 10px;
+    }
+
+    .filter-select:focus,
+    .filter-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(74, 105, 189, 0.12);
+    }
+
+    .gap-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .gap-item {
+      padding: 16px 18px;
+      border-bottom: 1px solid #edf0f3;
+    }
+
+    .gap-item:last-child {
+      border-bottom: 0;
+    }
+
+    .gap-heading {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .gap-question {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 650;
+      line-height: 1.55;
+      word-break: break-word;
+    }
+
+    .gap-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .gap-meta code {
+      font-family: Consolas, "SFMono-Regular", monospace;
+      font-size: 11px;
+      word-break: break-all;
+    }
+
+    .empty-state {
+      padding: 46px 20px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .empty-state strong {
+      display: block;
+      margin-bottom: 7px;
+      color: #596275;
+      font-size: 14px;
+    }
+
+    .loading-row td {
+      color: var(--muted);
+      text-align: center !important;
+    }
+
+    .skeleton {
+      display: inline-block;
+      width: 86px;
+      height: 13px;
+      border-radius: 4px;
+      background:
+        linear-gradient(
+          90deg,
+          #eceff2 25%,
+          #f7f8f9 50%,
+          #eceff2 75%
+        );
+      background-size: 200% 100%;
+      animation: skeleton 1.3s infinite;
+    }
+
+    @keyframes skeleton {
+      from {
+        background-position: 200% 0;
+      }
+
+      to {
+        background-position: -200% 0;
+      }
+    }
+
+    nav.top-nav a {
+      color: #c7cdd6; text-decoration: none; font-size: 13px; padding: 5px 10px;
+      border-radius: 6px; border: 1px solid transparent; margin-right: 4px;
+    }
+    nav.top-nav a:hover { border-color: var(--accent); }
+    nav.top-nav a.active { background: var(--accent); color: #fff; }
+    .login-panel { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 30px; }
+    .login-panel-inner { max-width: 1400px; }
+    .login-fields { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .login-fields label { font-size: 12.5px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+    .login-fields input {
+      padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; min-width: 170px;
+    }
+    .login-btn {
+      align-self: flex-end; height: 34px; padding: 0 14px; border: 0; border-radius: 6px;
+      background: var(--accent); color: #fff; font-size: 13px; cursor: pointer;
+    }
+    .login-btn:hover { background: var(--accent-dark); }
+    .login-btn.is-ghost { background: #e2e6ea; color: var(--text); }
+    .login-btn.is-ghost:hover { background: #d4d9df; }
+    .login-status { align-self: flex-end; font-size: 12.5px; color: var(--muted); padding-bottom: 8px; }
+    .login-hint { margin: 10px 0 0; font-size: 12px; color: var(--muted); line-height: 1.5; }
+    .login-hint code { background: #f1f2f6; padding: 1px 5px; border-radius: 4px; }
+    .logged-out-gate {
+      max-width: 1400px; margin: 40px auto; padding: 32px 30px; text-align: center;
+      color: var(--muted);
+    }
+    .logged-out-gate p:first-child { font-size: 17px; font-weight: 700; color: var(--text); margin: 0 0 8px; }
+    .logged-out-gate-sub { margin: 0; font-size: 13px; line-height: 1.6; }
+
+    /* 인쇄: 네비/로그인/버튼을 숨기고 대시보드 데이터만 깔끔히 인쇄 */
+    @media print {
+      body { min-width: 0; background: #fff; }
+      nav.top-nav, .login-panel, .header-actions, .filters, #authNotice, #errorBanner { display: none !important; }
+      .app-header { box-shadow: none; color: #000; background: #fff; border-bottom: 1px solid #000; }
+      .brand h1, .brand p { color: #000; }
+      .dashboard { width: 100%; margin: 0; }
+      .panel, .summary-card { box-shadow: none; break-inside: avoid; }
+      a[href]:after { content: ""; }
+    }
+  </style>
+</head>
+
+<body>
+  <nav class="top-nav">
+      <a href="/static/admin.html" class="active">🛡️ 관리자</a>
+      <a href="/static/rag.html">🔎 RAG 검색</a>
+      <a href="/static/orders.html">🛒 주문·승인</a>
+      <a href="/static/facebench.html">🧪 인식 비교</a>
+      <a href="/static/mcp.html">🔌 MCP</a>
+      <a href="/static/shop.html" style="margin-left:auto">🏠 스토어(고객)</a>
+    </nav>
+
+  <section class="login-panel">
+    <div class="login-panel-inner">
+      <div class="login-fields">
+        <label>아이디
+          <input id="adminUsername" type="text" placeholder="demo_admin (관리자) 또는 일반 계정" />
+        </label>
+        <label>비밀번호
+          <input id="adminPassword" type="password" placeholder="비밀번호" />
+        </label>
+        <button id="adminLoginBtn" class="login-btn" type="button">로그인</button>
+        <button id="logoutBtn" class="login-btn is-ghost" type="button">로그아웃</button>
+        <span id="loginStatus" class="login-status"></span>
+      </div>
+      <p class="login-hint">
+        관리자 승격은 CLI 전용입니다(<code>python -m scripts.manage promote &lt;username&gt;</code>) —
+        UI에는 자기 자신을 관리자로 만드는 버튼이 없습니다(권한 상승 사고 방지, 무폴백 설계).
+        아래 4개 API는 라우터 전역 fail-closed(<code>require_admin</code>)로 보호됩니다 — 미인증 401,
+        일반 사용자 403, 관리자만 200.
+      </p>
+    </div>
+  </section>
+
+  <div id="loggedOutGate" class="logged-out-gate">
+    <p>🔒 관리자 로그인이 필요합니다.</p>
+    <p class="logged-out-gate-sub">위 로그인 폼에서 인증하면 대시보드가 표시됩니다. 로그인 전에는
+      주문·이벤트·지식갭 데이터를 요청하지 않습니다.</p>
+  </div>
+
+  <header id="dashboardHeader" class="app-header" hidden>
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+
+      <div>
+        <h1>AI Agent Operations</h1>
+        <p>주문 · 관측 이벤트 · 인덱스 · 지식갭</p>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <span id="lastUpdated" class="refresh-status" aria-live="polite">
+        아직 갱신되지 않음
+      </span>
+
+      <button id="reportButton" class="refresh-button" type="button" title="요약보고서 PDF 다운로드">
+        📄 보고서 PDF
+      </button>
+      <button id="printButton" class="refresh-button" type="button" title="현재 화면 인쇄">
+        🖨 인쇄
+      </button>
+      <button id="refreshButton" class="refresh-button" type="button">
+        새로고침
+      </button>
+    </div>
+  </header>
+
+  <main id="dashboardMain" class="dashboard" hidden>
+    <div id="authNotice" class="auth-notice" hidden>
+      관리자 로그인이 필요합니다. 기존 로그인 폼에서 로그인한 뒤 다시 시도해주세요.
+    </div>
+
+    <div id="errorBanner" class="error-banner" role="alert" hidden>
+      <span id="errorMessage"></span>
+      <button id="dismissErrorButton" type="button" aria-label="오류 메시지 닫기">
+        닫기
+      </button>
+    </div>
+
+    <section class="summary-grid" aria-label="시스템 요약">
+      <article id="readinessCard" class="summary-card">
+        <p class="summary-label">시스템 준비 상태</p>
+        <p id="readinessValue" class="summary-value is-text">확인 중</p>
+
+        <div id="componentStatuses" class="component-statuses">
+          <span class="component-chip">데이터베이스</span>
+          <span class="component-chip">벡터 인덱스</span>
+        </div>
+
+        <p id="readinessDescription" class="summary-description">
+          백엔드 구성요소 상태를 확인하고 있습니다.
+        </p>
+      </article>
+
+      <article class="summary-card">
+        <p class="summary-label">최근 주문</p>
+
+        <p class="summary-value">
+          <span id="orderCount">-</span>
+          <span class="summary-unit">건</span>
+        </p>
+
+        <p class="summary-description">
+          관리자 주문 API가 반환한 현재 주문 수입니다.
+        </p>
+      </article>
+
+      <article id="gapSummaryCard" class="summary-card">
+        <p class="summary-label">미해결 지식갭</p>
+
+        <p class="summary-value">
+          <span id="unresolvedGapCount">-</span>
+          <span class="summary-unit">건</span>
+        </p>
+
+        <p class="summary-description">
+          AI가 답변하지 못해 운영자 확인이 필요한 질문입니다.
+        </p>
+      </article>
+    </section>
+
+    <div class="dashboard-grid">
+      <div class="left-column">
+        <section class="panel" aria-labelledby="ordersTitle">
+          <header class="panel-header">
+            <div>
+              <h2 id="ordersTitle" class="panel-title">주문 현황</h2>
+              <p class="panel-subtitle">주문 처리 상태와 결제 규모</p>
+            </div>
+
+            <span id="ordersPanelCount" class="panel-count">0건</span>
+          </header>
+
+          <div class="table-wrap">
+            <table class="orders-table">
+              <thead>
+                <tr>
+                  <th scope="col">주문번호</th>
+                  <th scope="col">사용자</th>
+                  <th scope="col">상태</th>
+                  <th scope="col">상품 수</th>
+                  <th scope="col">주문금액</th>
+                </tr>
+              </thead>
+
+              <tbody id="ordersTableBody">
+                <tr class="loading-row">
+                  <td colspan="5"><span class="skeleton"></span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="eventsTitle">
+          <header class="panel-header">
+            <div>
+              <h2 id="eventsTitle" class="panel-title">에이전트 이벤트 타임라인</h2>
+              <p class="panel-subtitle">
+                최신 이벤트가 위에 표시됩니다. 시각이 없으면 이벤트 ID 순서를 사용합니다.
+              </p>
+            </div>
+
+            <span id="eventsPanelCount" class="panel-count">0건</span>
+          </header>
+
+          <ol id="eventTimeline" class="timeline">
+            <li class="empty-state">이벤트를 불러오는 중입니다.</li>
+          </ol>
+        </section>
+      </div>
+
+      <aside class="right-column">
+        <section class="panel" aria-labelledby="gapsTitle">
+          <header class="panel-header">
+            <div>
+              <h2 id="gapsTitle" class="panel-title">지식갭</h2>
+              <p id="gapsPanelCount" class="panel-subtitle">0건</p>
+            </div>
+
+            <div class="filters">
+              <select
+                id="gapStatusFilter"
+                class="filter-select"
+                aria-label="지식갭 상태 필터"
+              >
+                <option value="unresolved">미해결</option>
+                <option value="all">전체</option>
+                <option value="resolved">해결됨</option>
+              </select>
+
+              <input
+                id="gapSearchInput"
+                class="filter-input"
+                type="search"
+                placeholder="질문 또는 trace ID 검색"
+                aria-label="지식갭 검색"
+                autocomplete="off"
+              >
+            </div>
+          </header>
+
+          <ul id="knowledgeGapList" class="gap-list">
+            <li class="empty-state">지식갭을 불러오는 중입니다.</li>
+          </ul>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <script src="/static/common.js"></script>
+  <script src="/static/admin.js"></script>
+</body>
+</html>

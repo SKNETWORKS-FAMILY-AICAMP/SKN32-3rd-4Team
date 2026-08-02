@@ -1,0 +1,338 @@
+<meta charset="utf-8">
+<title>바로봄 — 화면 워크스루 (실제 캡처 기반)</title>
+<style>
+  :root{
+    --bg:#f7f8fa; --panel:#fff; --ink:#16202b; --muted:#5b6875; --line:#dde3ea;
+    --ok:#0f7a6c; --ok-bg:#e6f4f1; --warn:#8a5a00; --warn-bg:#fdf3e0;
+    --bad:#a3282b; --bad-bg:#fbeaea; --todo:#6b7580; --todo-bg:#eef1f4; --accent:#0f7a6c;
+    --cust:#1e5fa8; --cust-bg:#e8f0fa;
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --bg:#11161c; --panel:#182028; --ink:#e6edf3; --muted:#9aa7b4; --line:#2a3540;
+    --ok:#4fd1bd; --ok-bg:#123029; --warn:#e5b25d; --warn-bg:#33280f;
+    --bad:#f08a8a; --bad-bg:#3a1d1e; --todo:#8d99a6; --todo-bg:#1e262e; --accent:#4fd1bd;
+    --cust:#7db3ec; --cust-bg:#14273c;}}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;letter-spacing:-.01em;
+    font-family:"Malgun Gothic","맑은 고딕",system-ui,-apple-system,sans-serif}
+  .wrap{max-width:1040px;margin:0 auto;padding:48px 24px 96px}
+  header{border-bottom:2px solid var(--ink);padding-bottom:20px}
+  .eyebrow{font-size:12px;letter-spacing:.18em;color:var(--accent);font-weight:700;margin:0 0 8px}
+  h1{font-size:30px;line-height:1.35;margin:0 0 10px;font-weight:800;text-wrap:balance}
+  .sub{color:var(--muted);margin:0;font-size:15px}
+  h2{font-size:20px;margin:52px 0 6px;font-weight:750}
+  h2 .fl{color:var(--accent);font-variant-numeric:tabular-nums;margin-right:10px}
+  .flowdesc{color:var(--muted);font-size:14px;margin:0 0 18px}
+  p{margin:0 0 14px}
+  code{font-family:Consolas,"D2Coding",monospace;font-size:.88em;background:var(--todo-bg);padding:1px 5px;border-radius:4px}
+  a{color:var(--accent)}
+  .callout{border-left:4px solid var(--accent);background:var(--panel);padding:14px 18px;margin:16px 0;border-radius:0 8px 8px 0;font-size:14.5px}
+  .callout.warn{border-left-color:var(--warn)} .callout.bad{border-left-color:var(--bad)}
+  .callout p:last-child{margin-bottom:0}
+  .kicker{font-weight:750}
+  .tag{display:inline-block;font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
+  .t-ok{background:var(--ok-bg);color:var(--ok)} .t-todo{background:var(--todo-bg);color:var(--todo)}
+  .t-warn{background:var(--warn-bg);color:var(--warn)} .t-bad{background:var(--bad-bg);color:var(--bad)}
+  .t-cust{background:var(--cust-bg);color:var(--cust)}
+
+  /* 화면 카드 */
+  .shot{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:22px 0 34px}
+  .shot > .head{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:baseline;flex-wrap:wrap}
+  .shot .no{font-size:12px;font-weight:800;color:var(--muted);letter-spacing:.06em}
+  .shot .title{font-size:16.5px;font-weight:750}
+  .shot .path{font-size:12.5px;color:var(--muted);font-family:Consolas,monospace}
+  .shot img{width:100%;display:block;border-bottom:1px solid var(--line);background:#fff}
+  .shot .ann{padding:6px 18px 16px}
+  .shot dl{display:grid;grid-template-columns:118px 1fr;gap:2px 14px;margin:0;font-size:14px}
+  @media (max-width:640px){.shot dl{grid-template-columns:1fr} }
+  .shot dt{font-weight:700;font-size:12.5px;color:var(--muted);padding-top:7px;letter-spacing:.02em}
+  .shot dd{margin:0;padding-top:5px}
+  .shot dt.g{color:var(--ok)} .shot dt.w{color:var(--warn)}
+  .rel{font-size:12.5px;color:var(--muted);margin-top:10px;padding-top:8px;border-top:1px dashed var(--line)}
+  table{width:100%;border-collapse:collapse;font-size:14px;margin:14px 0}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-weight:700;background:var(--todo-bg);font-size:12.5px}
+  .scroll{overflow-x:auto}
+  ul{margin:0 0 14px;padding-left:20px} li{margin:4px 0}
+  .foot{margin-top:64px;padding-top:18px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+  .toc{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 20px;margin:22px 0;font-size:14px}
+  .toc ol{margin:8px 0 0;padding-left:22px} .toc li{margin:3px 0}
+</style>
+
+<div class="wrap">
+<header>
+  <p class="eyebrow">바로봄 · 화면 워크스루</p>
+  <h1>실제로 무엇이 보이고,<br>어떤 상태 전이가 일어나는가</h1>
+  <p class="sub">목업이 아니라 <b>실행 중인 앱을 캡처한 18장</b>입니다. 각 화면에 “무엇을 확인해야 하는지”를 달았습니다. 구조·설계 이유는 <a href="project_overview.html">프로젝트 전체 설명</a>을 보세요.</p>
+</header>
+
+<div class="callout">
+  <p class="kicker">캡처 기준 — 2026-07-22 전량 재생성</p>
+  <p>18장 모두 <b>현재 코드·현재 브랜드(바로봄)</b>로 다시 촬영했습니다. 실 LLM(로컬 Gemma)·PostgreSQL(pgvector·그래프)을
+  띄운 상태에서 실제 클릭·실제 API 응답을 찍은 것이며, 손으로 그린 목업이 아닙니다.</p>
+  <p style="margin-bottom:0" class="rel" >재생성 방법: <code>scripts/pg.py start</code> → <code>scripts/pg.py setup</code> →
+  <code>local_model_server.py</code> → <code>run_dev_server.py</code> → <code>capture_screenshots.py</code>(01–08) ·
+  <code>capture_screenshots_admin.py</code>(09–12) · <code>capture_screenshots_mcp.py</code>(13–14) ·
+  <code>capture_screenshots_customer.py</code>(15–18)</p>
+</div>
+
+<div class="callout">
+  <p class="kicker">이 문서를 읽는 방법</p>
+  <p>화면별로 나열하지 않고 <b>사용자 흐름 순서</b>로 배열했습니다. 특히 <b>거부 화면(422·409)은 버그가 아니라 설계된 방어 동작</b>입니다 — 이 프로젝트에서 가장 중요한 부분이라 흐름 2에 모아 뒀습니다.</p>
+</div>
+
+<div class="toc">
+  <b>흐름 목록</b>
+  <ol>
+    <li><a href="#f1">상담·탐색</a> — 질문에서 근거 있는 답까지 (01–03)</li>
+    <li><a href="#f2">안전한 주문</a> — 미리보기·승인과 <b>3가지 거부 경로</b> (04–08)</li>
+    <li><a href="#f3">권한과 운영</a> — 401·403·200과 인덱스 상태 (09–12)</li>
+    <li><a href="#f4">연동 검증</a> — MCP 도구 목록·호출 (13–14)</li>
+    <li><a href="#f5">고객 채널</a> — 스토어·화상·얼굴 2차인증 (15–17)</li>
+    <li><a href="#f6">성능 검증</a> — 얼굴인식 백엔드 실측 (18)</li>
+  </ol>
+</div>
+
+<h2 id="f1"><span class="fl">흐름 1</span> 상담·탐색 <span class="tag t-cust">고객 · 운영 공통</span></h2>
+<p class="flowdesc">질문을 받아 문서에서 근거를 찾고, 출처와 함께 답하거나 근거가 없으면 물러납니다.</p>
+
+<div class="shot">
+  <div class="head"><span class="no">01</span><span class="title">AI 에이전트 상담</span><span class="path">/static/index.html · :8080</span></div>
+  <img src="screenshots/01_agent_chat.png" alt="에이전트 채팅 화면 — 질문 입력과 단계별 실행 결과">
+  <div class="ann"><dl>
+    <dt>사용자 목표</dt><dd>자연어로 묻고, 상품·주문 정보까지 포함된 답을 받는다</dd>
+    <dt>입력·행동</dt><dd>“P0001 상품 가격 알려줘” 입력 → 전송</dd>
+    <dt>기대 결과</dt><dd>설계상: 에이전트가 <code>get_price</code> 도구를 호출하고, <b>밟은 단계</b>와 종료 사유가 함께 표시된다</dd>
+    <dt class="w">이 캡처에 실제로 보이는 것</dt><dd><b>도구가 실행되지 않았습니다.</b> 답변 영역에
+      <code>&lt;|tool_call|&gt;call:get_price{…}</code> 같은 <b>원시 문자열</b>이 그대로 찍혀 있고 단계 목록은 비어 있습니다.
+      <b>로컬 Gemma가 도구 호출(tool calling)을 지원하지 않아</b> 도구를 부르는 대신 그 형식을 흉내낸 텍스트를 최종 답변으로 낸 것입니다.
+      화면 상단에도 “로컬 Gemma는 도구호출을 못하므로 실제 도구 사용은 OpenAI/Gemini 키 필요”라고 적혀 있습니다.
+      <b>버그가 아니라 로컬 모델의 제약</b>이며, 실키를 넣으면 도구가 실제로 실행되고 단계가 채워집니다.</dd>
+    <dt class="g">확인할 안전장치</dt><dd>종료 사유(<code>stopped_by: final_answer</code>)가 <b>항상 노출</b>됩니다 — 왜 멈췄는지 숨기지 않습니다(다른 값: <code>duplicate_tool_call</code>·<code>max_steps</code>).
+      에이전트는 <b>읽기 전용 도구만</b> 쓸 수 있어 스스로 주문을 만들지 못합니다. <code>max_steps</code>를 화면에서 조절할 수 있어 루프가 무한정 돌지 않습니다.</dd>
+  </dl><p class="rel">관련: 03(근거 기반 QA) · 15(스토어에서 실제 주문)</p></div>
+</div>
+
+<div class="shot">
+  <div class="head"><span class="no">02</span><span class="title">RAG 벡터 검색</span><span class="path">/static/rag.html · :8081 <span class="tag t-todo">운영 전용</span></span></div>
+  <img src="screenshots/02_rag_vector_search.png" alt="RAG 검색 화면 — 질의와 검색된 근거 목록">
+  <div class="ann"><dl>
+    <dt>사용자 목표</dt><dd>어떤 문서 조각이 근거로 잡히는지 직접 확인한다(운영자·개발자용)</dd>
+    <dt>입력·행동</dt><dd>질의 입력 → 검색. 백엔드(<code>faiss</code>/<code>hybrid</code>/<code>graph</code>) 선택 가능</dd>
+    <dt>기대 결과</dt><dd>근거 목록 + <b>출처 문서명·위치·정규화 점수</b></dd>
+    <dt class="g">확인할 안전장치</dt><dd>점수가 <b>[0,1]로 정규화</b>돼 백엔드가 달라도 같은 척도로 비교됩니다(포트 중립성). 이 화면은 고객 포트에 <b>존재하지 않습니다</b>(404).</dd>
+  </dl><p class="rel">관련: 03(같은 검색으로 답변 생성) · <a href="project_overview.html#">전체 설명 §03 RetrieverPort</a></p></div>
+</div>
+
+<div class="shot">
+  <div class="head"><span class="no">03</span><span class="title">근거 기반 QA (Hybrid 백엔드)</span><span class="path">/static/rag.html · :8081</span></div>
+  <img src="screenshots/03_rag_qa_hybrid.png" alt="RAG QA 화면 — 하이브리드 백엔드로 생성한 답변과 출처">
+  <div class="ann"><dl>
+    <dt>사용자 목표</dt><dd>검색으로 끝내지 않고 <b>근거만 사용한 답변</b>을 받는다</dd>
+    <dt>입력·행동</dt><dd>질문 → 백엔드 <code>hybrid</code> 선택 → QA 실행</dd>
+    <dt>기대 결과</dt><dd>답변 + <b>인용된 출처</b>. 근거가 없으면 답을 만들지 않고 <b>근거부족으로 반환</b></dd>
+    <dt class="g">확인할 안전장치</dt><dd><b>abstention</b> — 이 프로젝트의 핵심입니다. 모르면 지어내지 않고, 답 못 한 질문은 <b>PII를 마스킹해</b> 지식갭 큐에 쌓입니다(12번 화면에서 확인).</dd>
+    <dt class="w">한계</dt><dd>“근거로 지지됨”은 <b>사실이라는 뜻이 아닙니다.</b> 근거 자체가 낡거나 틀렸으면 통과합니다.</dd>
+  </dl><p class="rel">관련: 12(지식갭 확인) · <a href="bounty_briefing.html">바운티 브리핑</a>(근거성 ≠ 사실성)</p></div>
+</div>
+
+<h2 id="f2"><span class="fl">흐름 2</span> 안전한 주문 — 거부 경로가 핵심 <span class="tag t-bad">가장 중요</span></h2>
+<p class="flowdesc">주문은 “미리보기 → 사용자 명시 승인”으로만 성립합니다. 아래 <b>3가지 거부</b>는 모두 의도된 방어입니다.</p>
+
+<div class="shot">
+  <div class="head"><span class="no">04</span><span class="title">주문 미리보기 (DB 변경 없음)</span><span class="path">/static/orders.html · :8081</span></div>
+  <img src="screenshots/04_orders_preview.png" alt="주문 승인 루프 화면 — 상품 목록, 미리보기 응답 JSON, 승인·거부 버튼">
+  <div class="ann"><dl>
+    <dt>사용자 목표</dt><dd>주문을 걸기 전에 재고·금액을 확인한다</dd>
+    <dt>입력·행동</dt><dd>상품코드·수량 입력 → <b>미리보기</b></dd>
+    <dt>기대 결과</dt><dd><code>lines</code>(단가·소계·재고·충족여부) · <code>total</code> · <code>feasible</code> · <code>issues</code></dd>
+    <dt class="g">확인할 안전장치</dt><dd><b>읽기 전용</b>입니다 — 이 호출로는 재고가 줄지 않고 주문도 생기지 않습니다. 응답에 “미리보기이며 주문이 생성되지 않았다”는 문구가 포함돼, <b>승인 토큰으로 오해되지 않게</b> 했습니다.</dd>
+  </dl><p class="rel">관련: 05(승인) · 06~08(거부 경로)</p></div>
+</div>
+
+<div class="shot">
+  <div class="head"><span class="no">05</span><span class="title">정상 승인 + 멱등 재생</span><span class="path">POST /api/orders · <code>Idempotency-Key</code> 필수</span></div>
+  <img src="screenshots/05_orders_approve_idempotent.png" alt="주문 승인 성공과 같은 키 재요청 시 기존 주문 재생 결과">
+  <div class="ann"><dl>
+    <dt>사용자 목표</dt><dd>미리보기 내용대로 주문을 확정한다</dd>
+    <dt>입력·행동</dt><dd>① 정상 승인 → ② <b>같은 키로 재요청</b></dd>
+    <dt>기대 결과</dt><dd>①에서 주문번호 발급, ②는 <b>새 주문을 만들지 않고 기존 주문을 그대로 반환</b>(재고 추가 차감 0)</dd>
+    <dt class="g">확인할 안전장치</dt><dd>네트워크 재시도·중복 클릭으로 <b>이중 주문이 생기지 않습니다.</b> 재고 차감은 <code>UPDATE … WHERE stock &gt;= qty</code> 조건부 원자 연산이라 동시 요청에도 초과판매가 나지 않습니다.</dd>
+  </dl><p class="rel">관련: 07(같은 키·다른 내용은 409로 거부)</p></div>
+</div>
+
+<div class="shot">
+  <div class="head"><span class="no">06</span><span class="title">키 없이 승인 시도 → <b>422</b></span><span class="path">거부 경로 ①</span></div>
+  <img src="screenshots/06_orders_reject_no_key_422.png" alt="Idempotency-Key 없이 주문 승인을 시도해 422가 반환된 화면">
+  <div class="ann"><dl>
+    <dt>무슨 일이 일어났나</dt><dd><code>Idempotency-Key</code> 헤더 없이 주문을 시도 → <b>422로 거부</b></dd>
+    <dt class="g">왜 이게 옳은가</dt><dd>서버가 임의로 키를 만들어 주면 <b>멱등성이 무력화</b>됩니다(재시도마다 새 키 = 중복 주문). 그래서 키를 <b>필수</b>로 두고, 없으면 실패시킵니다 — <b>무폴백 원칙의 대표 사례</b>입니다.</dd>
+    <dt class="w">오해 방지</dt><dd>이 422는 버그가 아닙니다. 기존 호출부를 고쳐야 했던 <b>의도적 호환성 파괴</b>였습니다.</dd>
+  </dl></div>
+</div>
+
+<div class="shot">
+  <div class="head"><span class="no">07</span><span class="title">같은 키 · 다른 내용 → <b>409</b></span><span class="path">거부 경로 ②</span></div>
+  <img src="screenshots/07_orders_reject_conflict_409.png" alt="같은 Idempotency-Key로 다른 수량을 요청해 409 충돌이 반환된 화면">
+  <div class="ann"><dl>
+    <dt>무슨 일이 일어났나</dt><dd>이미 쓴 키로 <b>내용을 바꿔</b> 요청 → <b>409 Conflict</b></dd>
+    <dt class="g">왜 이게 옳은가</dt><dd>같은 키는 “같은 요청”이어야 합니다. 내용이 다르면 재생이 아니라 <b>키 오용</b>이므로 거부합니다. 요청 내용을 JSON 정규 지문으로 비교해 판별합니다.</dd>
+  </dl></div>
+</div>
+
+<div class="shot">
+  <div class="head"><span class="no">08</span><span class="title">재고 초과 주문 → <b>422</b> · 주문 목록</span><span class="path">거부 경로 ③</span></div>
+  <img src="screenshots/08_orders_reject_oversell_and_list.png" alt="재고를 초과하는 수량 주문이 422로 거부되고 주문 목록이 표시된 화면">
+  <div class="ann"><dl>
+    <dt>무슨 일이 일어났나</dt><dd>재고보다 많은 수량 주문 → <b>422</b>. 아래에 확정된 주문 목록 표시</dd>
+    <dt class="g">왜 이게 옳은가</dt><dd>미리보기에서 <code>feasible: false</code>로 미리 알려주고, 승인 단계에서도 <b>DB 레벨에서 다시 막습니다</b>(이중 방어). 미리보기와 승인 사이에 재고가 줄어드는 경쟁 상황을 가정한 설계입니다.</dd>
+  </dl><p class="rel">관련: 04(<code>feasible</code> 필드) · 11(운영자가 보는 주문 목록)</p></div>
+</div>
+
+<h2 id="f3"><span class="fl">흐름 3</span> 권한과 운영 <span class="tag t-todo">운영 전용 :8081</span></h2>
+<p class="flowdesc">같은 화면이 <b>권한에 따라 다르게</b> 응답합니다. 401 → 403 → 200 순서로 보세요.</p>
+
+<div class="shot">
+  <div class="head"><span class="no">09</span><span class="title">미인증 접근 → <b>401</b></span><span class="path">/static/admin.html</span></div>
+  <img src="screenshots/09_admin_401_unauthenticated.png" alt="로그인하지 않은 상태로 관리자 화면에 접근해 401이 표시된 화면">
+  <div class="ann"><dl>
+    <dt>무슨 일이 일어났나</dt><dd>로그인 없이 관리자 데이터 요청 → <b>401</b>. 화면은 “관리자 로그인이 필요합니다” 안내만 표시</dd>
+    <dt class="g">확인할 안전장치</dt><dd>관리자 라우터는 <b>라우터 전역 의존성</b>으로 잠겨 있습니다. 엔드포인트마다 붙이는 방식은 새 엔드포인트에서 누락되므로, 전역으로 걸고 <b>테스트로 고정</b>했습니다(fail-closed).</dd>
+  </dl></div>
+</div>
+
+<div class="shot">
+  <div class="head"><span class="no">10</span><span class="title">일반 사용자 → <b>403</b></span><span class="path">로그인했지만 권한 없음</span></div>
+  <img src="screenshots/10_admin_403_forbidden.png" alt="일반 사용자 권한으로 관리자 API에 접근해 403이 반환된 화면">
+  <div class="ann"><dl>
+    <dt>무슨 일이 일어났나</dt><dd>정상 로그인한 <b>일반 사용자</b>가 관리자 API 요청 → <b>403</b></dd>
+    <dt class="g">확인할 안전장치</dt><dd>401(누구인지 모름)과 403(누구인지 알지만 권한 없음)을 <b>구분</b>합니다. 권한은 <b>JWT에 넣지 않고 매 요청 DB에서 조회</b>하므로, 관리자를 강등하면 <b>토큰 재발급 없이 즉시</b> 403이 됩니다.</dd>
+  </dl></div>
+</div>
+
+<div class="shot">
+  <div class="head"><span class="no">11</span><span class="title">관리자 → <b>200</b> 주문 현황</span><span class="path">권한 부여는 CLI 전용</span></div>
+  <img src="screenshots/11_admin_200_orders.png" alt="관리자 권한으로 주문 목록을 조회한 화면">
+  <div class="ann"><dl>
+    <dt>사용자 목표</dt><dd>주문 처리 상태와 결제 규모를 확인한다</dd>
+    <dt>입력·행동</dt><dd><code>python -m scripts.manage promote &lt;username&gt;</code> 후 재조회</dd>
+    <dt class="g">확인할 안전장치</dt><dd>관리자 승격 <b>UI 버튼이 없습니다.</b> CLI 전용이며, <b>마지막 관리자의 강등은 거부</b>됩니다(잠김 방지). 승격·강등은 감사 기록으로 남습니다.</dd>
+  </dl><p class="rel">관련: 08(고객이 만든 주문이 여기 보임)</p></div>
+</div>
+
+<div class="shot">
+  <div class="head"><span class="no">12</span><span class="title">시스템 준비 상태 · 지식갭</span><span class="path">/api/admin/index · knowledge-gaps</span></div>
+  <img src="screenshots/12_admin_index_status.png" alt="관리자 화면의 인덱스·데이터베이스 준비 상태 표시">
+  <div class="ann"><dl>
+    <dt>사용자 목표</dt><dd>DB·벡터 인덱스가 준비됐는지, AI가 답 못한 질문이 무엇인지 확인한다</dd>
+    <dt>기대 결과</dt><dd>준비 상태 표시 + 미해결 지식갭 목록</dd>
+    <dt class="g">확인할 안전장치</dt><dd>기동 시 <b>자동으로 테이블·인덱스를 만들지 않습니다</b>(명시적 <code>manage</code> 명령). 미준비 상태를 조용히 빈 결과로 감추지 않고 <b>명시적으로 알립니다</b>. 지식갭 질문은 <b>PII 마스킹 후</b> 저장되고 보존기간이 지나면 파기합니다.</dd>
+    <dt class="w">한계</dt><dd>마스킹은 정규식 기반이라 <b>완전 비식별이 아닙니다</b>(이름·주소·IP 미탐지). 그래서 관리자 전용 노출 + 출력 재마스킹 + 파기를 함께 씁니다.</dd>
+  </dl><p class="rel">관련: 03(abstention이 지식갭을 만든다)</p></div>
+</div>
+
+<h2 id="f4"><span class="fl">흐름 4</span> 연동 검증 — MCP <span class="tag t-todo">운영 전용</span></h2>
+<p class="flowdesc">외부 AI 클라이언트가 우리 기능을 표준 프로토콜로 쓸 수 있는지 확인합니다.</p>
+
+<div class="shot">
+  <div class="head"><span class="no">13</span><span class="title">MCP 도구 목록</span><span class="path">/static/mcp.html · 도구 10개</span></div>
+  <img src="screenshots/13_mcp_tools_list.png" alt="MCP 도구 목록이 조회된 화면">
+  <div class="ann"><dl>
+    <dt>사용자 목표</dt><dd>외부에 노출되는 도구 목록과 인자 규격을 확인한다</dd>
+    <dt>기대 결과</dt><dd>커머스 5 + RAG 2 + ML 3 = <b>도구 10개</b>와 각 설명·인자</dd>
+    <dt class="g">확인할 안전점</dt><dd>노출 도구는 <b>읽기 전용</b>입니다(쓰기 도구 없음). 도구 인자는 스키마로 검증되고, 범위 밖 값은 검증 오류가 됩니다.</dd>
+  </dl></div>
+</div>
+
+<div class="shot">
+  <div class="head"><span class="no">14</span><span class="title">MCP 도구 호출 — get_price</span><span class="path">REST와 같은 유스케이스 공유</span></div>
+  <img src="screenshots/14_mcp_call_get_price.png" alt="MCP get_price 도구를 호출해 가격을 조회한 결과 화면">
+  <div class="ann"><dl>
+    <dt>사용자 목표</dt><dd>도구를 실제로 호출해 응답 형태를 본다</dd>
+    <dt>기대 결과</dt><dd>상품명·가격이 구조화된 형태로 반환</dd>
+    <dt class="g">확인할 안전장치</dt><dd><b>parity</b> — MCP와 REST가 <b>같은 유스케이스·같은 변환 코드</b>를 씁니다. 구현이 두 벌로 갈라져 응답이 달라지는 일을 <b>테스트로 고정</b>했습니다(같은 입력 → 완전히 같은 dict).</dd>
+    <dt class="w">한계</dt><dd>MCP는 호출마다 새 프로세스를 띄우는 <b>학습용 구조</b>입니다. 임베딩 도구 지연 문제는 근본원인을 특정하지 못해 <b>우회책</b>(사전 로딩)을 씁니다.</dd>
+  </dl></div>
+</div>
+
+<h2 id="f5"><span class="fl">흐름 5</span> 고객 채널 <span class="tag t-cust">고객 :8080</span></h2>
+<p class="flowdesc">고객이 실제로 쓰는 화면입니다. 운영 도구는 이 포트에 <b>존재하지 않습니다</b>(404).</p>
+
+<div class="shot">
+  <div class="head"><span class="no">15</span><span class="title">스토어 — 장바구니와 로그인 요구</span><span class="path">/ 또는 /static/shop.html · :8080</span></div>
+  <img src="screenshots/15_shop_cart.png" alt="바로봄 스토어 화면 — 상품 카드, 장바구니 3건, 로그인 요구 모달">
+  <div class="ann"><dl>
+    <dt>사용자 목표</dt><dd>상품을 담고 주문한다</dd>
+    <dt>입력·행동</dt><dd>상품 <b>담기</b> → 장바구니 확인 → <b>주문하기</b></dd>
+    <dt>기대 결과</dt><dd>장바구니에 수량·합계가 누적되고, 주문 시 <b>로그인 모달</b>이 뜬다</dd>
+    <dt class="g">확인할 안전장치</dt><dd>모달 문구가 <b>“얼굴을 등록한 계정은 웹캠 2차 인증이 추가됩니다”</b>라고 미리 알립니다. 주문은 로그인 없이 진행되지 않고, 이후 미리보기→승인 경로를 그대로 탑니다(흐름 2와 동일 계약).</dd>
+    <dt class="w">참고</dt><dd>상품 이미지는 <b>플레이스홀더</b>입니다(실제 상품 사진 없음).</dd>
+  </dl><p class="rel">관련: 04·05(같은 주문 계약) · 16(얼굴 2차인증 등록)</p></div>
+</div>
+
+<div class="shot">
+  <div class="head"><span class="no">16</span><span class="title">마이페이지 — 얼굴 로그인 2차 인증</span><span class="path">/static/mypage.html · :8080</span></div>
+  <img src="screenshots/16_mypage_face_login.png" alt="마이페이지의 얼굴 등록·2차 인증 화면">
+  <div class="ann"><dl>
+    <dt>사용자 목표</dt><dd>비밀번호 외에 <b>얼굴</b>을 두 번째 인증 수단으로 등록한다(선택)</dd>
+    <dt>입력·행동</dt><dd>로그인 → 웹캠으로 여러 장 촬영 → 등록. 이후 로그인 시 얼굴 확인 단계 추가</dd>
+    <dt>기대 결과</dt><dd>등록 성공 시 사용된 촬영 장수 표시. 다음 로그인부터 <b>비밀번호 통과 후 얼굴 단계</b></dd>
+    <dt class="g">확인할 안전장치</dt><dd>비밀번호만 맞으면 <b>최종 토큰을 주지 않습니다</b> — 얼굴 등록 계정은 <code>pre2fa</code> 챌린지만 받고, 얼굴 단계를 통과해야 최종 토큰이 나옵니다(우회 경로 없음). 챌린지는 <b>일회성</b>이라 재사용·동시요청이 차단됩니다. 품질 미달 사진은 조용히 통과시키지 않고 <b>재촬영을 요구</b>합니다.</dd>
+    <dt class="w">한계</dt><dd>라이브니스(사진·화면 위조 판별)는 <b>단일 모델</b>이고 임계값이 튜닝되지 않았습니다. 실 웹캠 라이브 정확도는 <b>검증되지 않았습니다</b>.</dd>
+  </dl><p class="rel">관련: 18(인식 백엔드 실측 비교)</p></div>
+</div>
+
+<div class="shot">
+  <div class="head"><span class="no">17</span><span class="title">화상 상담</span><span class="path">/static/video.html · :8080</span></div>
+  <img src="screenshots/17_video_consult.png" alt="화상 상담 화면 — 카메라 패널과 AI 상담원">
+  <div class="ann"><dl>
+    <dt>사용자 목표</dt><dd>말로 묻고 음성으로 답을 듣는다</dd>
+    <dt>입력·행동</dt><dd>카메라·마이크 허용 → 말하기 → 음성 인식(STT) → 상담 → 음성 답변(TTS)</dd>
+    <dt>기대 결과</dt><dd>인식된 문장과 답변이 화면에 표시되고 음성으로 재생</dd>
+    <dt class="g">확인할 안전장치</dt><dd>STT·TTS 모두 <b>로컬에서 동작</b>합니다(API 키 불필요, 음성이 외부로 나가지 않음). <b>카메라 없이 텍스트로도 계속</b>할 수 있어 권한 거부가 막다른 길이 되지 않습니다.</dd>
+    <dt class="w">한계</dt><dd>실시간 스트리밍이 아니라 <b>구간 단위</b> 처리입니다. TTS는 Windows 음성 합성에 의존합니다.</dd>
+  </dl></div>
+</div>
+
+<h2 id="f6"><span class="fl">흐름 6</span> 성능 검증 <span class="tag t-todo">운영 전용</span></h2>
+<p class="flowdesc">“이 모델이 더 좋다”를 주장으로 두지 않고 <b>화면에서 실측</b>하게 만들었습니다.</p>
+
+<div class="shot">
+  <div class="head"><span class="no">18</span><span class="title">얼굴인식 백엔드 벤치마크</span><span class="path">/static/facebench.html · :8081 <span class="tag t-bad">관리자 전용</span></span></div>
+  <img src="screenshots/18_facebench.png" alt="얼굴인식 백엔드 3종 비교 벤치마크 화면">
+  <div class="ann"><dl>
+    <dt>사용자 목표</dt><dd>3개 인식 백엔드(AdaFace·LVFace·insightface)를 <b>같은 사진으로</b> 비교한다</dd>
+    <dt>입력·행동</dt><dd>A·B 얼굴 이미지(웹캠 촬영 또는 업로드) → 실행</dd>
+    <dt>기대 결과</dt><dd>백엔드별 <b>코사인 유사도 · 동일인 판정 · 지연(ms)</b> 표. 현재 사용 중인 백엔드 표시</dd>
+    <dt class="g">확인할 안전장치</dt><dd>3개 모델을 모두 도는 <b>무거운 연산</b>이라 <b>관리자 전용</b>이고 업로드 크기·장수 상한이 걸려 있습니다(무인증 DoS 표면 차단). 백엔드 변경도 관리자만 가능하며, <b>임베딩 공간이 달라 기존 등록 얼굴은 재등록이 필요</b>하다고 화면에 경고합니다.</dd>
+    <dt class="w">해석 주의</dt><dd>표의 지연은 <b>최초 호출 시 모델 로딩이 포함</b>됩니다. 워밍업 후 값과 다릅니다.</dd>
+  </dl><p class="rel">관련: 16(여기서 고른 백엔드가 실제 로그인에 쓰임)</p></div>
+</div>
+
+<h2>화면 ↔ 기능 추적표</h2>
+<div class="scroll"><table>
+  <tr><th style="width:16%">화면</th><th style="width:8%">포트</th><th>주로 검증하는 것</th><th style="width:22%">고칠 위치</th></tr>
+  <tr><td>index (AI 상담)</td><td>8080</td><td>ReAct 단계 노출 · 읽기전용 도구</td><td><code>agent/react.py</code></td></tr>
+  <tr><td>rag (검색·QA)</td><td>8081</td><td>4백엔드 비교 · abstention</td><td><code>adapters/*_retriever.py</code></td></tr>
+  <tr><td>orders</td><td>8081</td><td>미리보기·멱등·원자 재고</td><td><code>application/commerce.py</code></td></tr>
+  <tr><td>admin</td><td>8081</td><td>RBAC 401/403/200 · 준비상태 · 지식갭 · 보고서</td><td><code>routers/admin.py</code></td></tr>
+  <tr><td>mcp</td><td>8081</td><td>도구 10개 · REST parity</td><td><code>mcp/server.py</code></td></tr>
+  <tr><td>shop</td><td>8080</td><td>장바구니 → 주문 계약</td><td><code>static/shop.js</code></td></tr>
+  <tr><td>mypage</td><td>8080</td><td>얼굴 등록 · pre2fa 일회성</td><td><code>services/face_service.py</code></td></tr>
+  <tr><td>video</td><td>8080</td><td>로컬 STT/TTS · 텍스트 대체 경로</td><td><code>ml/voice.py</code></td></tr>
+  <tr><td>facebench</td><td>8081</td><td>백엔드 실측 · 관리자 전용</td><td><code>ml/face.py</code></td></tr>
+</table></div>
+
+<div class="callout warn">
+  <p class="kicker">캡처에 없는 것</p>
+  <p>지식 바운티 화면은 <b>없습니다</b> — 현재 API만 있고 UI를 만들지 않았습니다(<a href="bounty_briefing.html">브리핑</a> 참조).
+  관리자 요약 보고서 PDF도 캡처에 포함되지 않았습니다. 캡처는 <b>실행 시점의 상태</b>이며 이후 변경된 부분이 있을 수 있습니다.</p>
+</div>
+
+<p class="foot">
+  함께 보기 — <a href="project_overview.html">프로젝트 전체 설명</a> ·
+  <a href="bounty_briefing.html">지식 바운티 브리핑</a> ·
+  <a href="index.html">캡처 갤러리(원본 크기)</a> ·
+  재캡처: <code>python scripts/run_dev_server.py</code> 후 <code>python scripts/capture_screenshots.py</code>
+</p>
+</div>

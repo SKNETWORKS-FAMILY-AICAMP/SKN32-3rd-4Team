@@ -1,0 +1,256 @@
+"""인덱스 A 적재 — 약관 조항을 pgvector 에 올린다.
+
+    python -m scripts.index.build_clause_index            # 전량(재개 가능)
+    python -m scripts.index.build_clause_index --limit 500   # 맛보기
+    python -m scripts.index.build_clause_index --stats       # 현황만
+
+★고유 내용만 임베딩한다
+
+    실측(s5 전량): 조항 등장 **211,131** / 고유 **73,031** — 중복 65.4%.
+    등장마다 임베딩하면 같은 계산을 3배 한다.
+    `parse_status == "ok"` 문서의 고유 조항 **52,899** 가 대상이다.
+
+★재개 가능하다
+
+    이미 들어간 `content_hash` 는 건너뛴다. 중간에 끊겨도 처음부터 다시 하지 않는다.
+    끊긴 것을 모르고 "다 됐다"고 하지 않기 위해 **끝에 현황을 다시 세어 출력한다.**
+
+    ★**조항 단위로 넣는다.** 처음엔 조각 256개씩 묶었는데, 한 조항의 조각이
+      배치 경계에 걸치면 중간에 죽었을 때 **반쪽이 남고**
+      다음 실행이 "이미 있다"고 건너뛴다. 실측(중단 지점): 내용 12,507개 중
+      2개가 그렇게 잘려 있었다. 이제 `n_chunks` 로 개수를 맞춰 본다.
+
+    ★긴 작업이다. 실측(2026-08-02, 이 기계 CPU 8스레드):
+      조항당 조각 **3.19** → 전량 약 **168,600조각** · 초당 8개 → **약 6시간**.
+      토큰 기준으로 바꾸면서 조각이 27% 늘었다(구 800자 방식 132,535).
+      GPU 라면 14~47분이다. 부풀려 말하지 않는다 —
+      "곧 끝난다"고 하면 다음 사람이 중간 결과를 완성본으로 오해한다.
+
+    ★**`nohup` 으로 띄우지 마라.** 실제로 사고가 났다(2026-08-02) —
+      셸을 죽였는데 파이썬이 살아남아 **옛 코드로 계속 DB 에 썼다.**
+      스키마를 바꾼 뒤라 `n_chunks=0` 인 고아 조각 1,803개가 쌓였다.
+      끝낼 때는 프로세스를 직접 확인하고 죽인다.
+
+★건너뛴 것을 **센다**
+
+    조용한 스킵을 만들지 않는다(CLAUDE.md §3). 세지 않으면 분모가 줄어
+    커버리지가 실제보다 좋아 보인다.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import pathlib
+import sys
+import time
+
+_ROOT = pathlib.Path(__file__).resolve().parents[2]
+_STRUCT = _ROOT / "data" / "structured"
+
+#: 한 번에 임베딩할 조각 수. 크게 잡아도 처리량은 비슷하고 메모리만 는다.
+_BATCH = 256
+
+
+def _iter_docs(limit: int | None):
+    files = sorted(_STRUCT.glob("*/s5_*/*.clauses.json"))
+    if limit:
+        files = files[:limit]
+    for p in files:
+        yield p, json.loads(p.read_text(encoding="utf-8"))
+
+
+def _token_counter():
+    """임베딩 모델의 **실제 토크나이저**로 센다.
+
+    ★글자 수로 세면 안 된다. `ko-sroberta` 의 한계는 **512토큰**인데
+      800자 조각의 1.4%가 그걸 넘어 뒤가 조용히 잘렸다(실측 2026-08-02).
+    """
+    from functools import lru_cache
+
+    from transformers import AutoTokenizer
+
+    from app.core.config import get_settings
+
+    tok = AutoTokenizer.from_pretrained(get_settings().ST_EMBEDDING_MODEL)
+
+    @lru_cache(maxsize=200_000)
+    def count(text: str) -> int:
+        return len(tok.encode(text, add_special_tokens=True))
+
+    return count
+
+
+def main(argv: list[str] | None = None) -> int:
+    from app.adapters import pgvector_clause_index as ix
+    from app.adapters.pgvector_index import get_conn
+
+    ap = argparse.ArgumentParser(description="인덱스 A 적재")
+    ap.add_argument("--limit", type=int, default=0, help="문서 수 제한(맛보기)")
+    ap.add_argument("--stats", action="store_true", help="현황만 출력")
+    ap.add_argument("--ignore-citation-gate", action="store_true",
+                    help="★구조 모순 문서도 색인한다. 끈 사실이 출력에 남는다")
+    args = ap.parse_args(argv)
+
+    conn = get_conn()
+    ix.ensure_schema(conn)
+
+    if args.stats:
+        print(json.dumps(ix.stats(conn), ensure_ascii=False, indent=2))
+        return 0
+
+    #: ★먼저 **문서에서 모은다.** 임베딩은 그다음이다 —
+    #:   중복 제거를 하기 전에 임베딩하면 3배를 계산한다.
+    texts: dict[str, str] = {}
+    occurrences: list[tuple] = []
+    n_docs = n_skip_doc = n_clause = n_skip_clause = 0
+    n_skip_cite = 0     # citation_eligible=false 로 건너뛴 문서
+
+    for p, doc in _iter_docs(args.limit or None):
+        status = doc.get("parse_status") or "unknown"
+        if status != "ok":
+            #: ★추출이 의심스러운 문서의 조항은 판정 근거가 될 수 없다.
+            n_skip_doc += 1
+            continue
+        #: ★★`parse_status` 만으로는 부족하다. **축이 다르다.**
+        #:
+        #:   `parse_status` — 파싱이 됐나(길이·개수가 말이 되나)
+        #:   `citation_eligible` — **인용해도 되나**(조 경계가 서로 모순이 아닌가)
+        #:
+        #:   실측 반례 `16b227ff95b8`: `parse_status=ok` 인데
+        #:     · 조 번호가 `제4 → 제5 → 제4` 로 되돌아온다(본문이 앞 조로 오귀속)
+        #:     · `제27조(준용규정)` 이 붙임·질병분류표를 삼켰다
+        #:   그대로 색인하면 **KCD 코드가 잘못된 조항에 인용된다.**
+        #:
+        #:   ★신호의 precision 은 아직 검증되지 않았다(정답셋 없음). 그래서 이 게이트는
+        #:     **보수적**이다 — 지금 통과하는 문서는 161건뿐이다.
+        #:     `--ignore-citation-gate` 로 끌 수 있게 두되, **끈 사실을 출력에 남긴다.**
+        if not args.ignore_citation_gate and doc.get("citation_eligible") is False:
+            n_skip_cite += 1
+            continue
+        n_docs += 1
+        src = doc.get("source") or {}
+        sha = src.get("sha256") or ""
+        insurer = src.get("insurer") or ""
+        for c in doc.get("clauses") or []:
+            h = c.get("content_hash") or ""
+            body = c.get("text") or ""
+            if not h or not body.strip():
+                n_skip_clause += 1
+                continue
+            n_clause += 1
+            texts.setdefault(h, body)
+            loc = c.get("locator") or {}
+            occurrences.append(
+                (
+                    h,
+                    sha,
+                    insurer,
+                    c.get("qualified_no") or "",
+                    c.get("section") or "",
+                    c.get("title") or "",
+                    int(loc.get("page_from") or c.get("page_from") or 0),
+                    int(loc.get("page_to") or c.get("page_to") or 0),
+                )
+            )
+
+    print(
+        f"[모음] 적재 대상 문서 {n_docs:,} · "
+        f"건너뜀: parse_status {n_skip_doc:,} + citation_eligible {n_skip_cite:,} · "
+        f"조항 등장 {n_clause:,} → 고유 {len(texts):,} "
+        f"(내용/해시 없음 {n_skip_clause:,})"
+        + ("  ★인용 게이트를 껐다(--ignore-citation-gate)" if args.ignore_citation_gate else ""),
+        flush=True,
+    )
+
+    n_occ = ix.upsert_occurrences(conn, occurrences)
+    print(f"[발생] {n_occ:,}행 새로 기록 (총 {len(occurrences):,}건 시도)", flush=True)
+
+    #: ★반쪽으로 남은 것을 먼저 지운다. 남겨 두면 검색에 잘린 본문이 올라온다.
+    dropped = ix.drop_incomplete(conn)
+    if dropped:
+        print(f"[정리] 미완성 조항 {dropped:,}개를 지우고 다시 넣는다", flush=True)
+
+    done = ix.existing_hashes(conn)
+    todo = [(h, t) for h, t in texts.items() if h not in done]
+    print(f"[임베딩] 이미 있음 {len(done):,} · 할 것 {len(todo):,}", flush=True)
+    if not todo:
+        print(json.dumps(ix.stats(conn), ensure_ascii=False, indent=2))
+        return 0
+
+    #: ★스레드를 다 쓴다. torch 기본값은 **물리 코어 수**라 8코어 기계에서 4개만 썼다.
+    #:   임베딩이 이 작업의 전부이므로 여기서 20~30%가 갈린다.
+    try:
+        import os as _os
+
+        import torch
+
+        n = _os.cpu_count() or 1
+        if torch.get_num_threads() < n:
+            torch.set_num_threads(n)
+            print(f"[임베딩] torch 스레드 {n}개로 올림", flush=True)
+    except Exception as exc:  # noqa: BLE001
+        #: ★조용히 넘어가지 않는다. 느린 이유를 나중에 못 찾게 된다.
+        print(f"[임베딩] 스레드 조정 실패(그대로 진행): {exc}", flush=True)
+
+    from app.rag.embeddings import get_embeddings
+
+    embed = get_embeddings()
+
+    #: ★**조항 단위**로 묶는다. 한 조항의 조각이 배치 경계에 걸치면
+    #:   중간에 죽었을 때 반쪽이 남는다.
+    count = _token_counter()
+    plan: list[tuple[str, str, list[str]]] = []
+    n_chunks_total = 0
+    for h, body in todo:
+        parts = ix.chunk_clause(body, count)
+        if not parts:
+            n_skip_clause += 1
+            continue
+        plan.append((h, body, parts))
+        n_chunks_total += len(parts)
+    print(
+        f"[임베딩] 조항 {len(plan):,}개 → 조각 {n_chunks_total:,}개 "
+        f"(토큰 예산 {ix.MAX_TOKENS}, 겹침 {ix.OVERLAP_TOKENS})",
+        flush=True,
+    )
+
+    t0 = time.time()
+    written = 0
+    done_chunks = 0
+    i = 0
+    while i < len(plan):
+        #: 배치를 조각 수로 채우되 **조항을 쪼개지 않는다.**
+        batch: list[tuple[str, str, list[str]]] = []
+        size = 0
+        while i < len(plan) and (not batch or size + len(plan[i][2]) <= _BATCH):
+            batch.append(plan[i])
+            size += len(plan[i][2])
+            i += 1
+
+        flat = [(h, ci, len(parts), part)
+                for h, _, parts in batch
+                for ci, part in enumerate(parts)]
+        vecs = embed.embed_documents([f[3] for f in flat])
+        ix.upsert_content(conn, [(h, body, len(parts)) for h, body, parts in batch])
+        written += ix.upsert_chunks(
+            conn, [(f[0], f[1], f[2], f[3], v) for f, v in zip(flat, vecs)]
+        )
+        done_chunks += len(flat)
+        el = time.time() - t0
+        rate = done_chunks / el if el else 0
+        left = (n_chunks_total - done_chunks) / rate if rate else 0
+        print(
+            f"  {done_chunks:,}/{n_chunks_total:,} 조각 · {rate:.0f}/s · 남은 시간 {left/60:.1f}분",
+            flush=True,
+        )
+
+    print(f"[완료] {written:,}조각 기록 · {(time.time()-t0)/60:.1f}분", flush=True)
+    #: ★끝에 **다시 세어** 출력한다. 중간에 끊겼는지 여기서 드러난다.
+    print(json.dumps(ix.stats(conn), ensure_ascii=False, indent=2))
+    conn.close()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

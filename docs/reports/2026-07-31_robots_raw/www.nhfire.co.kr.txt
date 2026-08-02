@@ -1,0 +1,7 @@
+# source: https://www.nhfire.co.kr/robots.txt
+# fetched_at: 2026-07-31T01:06:36+00:00
+# http: HTTP 200
+# sha256: a3a1564fab72eacedb9f506fdc4f612d6981d7b17b1296e0ae0cf6c2fea04ca4
+# ---- 이하 원문(수정 없음) ----
+User-agent: *
+Allow:/

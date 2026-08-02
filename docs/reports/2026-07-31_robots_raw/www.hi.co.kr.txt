@@ -1,0 +1,23 @@
+# source: https://www.hi.co.kr/robots.txt
+# fetched_at: 2026-07-31T01:06:22+00:00
+# http: HTTP 200
+# sha256: 8c607d60f6164b94dedba6c8a16fb80e751dbd3de7da26e96d48ddae18c37ea2
+# ---- 이하 원문(수정 없음) ----
+User-agent: *
+Allow: /
+
+Disallow: /jsp/bin/CL
+Disallow: /jsp/bin/CO
+Disallow: /jsp/bin/CS
+Disallow: /jsp/bin/MY
+Disallow: /Coocon
+Disallow: /META-INF
+Disallow: /product
+Disallow: /solution
+Disallow: /jsp/cache
+Disallow: /jsp/common
+Disallow: /jsp/error
+Disallow: /jsp/layout
+Disallow: /jsp/login
+Disallow: /jsp/main
+Disallow: /jsp/bin

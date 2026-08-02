@@ -1,0 +1,17 @@
+{
+  "ran_at": "2026-07-31T06:36:56+00:00",
+  "dry_run": true,
+  "free_gb": 0.3,
+  "adapters": [
+    {
+      "adapter": "samsungfire",
+      "total": 409,
+      "new": 398
+    },
+    {
+      "adapter": "dbins",
+      "total": 462,
+      "new": 462
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+# 개발 참고 문서 대상 평가셋 (RAG 코퍼스 아님 — 참고 보존용).
+# corpus: data/dev_docs/  · 고객 질의가 아니라 에이전트·도구 설계에 관한 개발자 질문이다.
+{"question": "Agent Loop에 반드시 필요한 안전장치는 무엇인가요?", "kind": "answerable", "answerable": true, "expected_source": "loop_safety.txt", "expected_answer_contains": ["max_steps"], "forbidden_claims": []}
+{"question": "max_steps는 무엇을 막기 위한 장치인가요?", "kind": "answerable", "answerable": true, "expected_source": "loop_safety.txt", "expected_answer_contains": ["비용"], "forbidden_claims": []}
+{"question": "history가 길어지면 어떤 문제가 생기고 어떻게 대응하나요?", "kind": "answerable", "answerable": true, "expected_source": "loop_safety.txt", "expected_answer_contains": ["trimming"], "forbidden_claims": []}
+{"question": "ReAct 에이전트는 무엇과 무엇을 결합한 패턴인가요?", "kind": "answerable", "answerable": true, "expected_source": "react_agent_overview.txt", "expected_answer_contains": ["Reason", "Act"], "forbidden_claims": []}
+{"question": "ReAct에서 Thought 단계는 무엇을 하나요?", "kind": "answerable", "answerable": true, "expected_source": "react_agent_overview.txt", "expected_answer_contains": ["판단"], "forbidden_claims": []}
+{"question": "Observation 단계에서는 무엇을 확인하나요?", "kind": "answerable", "answerable": true, "expected_source": "react_agent_overview.txt", "expected_answer_contains": ["도구 실행 결과"], "forbidden_claims": []}
+{"question": "관찰 결과는 이후 어디에 추가되나요?", "kind": "answerable", "answerable": true, "expected_source": "react_agent_overview.txt", "expected_answer_contains": ["history"], "forbidden_claims": []}
+{"question": "좋은 도구는 한 번에 몇 가지 일을 수행해야 하나요?", "kind": "answerable", "answerable": true, "expected_source": "tool_design_rules.txt", "expected_answer_contains": ["한 가지"], "forbidden_claims": []}
+{"question": "도구의 독스트링에는 무엇을 포함해야 하나요?", "kind": "answerable", "answerable": true, "expected_source": "tool_design_rules.txt", "expected_answer_contains": ["언제"], "forbidden_claims": []}
+{"question": "도구 반환값은 어떤 형식으로 제공하는 것이 좋은가요?", "kind": "answerable", "answerable": true, "expected_source": "tool_design_rules.txt", "expected_answer_contains": ["문자열"], "forbidden_claims": []}

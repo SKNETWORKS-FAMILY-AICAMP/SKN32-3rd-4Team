@@ -1,0 +1,7 @@
+# source: https://www.samsungfire.com/robots.txt
+# fetched_at: 2026-07-31T01:06:14+00:00
+# http: HTTP 200
+# sha256: 74e2fdb881bd0618e611cf03487a34edc19c1fcdc1af0ba4babddcb8ea82bd94
+# ---- 이하 원문(수정 없음) ----
+User-agent: * 
+Allow: /

@@ -1,0 +1,11 @@
+# source: https://pub.insure.or.kr/robots.txt
+# fetched_at: 2026-07-31T01:07:20+00:00
+# http: HTTP 200
+# sha256: 58160ff4e0b239ce56b6bb2f298a40a997fbd733a02b8a87c60589d0d6d5f9ab
+# ---- 이하 원문(수정 없음) ----
+User-agent:Yeti
+Disallow:
+User-agent:daumoa
+Disallow:
+User-agent:*
+Disallow:/

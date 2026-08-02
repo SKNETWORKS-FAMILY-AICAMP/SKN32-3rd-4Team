@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>얼굴인식 백엔드 성능 비교 — {{BRAND}}</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header>
+    <h1>🧪 얼굴인식 백엔드 성능 비교</h1>
+    <p class="sub">insightface(r50) · AdaFace(IR-101) · LVFace(ViT-S)를 같은 얼굴로 실측 비교(코사인·지연)</p>
+    <nav class="top-nav">
+      <a href="/static/admin.html">🛡️ 관리자</a>
+      <a href="/static/rag.html">🔎 RAG 검색</a>
+      <a href="/static/orders.html">🛒 주문·승인</a>
+      <a href="/static/facebench.html" class="active">🧪 인식 비교</a>
+      <a href="/static/mcp.html">🔌 MCP</a>
+      <a href="/static/shop.html" style="margin-left:auto">🏠 스토어(고객)</a>
+    </nav>
+  </header>
+
+  <main>
+    <p class="auth-status" id="authStatusBar"></p>
+
+    <div class="panel" id="backendPanel">
+      <h2>⚙️ 로그인에 사용할 인식 백엔드 선택</h2>
+      <p class="hint">현재 실제 얼굴 로그인/등록에 쓰는 모델입니다. 변경은 <strong>관리자 전용</strong>이며,
+        바꾸면 <strong>기존 등록 얼굴은 재등록</strong>해야 합니다(모델마다 임베딩 공간이 다름). 재시작 시 기본값으로 복귀.</p>
+      <div class="row">
+        <select id="backendSelect" class="filter-select"></select>
+        <button id="applyBackendBtn" type="button">적용</button>
+        <span class="hint" id="backendStatus"></span>
+      </div>
+    </div>
+
+    <p class="ai-disclaimer">
+      두 얼굴(A=기준/등록샷, B=비교/로그인샷)을 촬영하거나 업로드한 뒤 <strong>비교 실행</strong>을
+      누르면 세 인식 백엔드의 코사인 유사도(동일인일수록 1에 가까움)·판정·임베딩 지연을 실측합니다.
+      웹캠이 막힌 환경에서는 파일 업로드를 쓰세요.
+    </p>
+
+    <section class="bench-grid">
+      <div class="panel">
+        <h2>A · 기준(등록) 얼굴</h2>
+        <div class="face-cam-wrap"><video id="videoA" autoplay playsinline muted></video></div>
+        <div class="row">
+          <button id="camA" type="button">📷 카메라</button>
+          <button id="shotA" type="button" hidden>📸 촬영</button>
+          <label class="btn-file">파일<input id="fileA" type="file" accept="image/*" hidden /></label>
+        </div>
+        <p class="hint" id="statusA">아직 없음</p>
+        <img id="thumbA" class="bench-thumb" alt="A 미리보기" hidden />
+      </div>
+
+      <div class="panel">
+        <h2>B · 비교(로그인) 얼굴</h2>
+        <div class="face-cam-wrap"><video id="videoB" autoplay playsinline muted></video></div>
+        <div class="row">
+          <button id="camB" type="button">📷 카메라</button>
+          <button id="shotB" type="button" hidden>📸 촬영</button>
+          <label class="btn-file">파일<input id="fileB" type="file" accept="image/*" hidden /></label>
+        </div>
+        <p class="hint" id="statusB">아직 없음</p>
+        <img id="thumbB" class="bench-thumb" alt="B 미리보기" hidden />
+      </div>
+    </section>
+
+    <div class="row">
+      <button id="runBtn" type="button" disabled>⏱ 성능 비교 실행</button>
+      <span class="hint" id="runHint">A·B 둘 다 준비되면 활성화됩니다.</span>
+    </div>
+
+    <table class="data" id="resultTable" hidden>
+      <thead><tr><th>백엔드</th><th>코사인(동일인↑)</th><th>판정</th><th>임베딩 지연</th><th>비고</th></tr></thead>
+      <tbody id="resultBody"></tbody>
+    </table>
+    <p class="hint" id="resultMeta"></p>
+  </main>
+
+  <script src="/static/common.js"></script>
+  <script src="/static/facebench.js"></script>
+</body>
+</html>

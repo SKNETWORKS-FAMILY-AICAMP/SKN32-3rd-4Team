@@ -1,0 +1,8 @@
+# source: https://www.lotteins.co.kr/robots.txt
+# fetched_at: 2026-07-31T01:06:33+00:00
+# http: HTTP 200
+# sha256: 007309274dd6506329f18c9b1dfd03878fc0efdd27d24bf31aac78f1fbfe177d
+# ---- 이하 원문(수정 없음) ----
+User-agent: *
+Disallow: /web/C/D/H/cdh_center_intro.jsp
+Disallow: /mobile/

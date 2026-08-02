@@ -1,0 +1,19 @@
+# source: https://www.idbins.com/robots.txt
+# fetched_at: 2026-07-31T01:06:19+00:00
+# http: HTTP 200
+# sha256: d195921b9baeb3c0ddf9ee1c92e6dd6b55e1e7c28306e8616495baedb1650e4e
+# ---- 이하 원문(수정 없음) ----
+Allow: /$
+Allow: /Index.jsp$
+Allow: /FMCLAV5412.do
+Allow: /pc/bizxpress/pdc/drv/FWMALV0551.shtm
+Allow: /FWLOAV0969.do
+Allow: /FWMALV5472.do
+Allow: /FWMYCV0084.do
+Allow: /FWMYCV0365.do
+Allow: /FWBENV6050.do
+Allow: /FWBENV6054.do
+Allow: /FWBENV6053.do
+Disallow: /*.css$
+Disallow: /*.js$
+Disallow: /
