@@ -8,7 +8,7 @@ import re
 import time
 from pathlib import Path
 
-from rag_config import search, search_terms, TOP_K
+from rag_config import search, search_terms_guarded, TOP_K
 
 TOP_K = 5
 TERM_PAT = re.compile(r"(이?란\??$|뭐야|무슨 뜻|정의)")
@@ -36,8 +36,11 @@ GEN_PAT = re.compile(r"([1-5])\s*세대")
 
 def retrieve(q):
     if TERM_PAT.search(q):
-        return "terms_e5", search_terms(q, k=TOP_K)
-    insurer = next((i for i in INSURERS if i in q or i[:2] in q), None)
+        hits, note = search_terms_guarded(q, k=TOP_K)
+        if note != "ok":
+            print(f"    (가드: {note})")
+        return "terms_e5", hits
+    insurer = next((i for i in get_insurers() if i in q or i[:2] in q), None)
     m = GEN_PAT.search(q)
     generation = f"{m.group(1)}세대" if m else None
     return "policy_e5", search(q, insurer=insurer, generation=generation, k=TOP_K)
@@ -84,10 +87,14 @@ def main():
         for q in questions:
             t0 = time.time()
             coll_used, chunks = retrieve(q["query"])
-            resp = llm.invoke([SystemMessage(content=SYSTEM),
-                               HumanMessage(content=make_prompt(q["query"], chunks))])
-            sec = time.time() - t0
-            ans = resp.content if isinstance(resp.content, str) else str(resp.content)
+            if not chunks:
+                sec = time.time() - t0
+                ans = "제공된 약관에서 확인할 수 없습니다."
+            else:
+                resp = llm.invoke([SystemMessage(content=SYSTEM),
+                                   HumanMessage(content=make_prompt(q["query"], chunks))])
+                sec = time.time() - t0
+                ans = resp.content if isinstance(resp.content, str) else str(resp.content)
             chk = auto_check(q["type"], ans, chunks, trap=q.get("trap", False))
             mark = "O" if chk["pass"] else "X"
             print(f"  [{mark}] {q['id']} {q['type']:<4} ({coll_used}, {sec:.1f}s) {chk['note']}")
@@ -97,6 +104,7 @@ def main():
                          "answer": ans[:500],
                          "expected": q.get("expected_answer", "")})
 
+    Path("out").mkdir(exist_ok=True)
     out = "out\\llm_eval_results.csv"
     with open(out, "w", newline="", encoding="utf-8-sig") as f:
         w = csv.DictWriter(f, fieldnames=list(rows[0].keys()))

@@ -9,13 +9,16 @@
     for h in hits:
         print(h["citation"], h["text"][:80])
 """
+import re
 from functools import lru_cache
 
 # ================= 확정 설정 (변경 시 여기만 수정) =================
 EMBED_MODEL = "intfloat/multilingual-e5-large"   # 2026-08-02 확정
 QUERY_PREFIX = "query: "        # e5 필수 접두사 (검색)
 PASSAGE_PREFIX = "passage: "    # e5 필수 접두사 (색인)
-DB_PATH = "chroma_full"
+from pathlib import Path
+_ROOT = Path(__file__).parent.parent       # embedding\ 의 상위 = 프로젝트 루트
+DB_PATH = str(_ROOT / "chroma_full")
 COLL_MAIN = "policy_e5"         # 본문+표 청크
 COLL_TERMS = "terms_e5"         # 용어 정의 청크
 TOP_K = 5
@@ -83,6 +86,29 @@ def search(question, insurer=None, generation=None, k=TOP_K):
 def search_terms(question, k=TOP_K):
     """용어 정의 검색 ("~란?", "~의 정의" 류 질문용)"""
     return _query(COLL_TERMS, question, None, k)
+
+def _norm(s):
+    """용어 비교용 정규화: 공백·괄호 제거"""
+    return re.sub(r"[\s()\[\]「」『』]", "", s or "")
+
+
+def extract_query_term(question):
+    """질문에서 용어 부분 추출: '기왕증이란?' -> '기왕증'"""
+    m = re.match(r"^(.+?)(이란|란|의 정의|이 뭐|가 뭐|은 무슨|는 무슨)", question.strip())
+    return m.group(1).strip() if m else question.strip().rstrip("?")
+
+
+def search_terms_guarded(question, k=TOP_K):
+    """용어 검색 + 일치 가드: 질문 용어와 다른 정의는 차단.
+    반환: (hits, guard_note) — hits가 비면 호출측은 '확인 불가' 응답."""
+    q_term = _norm(extract_query_term(question))
+    hits = search_terms(question, k=k)
+    matched = [h for h in hits
+               if q_term and (q_term in _norm(h.get("term")) or _norm(h.get("term")) in q_term)]
+    if matched:
+        return matched, "ok"
+    found = ", ".join(sorted({h.get("term") or "?" for h in hits})[:3])
+    return [], f"용어 불일치 차단 (질문: {q_term} / 검색됨: {found})"
 
 
 if __name__ == "__main__":
