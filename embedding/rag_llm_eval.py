@@ -30,11 +30,17 @@ def build_llm(name):
     raise ValueError(name)
 
 
+INSURERS = ["삼성화재", "DB손해보험", "NH농협생명", "동양생명"]
+GEN_PAT = re.compile(r"([1-5])\s*세대")
+
+
 def retrieve(q):
     if TERM_PAT.search(q):
         return "terms_e5", search_terms(q, k=TOP_K)
-    return "policy_e5", search(q, k=TOP_K)
-
+    insurer = next((i for i in INSURERS if i in q or i[:2] in q), None)
+    m = GEN_PAT.search(q)
+    generation = f"{m.group(1)}세대" if m else None
+    return "policy_e5", search(q, insurer=insurer, generation=generation, k=TOP_K)
 
 def make_prompt(q, chunks):
     ev = "\n\n".join(
