@@ -109,12 +109,107 @@ def _bar(done: int, total: int, width: int = 30) -> str:
     return "█" * filled + "·" * (width - filled)
 
 
+def _process_one(job: dict) -> dict:
+    """문서 하나를 처리한다. **프로세스 경계를 넘으므로 순수 함수**여야 한다.
+
+    ★예외를 여기서 삼키지 않는다 — 사유를 담아 돌려주고 부모가 센다.
+      조용한 스킵을 만들지 않는다(CLAUDE.md §3).
+    """
+    import json as _json
+    import traceback as _tb
+    from pathlib import Path as _P
+
+    from scripts.extract import to_clauses, to_page_json
+
+    r = {"sha": job["sha12"], "slug": job["slug"],
+         "pages": 0, "clauses": 0, "skip_pages": 0, "skip_clauses": 0, "failures": []}
+    page_out = _P(job["page_out"])
+    clause_out = _P(job["clause_out"])
+    pdf = _P(job["pdf"])
+
+    if job["stage"] in ("pages", "both"):
+        if page_out.exists():
+            r["skip_pages"] = 1
+        elif not pdf.exists():
+            r["failures"].append({"sha": job["sha12"], "slug": job["slug"], "stage": "pages",
+                                  "why": f"PDF 없음: {job['pdf']}"})
+        else:
+            try:
+                _write_atomic(page_out, to_page_json.extract(pdf, job["meta"]))
+                r["pages"] = 1
+            except Exception as e:  # noqa: BLE001
+                r["failures"].append({"sha": job["sha12"], "slug": job["slug"], "stage": "pages",
+                                      "why": f"{type(e).__name__}: {e}",
+                                      "trace": _tb.format_exc(limit=3)})
+
+    if job["stage"] in ("clauses", "both"):
+        if clause_out.exists():
+            r["skip_clauses"] = 1
+        elif page_out.exists():
+            try:
+                built = to_clauses.build(_json.loads(page_out.read_text(encoding="utf-8")))
+                _write_atomic(clause_out, built)
+                r["clauses"] = 1
+            except Exception as e:  # noqa: BLE001
+                r["failures"].append({"sha": job["sha12"], "slug": job["slug"], "stage": "clauses",
+                                      "why": f"{type(e).__name__}: {e}",
+                                      "trace": _tb.format_exc(limit=3)})
+    return r
+
+
+def _run_parallel(targets, tag, clause_tag, stage, jobs):
+    """프로세스 풀로 돌린다. 진행률은 완료 순서대로 찍는다."""
+    import os
+    from concurrent.futures import ProcessPoolExecutor, as_completed
+
+    n = jobs or (os.cpu_count() or 1)
+    plan = []
+    for meta in targets:
+        sha12 = meta["sha256"][:12]
+        slug = Path(meta["saved_as"]).parent.name
+        plan.append({
+            "sha12": sha12, "slug": slug, "meta": meta, "stage": stage,
+            "pdf": str(_ROOT / meta["saved_as"]),
+            "page_out": str(_EXTRACTED / slug / tag / f"{sha12}.json"),
+            "clause_out": str(_STRUCTURED / slug / clause_tag / f"{sha12}.clauses.json"),
+        })
+    print(f"  프로세스 {n}개로 나눠 돌립니다.", flush=True)
+
+    agg = {"pages": 0, "clauses": 0, "skip_pages": 0, "skip_clauses": 0}
+    failures: list[dict] = []
+    t0 = time.time()
+    done = 0
+    with ProcessPoolExecutor(max_workers=n) as ex:
+        futs = [ex.submit(_process_one, j) for j in plan]
+        for f in as_completed(futs):
+            r = f.result()
+            for k in agg:
+                agg[k] += r[k]
+            failures.extend(r["failures"])
+            done += 1
+            if done % 25 == 0 or done == len(plan):
+                el = time.time() - t0
+                rate = done / el if el else 0
+                eta = (len(plan) - done) / rate if rate else 0
+                print(f"  {_bar(done, len(plan))} {done:>5}/{len(plan)}  "
+                      f"쪽{agg['pages']:>5} 조항{agg['clauses']:>5} "
+                      f"건너뜀{agg['skip_pages'] + agg['skip_clauses']:>5} "
+                      f"실패{len(failures):>3}  남은시간 {eta / 60:.0f}분", flush=True)
+    return agg, failures, time.time() - t0
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--insurer", help="보험사 슬러그 하나만")
     ap.add_argument("--limit", type=int, default=0, help="0=전량")
     ap.add_argument("--stage", choices=("pages", "clauses", "both"), default="both")
     ap.add_argument("--dry-run", action="store_true")
+    #: ★★**좌표 표 복원이 들어오면서 4단계가 느려졌다.**
+    #:   실측(2026-08-03): 직렬로 분당 3.4건 → 전량 **약 6.7시간**.
+    #:   PDF 하나하나가 독립이라 프로세스로 나누면 코어 수만큼 빨라진다.
+    #:   ★스레드가 아니라 **프로세스**다. fitz 는 CPU 를 쓰므로 GIL 에 막힌다.
+    ap.add_argument("--jobs", type=int, default=1,
+                    help="동시 프로세스 수. 0=코어 수")
     args = ap.parse_args()
 
     from scripts.extract import to_clauses, to_page_json
@@ -136,6 +231,14 @@ def main() -> None:
         )
         print(f"  페이지 JSON 없는 것 {need_p:,}건")
         print("(dry-run: 아무것도 쓰지 않았습니다.)")
+        return
+
+    if args.jobs != 1:
+        agg, failures, el = _run_parallel(targets, tag, clause_tag, args.stage, args.jobs)
+        n_pages, n_clauses = agg["pages"], agg["clauses"]
+        skip_pages, skip_clauses = agg["skip_pages"], agg["skip_clauses"]
+        _report(tag, clause_tag, targets, n_pages, n_clauses,
+                skip_pages, skip_clauses, failures, el)
         return
 
     t0 = time.time()
@@ -197,7 +300,13 @@ def main() -> None:
                 flush=True,
             )
 
-    el = time.time() - t0
+    _report(tag, clause_tag, targets, n_pages, n_clauses,
+            skip_pages, skip_clauses, failures, time.time() - t0)
+
+
+def _report(tag, clause_tag, targets, n_pages, n_clauses,
+            skip_pages, skip_clauses, failures, el):
+    """실행 결과를 찍고 파일로 남긴다. **직렬·병렬이 같은 보고를 낸다.**"""
     print(f"\n완료  {el / 60:.1f}분")
     print(f"  페이지 JSON 새로 만듦 {n_pages:,} / 이미 있어 건너뜀 {skip_pages:,}")
     print(f"  조항 JSON  새로 만듦 {n_clauses:,} / 이미 있어 건너뜀 {skip_clauses:,}")

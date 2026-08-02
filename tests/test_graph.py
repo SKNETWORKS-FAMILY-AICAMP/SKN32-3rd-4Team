@@ -10,6 +10,7 @@ from __future__ import annotations
 import pytest
 
 from app.core.domain.precheck_result import (
+    CitationRef,
     PrecheckInput,
     PrecheckOutcome,
     ReasonCode,
@@ -22,7 +23,20 @@ def _body(codes=("F32",)) -> PrecheckInput:
     return PrecheckInput(insurer="가보험", enrolled_on="20200101", kcd_codes=tuple(codes))
 
 
+#: ★판정에는 근거가 붙어 있어야 한다. 인용 0건은 이제 fail-closed 다.
+_CITE = CitationRef(
+    clause_id="abc123def456/보통약관/제9조#0f0f0f0f",
+    qualified_no="보통약관/제9조",
+    section="보통약관",
+    title="지급보험금의 계산",
+    quote="회사는 …",
+    page_from=41,
+    page_to=41,
+)
+
+
 def _outcome(verdict=Verdict.LIKELY_COVERED, **kw) -> PrecheckOutcome:
+    kw.setdefault("citations", [_CITE])
     return PrecheckOutcome(
         verdict=verdict,
         abstained=kw.pop("abstained", False),
@@ -179,8 +193,9 @@ def test_두_실행기의_흐름이_같다():
     _, seq = g.invoke(body)
 
     st = GraphState()
-    compiled = g.build_langgraph()
-    compiled.invoke({"st": st, "body": body})
+    compiled = g.build_langgraph(body)
+    #: ★상태에 body 를 넣지 않는다 — 체크포인트에 질병기호 원문이 남는다.
+    compiled.invoke({"st": st})
 
     assert st.trail == seq.trail
     assert st.done == seq.done
@@ -203,6 +218,166 @@ def test_langgraph도_재시도_상한을_지킨다():
 
     g = _graph(verify=verify, retarget=lambda b, o: o)
     st = GraphState()
-    g.build_langgraph().invoke({"st": st, "body": _body()})
+    g.build_langgraph(_body()).invoke({"st": st})
     assert st.retries <= MAX_RETRY
     assert st.done is True
+
+
+# ── 오늘 수정분 회귀 (코덱스 3라운드) ──────────────────────────────
+
+
+def test_근거_없는_양성판정은_기권으로_막힌다():
+    """★전에는 인용 0건이 그대로 통과했다 — 근거 없는 "보장됩니다"가 나갔다."""
+    naked = PrecheckOutcome(verdict=Verdict.LIKELY_COVERED, message="보장됩니다", citations=[])
+    g = _graph(run=lambda b: naked, verify=lambda o: (True, None, ""))
+    out, st = g.invoke(_body())
+    assert out.abstained is True
+    assert out.reason_code is ReasonCode.CITATION_UNVERIFIED
+    assert out.citations == ()
+    assert st.clauses == ()
+
+
+def test_이미_기권한_결과의_사유를_덮지_않는다():
+    """★규칙엔진이 정한 기권 사유를 citation_unverified 로 바꿔치면 안 된다."""
+    already = PrecheckOutcome(
+        verdict=Verdict.NEEDS_EXPERT,
+        abstained=True,
+        reason_code=ReasonCode.NO_EVIDENCE,
+        message="근거를 찾지 못했습니다",
+        citations=[],
+    )
+    g = _graph(run=lambda b: already, verify=lambda o: (True, None, ""))
+    out, _ = g.invoke(_body())
+    assert out.reason_code is ReasonCode.NO_EVIDENCE  # ★바뀌지 않았다
+    assert out.abstained is True
+
+
+def test_기권하면_상태의_인용도_비운다():
+    """★응답만 비우고 상태에 남기면 감사와 응답이 갈라진다."""
+    g = _graph(verify=lambda o: (False, ReasonCode.CITATION_UNVERIFIED, "불일치"))
+    out, st = g.invoke(_body())
+    assert out.abstained is True
+    assert out.citations == ()
+    assert st.clauses == ()
+
+
+# ── ★자기 인증 제거 회귀 (코덱스 3라운드 치명) ──────────────────────
+
+
+class _FakeStore:
+    """조항 저장소. **판정 결과와 독립된 출처**여야 한다."""
+
+    def __init__(self, rows):
+        self._rows = rows
+
+    def load_clauses(self, sha256, *, usable_only=True):
+        return list(self._rows)
+
+
+def _row(**kw):
+    from app.core.ports.precheck import ClauseRow
+
+    base = dict(
+        sha256="abc123def456" + "0" * 52,
+        qualified_no="보통약관/제9조",
+        clause_no="제9조",
+        section="보통약관",
+        title="지급보험금의 계산",
+        text="회사는 보험금을 다음과 같이 계산하여 지급합니다.",
+        page_from=41,
+        page_to=41,
+        content_hash="0f0f0f0f" + "0" * 56,
+    )
+    base.update(kw)
+    return ClauseRow(**base)
+
+
+def _outcome_with(cite) -> PrecheckOutcome:
+    from app.core.domain.precheck_result import AppliedPolicyInfo
+
+    return PrecheckOutcome(
+        verdict=Verdict.LIKELY_COVERED,
+        citations=[cite],
+        applied_policy=AppliedPolicyInfo(
+            sha256="abc123def456" + "0" * 52,
+            insurer="가보험",
+            product_name="가상품",
+            sale_start="20200101",
+        ),
+    )
+
+
+def test_저장소에_없는_조항을_인용하면_막힌다():
+    """★핵심. 전에는 인용이 스스로를 증명했다 — 조작해도 통과했다."""
+    from app.workflow.precheck_graph import verify_against_store
+
+    row = _row()
+    forged = CitationRef(
+        clause_id="abc123def456/보통약관/제99조#deadbeef",
+        qualified_no="보통약관/제99조",
+        quote="아무 말이나 지어낸 인용",
+    )
+    ok, code, msg = verify_against_store(_outcome_with(forged), _FakeStore([row]))
+    assert ok is False
+    assert code is ReasonCode.CITATION_UNVERIFIED
+    assert "저장소에 없는" in msg
+
+
+def test_인용문이_원문에_없으면_막힌다():
+    from app.workflow.precheck_graph import verify_against_store
+
+    row = _row()
+    lying = CitationRef(
+        clause_id=row.clause_id,
+        qualified_no=row.qualified_no,
+        quote="회사는 어떤 경우에도 전액 보상합니다",  # 원문에 없다
+        page_from=41,
+        page_to=41,
+    )
+    ok, code, msg = verify_against_store(_outcome_with(lying), _FakeStore([row]))
+    assert ok is False
+    assert "인용문이 원문에 없습니다" in msg
+
+
+def test_쪽_범위가_원문_밖이면_막힌다():
+    from app.workflow.precheck_graph import verify_against_store
+
+    row = _row()
+    bad_page = CitationRef(
+        clause_id=row.clause_id,
+        qualified_no=row.qualified_no,
+        quote="회사는 보험금을",
+        page_from=41,
+        page_to=99,
+    )
+    ok, _, msg = verify_against_store(_outcome_with(bad_page), _FakeStore([row]))
+    assert ok is False
+    assert "쪽 범위" in msg
+
+
+def test_저장소_장애는_통과가_아니라_실패다():
+    """★읽지 못했다는 이유로 검증을 건너뛰면 그게 폴백이다."""
+    from app.workflow.precheck_graph import verify_against_store
+
+    class _Broken:
+        def load_clauses(self, sha256, *, usable_only=True):
+            raise RuntimeError("DB 접속 실패")
+
+    ok, code, msg = verify_against_store(_outcome_with(_CITE), _Broken())
+    assert ok is False
+    assert code is ReasonCode.CITATION_UNVERIFIED
+
+
+def test_원문과_일치하면_통과한다():
+    from app.workflow.precheck_graph import verify_against_store
+
+    row = _row()
+    good = CitationRef(
+        clause_id=row.clause_id,
+        qualified_no=row.qualified_no,
+        quote="회사는 보험금을 다음과 같이",
+        page_from=41,
+        page_to=41,
+    )
+    ok, _, msg = verify_against_store(_outcome_with(good), _FakeStore([row]))
+    assert ok is True, msg

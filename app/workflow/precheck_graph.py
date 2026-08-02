@@ -44,6 +44,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
@@ -148,6 +149,20 @@ class PrecheckGraph:
         st.visit("verify_citations")
         assert st.outcome is not None
 
+        #: ★인용 0건은 fail-closed 다.
+        #:
+        #:   전에는 `if not citations: return True` 였다 — **근거 없는 양성 판정이
+        #:   그대로 통과했다.** 판정을 했다면 근거를 대야 하고, 못 대면 기권이다.
+        #:   다만 **이미 기권한 결과를 덮지 않는다** — 규칙엔진이 정한 사유
+        #:   (`no_evidence`·`ambiguous_product` 등)를 `citation_unverified` 로
+        #:   바꿔치면 왜 기권했는지가 사라진다.
+        if not st.outcome.citations:
+            if not st.outcome.abstained:
+                st.outcome = self._abstain(st.outcome, "판정에 근거 조항이 붙지 않았습니다")
+                st.clauses = ()
+            st.done = True
+            return st
+
         ok, code, msg = self._verify(st.outcome)
         if ok:
             st.done = True
@@ -158,6 +173,9 @@ class PrecheckGraph:
         #: ★같은 이유로 두 번 돌지 않는다. 돌아도 같은 결과가 나온다.
         if reason in st.retry_reasons or st.retries >= MAX_RETRY:
             st.outcome = self._abstain(st.outcome, msg)
+            #: ★상태도 비운다. 응답에서만 지우면 감사·체크포인트에 검증 실패한
+            #:   인용이 남아 응답과 내부 상태가 갈라진다.
+            st.clauses = ()
             st.done = True
             return st
 
@@ -173,6 +191,7 @@ class PrecheckGraph:
 
         #: 되돌아갈 수단이 없으면 그 사실을 숨기지 않고 기권한다.
         st.outcome = self._abstain(st.outcome, msg)
+        st.clauses = ()
         st.done = True
         return st
 
@@ -223,27 +242,33 @@ class PrecheckGraph:
         assert st.outcome is not None
         return st.outcome, st
 
-    def build_langgraph(self):
+    def build_langgraph(self, body: PrecheckInput):
         """같은 노드·분기를 LangGraph `StateGraph` 로 세운다.
 
         ★`invoke()` 와 **흐름이 같아야 한다.** 테스트가 그것을 강제한다.
           두 실행기가 갈라지면 어느 쪽이 진짜인지 알 수 없게 된다.
+
+        ★`body` 를 **상태에 넣지 않고 클로저로 잡는다.**
+
+            전에는 `{"st": st, "body": body}` 를 상태로 넘겼다. LangGraph 상태는
+            체크포인터·트레이싱으로 **그대로 직렬화돼 남는다** — 그러면 질병기호
+            원문이 기록된다. `GraphState` 만 해시로 담아도 소용이 없다.
+            그래서 그래프를 요청마다 세우고 원문은 파이썬 클로저에만 둔다.
         """
         from langgraph.graph import END, StateGraph
 
         g = StateGraph(dict)
 
         def _norm(s: dict) -> dict:
-            st: GraphState = s["st"]
-            self.normalize(st, s["body"])
+            self.normalize(s["st"], body)
             return s
 
         def _rules(s: dict) -> dict:
-            self.run_rules(s["st"], s["body"])
+            self.run_rules(s["st"], body)
             return s
 
         def _verify(s: dict) -> dict:
-            self.verify_citations(s["st"], s["body"])
+            self.verify_citations(s["st"], body)
             return s
 
         g.add_node("normalize", _norm)
@@ -261,10 +286,90 @@ class PrecheckGraph:
         return g.compile()
 
 
+def verify_against_store(outcome: PrecheckOutcome, clauses) -> tuple:
+    """결과의 인용을 **저장소 원문과 대조**한다.
+
+    ★전에는 자기 자신을 검증했다.
+
+        `outcome.citations` 로 `evidence` 를 만들어 그 `evidence` 로 같은
+        `citations` 를 검사했다. 조작된 인용도 **스스로를 통과시킨다.**
+        검증은 반드시 **독립된 출처**와 대조해야 한다 — 그래서 여기서
+        조항 저장소를 다시 읽는다.
+
+    ★`qualified_no` 만 비교하면 부족하다.
+        문서 내 중복 31,085건(실측). 그래서 `clause_id`(내용 해시 포함)로
+        찾고, 쪽 범위와 **인용문이 원문에 실제로 있는지**까지 본다.
+
+    ★지금은 LLM 설명문이 없어 `answer_text` 는 빈 문자열이다.
+        `outcome.message` 를 넘기면 규칙엔진 메시지를 설명문인 척하게 된다.
+        없는 것을 있는 척하지 않는다.
+    """
+    if not outcome.citations:
+        #: 0건은 그래프가 fail-closed 로 이미 처리한다. 여기 오지 않는다.
+        return True, None, ""
+
+    pol = outcome.applied_policy
+    sha = pol.sha256 if pol else ""
+    if not sha:
+        return (
+            False,
+            ReasonCode.CITATION_UNVERIFIED,
+            "적용 약관을 알 수 없어 인용을 대조하지 못했습니다",
+        )
+
+    #: ★독립 출처. 판정 결과가 아니라 저장소에서 읽는다.
+    try:
+        stored = clauses.load_clauses(sha, usable_only=False)
+    except Exception as e:  # 저장소 장애는 통과가 아니라 실패다
+        return False, ReasonCode.CITATION_UNVERIFIED, f"조항 저장소를 읽지 못했습니다: {e}"
+
+    by_id = {row.clause_id: row for row in stored}
+
+    def _norm(s: str) -> str:
+        return re.sub(r"\s+", "", s or "")
+
+    for c in outcome.citations:
+        row = by_id.get(c.clause_id)
+        if row is None:
+            return (
+                False,
+                ReasonCode.CITATION_UNVERIFIED,
+                f"저장소에 없는 조항을 인용했습니다: {c.clause_id}",
+            )
+        if c.qualified_no and c.qualified_no != row.qualified_no:
+            return (
+                False,
+                ReasonCode.CITATION_UNVERIFIED,
+                f"조항 번호가 원문과 다릅니다: {c.qualified_no} ≠ {row.qualified_no}",
+            )
+        if c.page_from and (c.page_from < row.page_from or c.page_to > row.page_to):
+            return (
+                False,
+                ReasonCode.CITATION_UNVERIFIED,
+                f"쪽 범위가 원문 밖입니다: {c.page_from}-{c.page_to} "
+                f"(원문 {row.page_from}-{row.page_to})",
+            )
+        if c.quote and _norm(c.quote) not in _norm(row.text):
+            return (
+                False,
+                ReasonCode.CITATION_UNVERIFIED,
+                f"인용문이 원문에 없습니다: {c.qualified_no}",
+            )
+
+    #: 원문 대조를 통과한 뒤에만 조항번호 검증기에 넘긴다.
+    #: ★evidence 는 **저장소에서 읽은 행**이다. 인용에서 만들지 않는다.
+    from app.core.usecases import precheck as uc
+
+    return uc.verify_explanation(
+        cited_clauses=[c.qualified_no for c in outcome.citations],
+        evidence=[by_id[c.clause_id] for c in outcome.citations],
+        answer_text="",
+    )
+
+
 def build() -> PrecheckGraph:
     """조립. **어댑터를 고르는 것은 조립 지점의 일이다.**"""
     from app.composition import build_precheck
-    from app.core.ports.precheck import ClauseRow
     from app.core.usecases import precheck as uc
 
     deps = build_precheck()
@@ -274,37 +379,16 @@ def build() -> PrecheckGraph:
         return uc.run(body, policies=deps["policies"], clauses=deps["clauses"], versions=versions)
 
     def _verify(outcome: PrecheckOutcome):
-        """결과의 인용을 검증한다.
-
-        ★지금은 LLM 설명이 없어 **인용 목록만** 검증한다.
-          `verify_explanation` 은 설명문(`answer_text`)을 받도록 만들어져 있는데,
-          규칙엔진만 도는 지금은 설명문이 없다. **없는 것을 있는 척하지 않는다** —
-          빈 설명문을 넘기고, LLM 을 붙일 때 실제 설명문을 넘긴다.
-        """
-        if not outcome.citations:
-            #: 인용이 없으면 검증할 것도 없다. 기권 여부는 규칙엔진이 이미 정했다.
-            return True, None, ""
-        evidence = [
-            ClauseRow(
-                sha256=outcome.applied_policy.sha256 if outcome.applied_policy else "",
-                qualified_no=c.qualified_no,
-                clause_no=c.qualified_no.split("/")[-1] if c.qualified_no else "",
-                section=c.section,
-                title=c.title,
-                text=c.quote,
-                page_from=c.page_from,
-                page_to=c.page_to,
-                content_hash="",
-            )
-            for c in outcome.citations
-        ]
-        return uc.verify_explanation(
-            cited_clauses=[c.qualified_no for c in outcome.citations],
-            evidence=evidence,
-            answer_text=outcome.message or "",
-        )
+        return verify_against_store(outcome, deps["clauses"])
 
     return PrecheckGraph(run_precheck=_run, verify=_verify)
 
 
-__all__ = ["GraphState", "PrecheckGraph", "MAX_RETRY", "NODES", "build"]
+__all__ = [
+    "GraphState",
+    "PrecheckGraph",
+    "MAX_RETRY",
+    "NODES",
+    "build",
+    "verify_against_store",
+]

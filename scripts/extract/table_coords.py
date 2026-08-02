@@ -394,11 +394,19 @@ def extract(page) -> list[dict]:
             continue
         two = find_two_col(sub, h, tol)
         if two:
+            #: ★2열도 `records` 를 만든다. 안 만들면 하류(페이지 JSON)가
+            #:   "표가 아니다"로 보고 통째로 버린다 — 용어정의표가 그렇게 사라졌다.
+            #:   ★번호 anchor 가 없으므로 `no` 는 **행 순서**다. 원문 번호가 아니다.
+            #:   그래서 `no_source` 로 어디서 온 번호인지 밝힌다 — 지어낸 값처럼
+            #:   보이면 안 된다(CLAUDE.md §1).
+            recs = [{"no": k, "no_source": "row_order",
+                     "cols": {"1": a, "2": b}}
+                    for k, (a, b) in enumerate(two["pairs"], 1)]
             out.append({"method": "2열짝짓기", "panel": i + 1, "cols": 2,
                         "rows": len(two["pairs"]), "grid": [list(p) for p in two["pairs"]],
                         "score": round(two["score"], 3), "word_coverage": None,
                         "first_col_monotonic": False,
-                        "dropped_vertical": len(dropped)})
+                        "dropped_vertical": len(dropped), "records": recs})
     return out
 
 

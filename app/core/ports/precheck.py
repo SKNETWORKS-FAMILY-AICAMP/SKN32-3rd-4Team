@@ -92,6 +92,18 @@ class PolicyVersionRow:
         """
         if REQUIRE_CONFIRMED and self.identification != "confirmed":
             return False
+        #: ★★**세대 규칙셋이 검토됐는지도 본다.** 코덱스가 잡은 구멍이다 —
+        #:   `generation_review` 를 포트까지 실어 놓고 **아무도 안 봤다.**
+        #:   `GenerationRuleset.is_reviewed` 도 정의만 되어 있고 호출부가 없었다.
+        #:
+        #:   세대가 틀리면 **다른 세대 약관을 근거로 든다.** 2019년 가입자에게
+        #:   4세대 자기부담률을 적용하는 식이다. 지금은 `REQUIRE_CONFIRMED`
+        #:   때문에 어차피 0건이라 드러나지 않지만, 확정 절차가 붙는 순간
+        #:   **조용히 새는 문이 된다.** 그 전에 막는다.
+        #:
+        #:   ★`""` 도 막는다. 값이 없으면 "검토했다"가 아니다.
+        if self.generation_review not in ("reviewed", "partial"):
+            return False
         if self.date_confidence not in ("exact", "month"):
             return False
         #: ★`00000000` 은 "모른다"를 뜻하는 자리표시자다. 날짜가 아니다.

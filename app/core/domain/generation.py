@@ -20,7 +20,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from enum import Enum
 from pathlib import Path
@@ -88,11 +88,32 @@ class GenerationRuleSet:
     review_status: str
     profiles: tuple[GenerationProfile, ...]
     product_rules: tuple[ProductTypeRule, ...]
+    #: 부분별 검토 상태. `{부분: {"status":…, "evidence_basis":…, "source_refs":[…]}}`
+    review: dict = field(default_factory=dict)
 
     @property
     def is_reviewed(self) -> bool:
-        """사람이 검토했는가. 미검토 규칙셋으로는 확정할 수 없다."""
+        """**전부** 검토됐는가. 미검토 규칙셋으로는 확정할 수 없다.
+
+        ★`partial` 은 여기서 `False` 다. 부분만 검토된 것을
+          "검토됨"으로 반올림하면 미검토 규칙이 확정 경로로 샌다.
+          부분별 판단이 필요하면 `reviewed_for()` 를 쓴다.
+        """
         return self.review_status == "reviewed"
+
+    def reviewed_for(self, part: str) -> bool:
+        """**부분별** 검토 여부.
+
+        ★근거 등급이 필드마다 다르다(코덱스 권고 2026-08-03) —
+          세대 경계는 금융위 보도자료라는 1차 출처가 있지만,
+          `product_types`(노후·유병력자) marker 규칙은 아직 2차 자료다.
+          하나로 뭉뚱그리면 둘 중 하나가 사실과 다르게 표시된다.
+
+        `part` — `generation_boundaries` · `generation_end_dates` · `product_types`
+        """
+        if self.review_status == "reviewed":
+            return True
+        return (self.review or {}).get(part, {}).get("status") == "reviewed"
 
     def classify_product(self, product_name: str) -> tuple[ProductType, list[str]]:
         """상품명으로 라인을 정한다. 복수로 걸리면 정하지 않고 사유를 돌려준다."""
@@ -195,6 +216,7 @@ def load_ruleset(path: Path) -> GenerationRuleSet:
         schema_version=raw.get("schema_version", ""),
         compiled_at=raw.get("compiled_at", ""),
         review_status=raw.get("review_status", "unreviewed"),
+        review=raw.get("review", {}),
         profiles=profiles,
         product_rules=rules,
     )

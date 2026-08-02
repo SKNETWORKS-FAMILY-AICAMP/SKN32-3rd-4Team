@@ -484,6 +484,43 @@ def _annex_events(pages, toc_pages) -> list[tuple[int, int, str]]:
     return out
 
 
+def _section_events(pages, toc_pages) -> list[tuple[int, int]]:
+    """부(部)·특약이 바뀌는 지점을 `(page, offset)` 로 모은다.
+
+    ★★조 본문과 부록을 **여기서도 끊는다.**
+
+      안 끊으면 한 특약의 **마지막 조가 다음 특약 제목을 삼킨다.**
+      실측(s6, 끊기 전): 조항 194,160개 중 **6,575개(3.39%)** 의 본문이
+      다음 약관 제목으로 끝났다. 거의 전부 `준용규정` 이다 —
+
+          `4.(준용규정) … 보통약관을 따릅니다. 4 특별조건부(표준하체 인수) 특별약관`
+
+      두 가지가 망가진다.
+        1. 인용에 **남의 특약 이름**이 붙는다.
+        2. 같은 `준용규정` 이 문서마다 꼬리가 달라 `content_hash` 가 갈린다 —
+           **중복 제거가 그만큼 덜 된다.** 이 조항은 문서마다 거의 똑같은데도.
+
+    ★목차 페이지는 제외한다. 목차 안의 특약 이름은 경계가 아니다.
+    """
+    out = []
+    for pg in pages:
+        if pg["page"] in toc_pages:
+            continue
+        off = 0
+        for line in pg["text"].splitlines(keepends=True):
+            s = line.rstrip("\n")
+            hit = bool(_SECTION_LINE.match(s))
+            if not hit:
+                m = _SECTION_TITLE.match(s)
+                #: ★`_looks_like_section` 을 반드시 통과시킨다. 이걸 빼면
+                #:   "…특별약관에서 정하지 않은 사항은" 같은 **문장**이 경계가 된다.
+                hit = bool(m and _looks_like_section(s, m.group(1).strip()))
+            if hit:
+                out.append((pg["page"], off))
+            off += len(line)
+    return out
+
+
 def _statute_events(pages, toc_pages) -> list[tuple[int, int]]:
     """인용 법령이 시작하는 지점을 `(page, offset)` 로 모은다.
 
@@ -735,7 +772,14 @@ def build(page_doc: dict) -> dict:
     for pg in pages:
         if pg["page"] in toc_pages:
             continue
-        for m in _NUMBERED.finditer(pg["text"]):
+        t2 = pg["text"]
+        for m in _NUMBERED.finditer(t2):
+            #: ★`제N조` 쪽과 **같은 함정**이다 — `31.(…부활(효력회복))에 따라` 처럼
+            #:   줄머리로 온 상호참조가 머리가 된다. 실측 표본 300문서 23건(0.10%).
+            #:   작지만 고치는 값이 같으므로 함께 막는다.
+            if _REF_TAIL.match(t2[m.end():m.end() + 12]):
+                n_ref_head += 1
+                continue
             numbered_cand.append(
                 (pg["page"], m.start(), m.group(1), m.group(2) or "", m.group(3).strip())
             )
@@ -766,10 +810,20 @@ def build(page_doc: dict) -> dict:
 
     text_of = {pg["page"]: pg["text"] for pg in pages}
     tables_of = {pg["page"]: pg.get("tables", []) for pg in pages}
+    #: ★★**좌표 복원 표를 조항·부록에 실어 나른다.**
+    #:
+    #:   여기까지 안 오면 판정은 표를 **평평해진 텍스트**로만 읽는다.
+    #:   실측(정답셋 66레코드): 텍스트 순서로 읽은 질병명↔KCD 짝은 **0.455**,
+    #:   좌표 복원 레코드는 **1.000**. 절반 이상이 틀린 코드와 짝지어진다.
+    #:   KCD 오짝은 이 서비스에서 가장 위험한 실패다.
+    coord_of = {pg["page"]: pg.get("tables_coords", []) for pg in pages}
     #: ★부록 시작 이벤트. 조항 본문을 여기서 끊고, 별도 배열로 뺀다.
     annex_ev = sorted(_annex_events(pages, toc_pages))
     #: ★부록 종료용. 페이지 단위 `statute_of_page` 로는 같은 페이지 안의 경계를 못 본다.
     statute_ev = sorted(_statute_events(pages, toc_pages))
+    #: ★조 본문·부록을 **부(部) 경계**에서도 끊는다. 안 끊으면 특약 마지막 조가
+    #:   다음 특약 제목을 삼킨다(실측 6,575조항 3.39%).
+    section_ev = sorted(_section_events(pages, toc_pages))
 
     clauses: list[dict] = []
     doc_unresolved = 0          # 번호를 못 읽은 항 (문서 전체)
@@ -807,6 +861,16 @@ def build(page_doc: dict) -> dict:
             if (ap, ao) < (end_page, end_off):
                 end_page, end_off = ap, ao
                 break
+
+        #: ★**부(部)가 바뀌면 거기서도 끊는다.** `준용규정` 이 다음 특약 이름을
+        #:   삼키던 문제다. ★조 머리 **자신**이 section 줄일 수 있으므로
+        #:   `<=` 가 아니라 **엄격히 뒤**(`>`)만 본다.
+        for sp, so in section_ev:
+            if (sp, so) <= (page, off):
+                continue
+            if (sp, so) < (end_page, end_off):
+                end_page, end_off = sp, so
+            break
 
         parts: list[str] = []
         for p in range(page, end_page + 1):
@@ -887,6 +951,14 @@ def build(page_doc: dict) -> dict:
                     str(p): len(tables_of.get(p, [])) for p in range(page, end_page + 1)
                     if tables_of.get(p)
                 },
+                #: ★좌표 복원 표. `tables_on_pages`(개수)와 달리 **내용**이 온다.
+                #:   페이지 단위라 조 경계보다 넓을 수 있다 — 그래서 `page` 를 붙인다.
+                #:   조 안의 어디인지까지는 **모른다. 추정하지 않는다.**
+                "tables": [
+                    {"page": p, **t}
+                    for p in range(page, end_page + 1)
+                    for t in coord_of.get(p, [])
+                ],
                 # ── 8) 중복 처리 준비 ──
                 "content_hash": _clause_hash(section_name, title, body),
             }
@@ -931,6 +1003,15 @@ def build(page_doc: dict) -> dict:
             if (sp, so) < (e_pg, e_off):
                 e_pg, e_off = sp, so
             break
+
+        #: ★부(部) 경계에서도 끊는다(코덱스 권고). 조 머리 없는 후면물
+        #:   (`약관 요약서` 등)이 부록에 섞이는 것을 막는다.
+        for sp, so in section_ev:
+            if (sp, so) <= (ap, ao):
+                continue
+            if (sp, so) < (e_pg, e_off):
+                e_pg, e_off = sp, so
+            break
         parts = []
         for pnum in range(ap, e_pg + 1):
             if pnum in toc_pages:
@@ -952,6 +1033,13 @@ def build(page_doc: dict) -> dict:
             "owner_clause_ordinal": None,
             "tables_on_pages": {str(pnum): len(tables_of.get(pnum, []))
                                 for pnum in range(ap, e_pg + 1) if tables_of.get(pnum)},
+            #: ★★부록에 실리는 이게 **KCD 대조의 실제 근거**다.
+            #:   질병분류표·장해분류표가 전부 여기 있다.
+            "tables": [
+                {"page": pnum, **t}
+                for pnum in range(ap, e_pg + 1)
+                for t in coord_of.get(pnum, [])
+            ],
             "content_hash": _clause_hash(sec, lab, body),
             #: ★라벨은 정리하되 본문(`text`)은 **원문 그대로** 둔다.
         })

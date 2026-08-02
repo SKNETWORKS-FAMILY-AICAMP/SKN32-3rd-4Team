@@ -197,3 +197,61 @@ and reported at the end, so "we measured everything" is never claimed falsely.
 - [`scripts/eval/remote_bench.sh`](../../scripts/eval/remote_bench.sh) — the runner
 - [`scripts/eval/bench_embedders.py`](../../scripts/eval/bench_embedders.py) — measures one model
 - [Embedding model candidates](../reports/2026-08-02_1800_임베딩모델_후보_20선_코덱스합의.md) — what is being compared and why
+
+---
+
+## Second GPU box — RunPod (Linux)
+
+A rented cloud GPU is also available. It is **not** a replacement for the lab box;
+the two are used **in parallel** because they suit different work.
+
+| | Lab box (`x600`) | RunPod |
+|---|---|---|
+| Address | `Yeon@10.20.20.1` (Windows) | `root@213.173.108.100 -p 29946` (Linux) |
+| GPU | RTX 4070 SUPER **12GB** | RTX 2000 Ada **16GB** |
+| RAM | 23GB | **251GB** |
+| Disk for models | F: 277GB | `/workspace` (network volume, large) |
+| Python | 3.14 | 3.12 |
+| Suits | many small fp16 models, fast turnaround | **large models (8B–12B) in 4-bit**, long downloads |
+
+### RUN ON: LAPTOP — connect
+
+```bash
+ssh -p 29946 -i ~/.ssh/id_ed25519 root@213.173.108.100 "nvidia-smi --query-gpu=name,memory.total --format=csv,noheader"
+```
+
+> **`scp` takes `-P` (uppercase) for the port, `ssh` takes `-p` (lowercase).**
+> Using `-p` with `scp` silently treats the port number as a filename:
+> `scp: stat local "29946": No such file or directory`. This cost a round trip.
+
+### RUN ON: LAPTOP — one-time setup
+
+```bash
+ssh -p 29946 -i ~/.ssh/id_ed25519 root@213.173.108.100 "mkdir -p /workspace/bench/scripts/eval /workspace/bench/data/eval && cd /workspace/bench && python3 -m venv .venv && .venv/bin/pip -q install --upgrade pip && .venv/bin/pip -q install torch --index-url https://download.pytorch.org/whl/cu126 && .venv/bin/pip -q install sentence-transformers bitsandbytes accelerate"
+```
+
+### RUN ON: LAPTOP — ship the eval set and scripts
+
+```bash
+scp -P 29946 -i ~/.ssh/id_ed25519 scripts/eval/bench_embedders.py root@213.173.108.100:/workspace/bench/scripts/eval/
+```
+
+> **Note on the data:** `embed_bench.json` holds ~2,000 excerpts of insurance
+> policy text. That text is copyrighted. Copying it to a rented box the team
+> controls is a team decision; do not send it to third-party APIs.
+
+### RUN ON: RUNPOD — measure the large models in 4-bit
+
+```bash
+cd /workspace/bench && bash run_4bit.sh
+```
+
+★4-bit numbers are **not comparable to fp16 numbers**. The `dtype` field is
+recorded in every result and shown in the report table for exactly this reason —
+do not rank a 4-bit model against an fp16 model in the same list.
+
+### Splitting work between the two boxes
+
+Run the small fp16 sweep on the lab box and the large 4-bit sweep on RunPod at the
+same time. They share nothing but the eval set, so there is no coordination cost.
+Collect both result folders onto the laptop and run `--report` once.
