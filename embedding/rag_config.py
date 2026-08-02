@@ -62,7 +62,7 @@ def _query(coll_name, question, where, k):
     hits, seen = [], set()
     for m, d in zip(res["metadatas"][0], res["documents"][0]):
         raw = (m.get("term") or d[:50]).replace(" ", "")
-        key = (raw[:30], m["insurer"], m["generation"])
+        key = (raw[:15], m["insurer"], m["generation"])
         if key in seen:              # 동일 (내용, 보험사, 세대) 중복 접기
             continue
         seen.add(key)
