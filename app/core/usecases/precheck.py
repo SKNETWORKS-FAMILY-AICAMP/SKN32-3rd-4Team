@@ -34,7 +34,7 @@ import hashlib
 import json
 from dataclasses import asdict
 
-from app.core.errors import ValidationErr
+from app.core.errors import InfraError, ValidationErr
 from app.core.domain import kcd_ranges as kcd
 from app.core.ports.precheck import (
     ClauseRow,
@@ -91,6 +91,17 @@ def _to_applied(v: PolicyVersionRow, parse_status: str = "") -> AppliedPolicyInf
     )
 
 
+#: ★"산출물이 없다"와 "저장소가 죽었다"를 가른다.
+#:   전자는 **사실**이라 기권이 맞고, 후자는 **장애**라 503 으로 올려야 한다.
+#:   메시지로 가르는 것은 임시방편이다 — 어댑터가 별도 예외 타입을 던지는 편이 낫다.
+#:   (DB 적재 때 `ArtifactMissing` 을 만들어 교체한다)
+_MISSING_HINTS = ("찾지 못했습니다", "산출물이 없습니다", "지정되지 않았습니다")
+
+
+def _is_missing_artifact(e: Exception) -> bool:
+    return any(h in str(e) for h in _MISSING_HINTS)
+
+
 _REASON_MAP = {
     "insurer_not_supported": ReasonCode.INSURER_NOT_SUPPORTED,
     "no_version_at_date": ReasonCode.NO_VERSION_AT_DATE,
@@ -141,14 +152,27 @@ def run(
         )
 
     # ── 2) 그 문서를 판정에 쓸 수 있나 ────────────────────────────
+    #: ★저장소 장애를 **정상 기권으로 삼키지 않는다.**
+    #:
+    #:   `except Exception` 으로 전부 잡아 `needs_expert`(HTTP 200)로 바꾸고 있었다.
+    #:   그러면 DB 가 죽어도, 코드에 오타가 있어도 클라이언트는
+    #:   **"근거가 없나 보다"** 라고 읽는다. 장애와 기권을 못 가린다.
+    #:   라우터는 저장소 장애를 503 이라 규정하는데 여기서 200 으로 만들어 버린 것이다.
+    #:
+    #:   `InfraError` 는 올려보내고(라우터가 503 으로 바꾼다), 그 밖의 예외는
+    #:   **숨기지 않는다** — 프로그래밍 오류가 기권으로 둔갑하면 버그를 못 찾는다.
+    #:
+    #:   ★"산출물이 아직 없다"는 **장애가 아니라 사실**이므로 기권이 맞다.
     try:
         st = clauses.stats(got.sha256)
-    except Exception as e:  # noqa: BLE001
+    except InfraError as e:
+        if not _is_missing_artifact(e):
+            raise
         return PrecheckOutcome(
             verdict=Verdict.NEEDS_EXPERT,
             abstained=True,
             reason_code=ReasonCode.NO_EVIDENCE,
-            message=f"조항 데이터를 찾지 못했습니다: {e}",
+            message="이 약관은 아직 조항 구조화가 되지 않아 근거를 댈 수 없습니다.",
             applied_policy=_to_applied(got),
             **base,
         )
@@ -200,7 +224,7 @@ def run(
             )
             continue
 
-        parsed = kcd.KcdCode.parse(code)
+        parsed = kcd.CodeRef.parse(code)
         hit_pairs = [(m, c) for m, c in mentions if m.range.contains(parsed)]
         cites = _citations(hit_pairs, judged["status"])
         all_cites.extend(cites)

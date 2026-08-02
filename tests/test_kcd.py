@@ -1,40 +1,40 @@
 """KCD 코드 파싱·범위·면책 판정."""
 
 from app.core.domain.kcd_ranges import (
-    CodeMention, KcdCode, KcdRange, judge, parse_ranges, scan_clause,
+    CodeMention, CodeRef, KcdRange, judge, parse_ranges, scan_clause,
 )
 
 
 def test_코드를_읽는다():
-    assert str(KcdCode.parse("F04")) == "F04"
-    assert str(KcdCode.parse("N39.3")) == "N39.3"
-    assert KcdCode.parse("F4") is None          # 두 자리여야 한다
-    assert KcdCode.parse("ABC") is None
+    assert str(CodeRef.parse("F04")) == "F04"
+    assert str(CodeRef.parse("N39.3")) == "N39.3"
+    assert CodeRef.parse("F4") is None          # 두 자리여야 한다
+    assert CodeRef.parse("ABC") is None
 
 
 def test_문자열_비교가_아니라_숫자로_비교한다():
     #: ★"F9" < "F04" 는 문자열로 참이다. 이러면 범위 판정이 깨진다.
-    r = KcdRange(KcdCode("F", 4), KcdCode("F", 99))
-    assert r.contains(KcdCode("F", 9))
-    assert r.contains(KcdCode("F", 32))
-    assert not r.contains(KcdCode("F", 3))
+    r = KcdRange(CodeRef("F", 4), CodeRef("F", 99))
+    assert r.contains(CodeRef("F", 9))
+    assert r.contains(CodeRef("F", 32))
+    assert not r.contains(CodeRef("F", 3))
 
 
 def test_세자리_범위는_세분류를_포함한다():
-    r = KcdRange(KcdCode("F", 4), KcdCode("F", 9))
-    assert r.contains(KcdCode("F", 4, 1))       # F04.1 은 F04~F09 에 든다
-    assert r.contains(KcdCode("F", 9, 9))
+    r = KcdRange(CodeRef("F", 4), CodeRef("F", 9))
+    assert r.contains(CodeRef("F", 4, 1))       # F04.1 은 F04~F09 에 든다
+    assert r.contains(CodeRef("F", 9, 9))
 
 
 def test_세분류를_콕_집으면_다른_세분류는_안_든다():
-    r = KcdRange(KcdCode("N", 39, 3), KcdCode("N", 39, 3))
-    assert r.contains(KcdCode("N", 39, 3))
-    assert not r.contains(KcdCode("N", 39, 0))
+    r = KcdRange(CodeRef("N", 39, 3), CodeRef("N", 39, 3))
+    assert r.contains(CodeRef("N", 39, 3))
+    assert not r.contains(CodeRef("N", 39, 0))
 
 
 def test_분류문자가_다르면_범위_밖이다():
-    r = KcdRange(KcdCode("F", 4), KcdCode("F", 99))
-    assert not r.contains(KcdCode("N", 39))
+    r = KcdRange(CodeRef("F", 4), CodeRef("F", 99))
+    assert not r.contains(CodeRef("N", 39))
 
 
 def test_여러_구분자를_받는다():
@@ -46,7 +46,7 @@ def test_여러_구분자를_받는다():
 
 def test_뒤_분류문자가_생략된_표기도_받는다():
     rs = parse_ranges("(F04~09)")
-    assert any(r.contains(KcdCode("F", 7)) for r in rs)
+    assert any(r.contains(CodeRef("F", 7)) for r in rs)
 
 
 def test_역순_범위는_뒤집지_않고_버린다():

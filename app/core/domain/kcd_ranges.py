@@ -53,15 +53,27 @@ _RANGE_SEP = r"[~∼～\-]"
 
 
 @dataclass(frozen=True)
-class KcdCode:
-    """질병코드 하나. `F04` 또는 `F04.1`."""
+class CodeRef:
+    """약관 본문에서 읽은 **코드 참조** 하나. `F04` 또는 `F04.1`.
+
+    ★`app/core/domain/insurance.py` 의 `KcdCode` 와 **다른 것**이다.
+
+        저쪽은 KCD **마스터 항목**이다 — 차수(`version_label`)와 한글명(`name_ko`)을
+        갖고 "J20.9 는 몇 차 분류의 무엇인가"를 답한다.
+        이쪽은 **약관 문장에서 뽑은 표기**다. 차수도 이름도 모르고,
+        범위 안에 드는지만 따진다.
+
+        처음엔 둘 다 `KcdCode` 라 이름 붙였는데, ARCH-003 의 단일 정의 검사가
+        **타입 이름 셋을 하드코딩**하고 있어서 못 잡았다(코덱스가 잡았다).
+        역할이 다르면 이름을 나눈다.
+    """
 
     letter: str
     number: int
     sub: int | None = None
 
     @classmethod
-    def parse(cls, s: str) -> "KcdCode | None":
+    def parse(cls, s: str) -> "CodeRef | None":
         m = _CODE.fullmatch((s or "").strip().upper())
         if not m:
             return None
@@ -72,9 +84,9 @@ class KcdCode:
         return f"{base}.{self.sub}" if self.sub is not None else base
 
     @property
-    def base(self) -> "KcdCode":
+    def base(self) -> "CodeRef":
         """세분류를 뗀 3자리 코드."""
-        return KcdCode(self.letter, self.number)
+        return CodeRef(self.letter, self.number)
 
     def _key(self) -> tuple[str, int, int]:
         #: 세분류가 없으면 -1 — 정렬에서 `F04` 가 `F04.0` 앞에 오게 한다.
@@ -85,10 +97,10 @@ class KcdCode:
 class KcdRange:
     """코드 범위. `lo == hi` 면 단일 코드다."""
 
-    lo: KcdCode
-    hi: KcdCode
+    lo: CodeRef
+    hi: CodeRef
 
-    def contains(self, code: KcdCode) -> bool:
+    def contains(self, code: CodeRef) -> bool:
         """`code` 가 이 범위에 드는가.
 
         ★3자리 범위는 아래 세분류를 **포함한다.** `F04∼F09` 에 `F04.1` 이 든다.
@@ -106,12 +118,12 @@ class KcdRange:
         return str(self.lo) if self.lo == self.hi else f"{self.lo}~{self.hi}"
 
 
-def parse_codes(text: str) -> list[KcdCode]:
+def parse_codes(text: str) -> list[CodeRef]:
     """본문에서 코드를 전부 뽑는다(범위 표기는 양끝이 각각 잡힌다)."""
-    out: list[KcdCode] = []
+    out: list[CodeRef] = []
     for m in _CODE.finditer(text or ""):
         out.append(
-            KcdCode(m.group(1), int(m.group(2)), int(m.group(3)) if m.group(3) else None)
+            CodeRef(m.group(1), int(m.group(2)), int(m.group(3)) if m.group(3) else None)
         )
     return out
 
@@ -132,9 +144,9 @@ def parse_ranges(text: str) -> list[KcdRange]:
     ranges: list[KcdRange] = []
     consumed: list[tuple[int, int]] = []
     for m in _RANGE_RE.finditer(text or ""):
-        lo = KcdCode(m.group(1), int(m.group(2)), int(m.group(3)) if m.group(3) else None)
+        lo = CodeRef(m.group(1), int(m.group(2)), int(m.group(3)) if m.group(3) else None)
         hi_letter = m.group(4) or m.group(1)
-        hi = KcdCode(hi_letter, int(m.group(5)), int(m.group(6)) if m.group(6) else None)
+        hi = CodeRef(hi_letter, int(m.group(5)), int(m.group(6)) if m.group(6) else None)
         if lo._key() > hi._key():
             #: `F99∼F04` 같은 역순은 표기 오류다. 뒤집지 않고 버린다 —
             #: 우리가 의도를 추측하면 안 된다.
@@ -146,7 +158,7 @@ def parse_ranges(text: str) -> list[KcdRange]:
     for m in _CODE.finditer(text or ""):
         if any(s <= m.start() < e for s, e in consumed):
             continue
-        c = KcdCode(m.group(1), int(m.group(2)), int(m.group(3)) if m.group(3) else None)
+        c = CodeRef(m.group(1), int(m.group(2)), int(m.group(3)) if m.group(3) else None)
         ranges.append(KcdRange(c, c))
     return ranges
 
@@ -254,9 +266,9 @@ def scan_clause(text: str, *, window: int = 160) -> list[CodeMention]:
     out: list[CodeMention] = []
     consumed: list[tuple[int, int]] = []
     for m in _RANGE_RE.finditer(text):
-        lo = KcdCode(m.group(1), int(m.group(2)), int(m.group(3)) if m.group(3) else None)
+        lo = CodeRef(m.group(1), int(m.group(2)), int(m.group(3)) if m.group(3) else None)
         hi_letter = m.group(4) or m.group(1)
-        hi = KcdCode(hi_letter, int(m.group(5)), int(m.group(6)) if m.group(6) else None)
+        hi = CodeRef(hi_letter, int(m.group(5)), int(m.group(6)) if m.group(6) else None)
         if lo._key() > hi._key():
             continue
         consumed.append((m.start(), m.end()))
@@ -269,7 +281,7 @@ def scan_clause(text: str, *, window: int = 160) -> list[CodeMention]:
     for m in _CODE.finditer(text):
         if any(s <= m.start() < e for s, e in consumed):
             continue
-        c = KcdCode(m.group(1), int(m.group(2)), int(m.group(3)) if m.group(3) else None)
+        c = CodeRef(m.group(1), int(m.group(2)), int(m.group(3)) if m.group(3) else None)
         kind, ctx = _kind_at(m.start())
         out.append(CodeMention(KcdRange(c, c), kind, ctx))
     return out
@@ -284,7 +296,7 @@ def judge(code: str, mentions: list[CodeMention]) -> dict:
         보장은 **보상하는 사항** 조항이 정하고, 여기서는 그걸 보지 않는다.
         그래서 결과는 `excluded` / `exception` / `not_mentioned` 뿐이다.
     """
-    c = KcdCode.parse(code)
+    c = CodeRef.parse(code)
     if c is None:
         return {"code": code, "status": "invalid_code", "hits": []}
 

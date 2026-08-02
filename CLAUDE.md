@@ -97,7 +97,7 @@ data/structured/{보험사}/s{스키마}_{추출기}/{sha12}.clauses.json
 |---|---|
 | 약관 수집 | **완료** — 12개사 고유 sha 1,703. 격리 336(비의료159·여행158·사업방법서19) → **판정 대상 1,367** |
 | 전처리 · 페이지 | **완료** — `data/extracted/*/s4_pymupdf-1.28.0/` **1,367건 전량**, 실패 0 |
-| 전처리 · 조항 | `s4` 1,367건 완료 (**ok 1,240 · suspect 108 · no_clause_heads 19**) → **`s5` 재구조화 진행 중 (88/1,367)** |
+| 전처리 · 조항 | **`s5` 1,367건 전량 완료** (**ok 1,108 · suspect 250 · no_clause_heads 9**). `s4`(ok 1,240·suspect 108·nch 19)는 비교용으로 남긴다 |
 | 조항 중복 | 실측(s4 전량) — 등장 **129,525** / 고유 해시 **52,178** = **중복 59.7%**. 한 조항이 최대 **170문서**에 실린다 |
 | 세대 판정 | **완료** — `config/generation_profiles.json` 기반. 1~5세대. 날짜 없는 문서 4건 |
 | 도메인 모듈 | `citation_guard`·`policy_version`·`kcd_ranges` 완료. `clause_store` 는 **파일 어댑터까지**(`app/adapters/file_clause_store.py`) — 통합 저장소 미착수 |

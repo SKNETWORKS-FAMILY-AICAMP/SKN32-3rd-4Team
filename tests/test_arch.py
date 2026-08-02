@@ -132,8 +132,14 @@ def test_arch_002_inner_layer_does_not_import_outer():
 #: 도메인 로직이 있어서는 안 되는 자리(패키지 이름).
 _FORBIDDEN_DOMAIN_PKGS = ("app/insurance", "app/domain", "app/models")
 
-#: 도메인 타입은 한 곳에서만 정의한다.
-_SINGLE_DEFINITION = ("class Verdict", "class PolicyVersion", "class GenerationProfile")
+#: ★타입 이름을 하드코딩하면 **목록에 없는 중복을 놓친다.**
+#:
+#:   실제로 `KcdCode` 가 두 곳(`insurance.py` · `kcd_ranges.py`)에 정의돼 있었는데
+#:   세 이름만 검사해서 빠져나갔다(코덱스가 잡았다).
+#:   이제 `app/core/` 안에서 **같은 이름의 클래스가 두 번 정의됐는지** 스스로 찾는다.
+#:
+#: 예외 — 프레임워크 관례상 같은 이름이 여러 번 나오는 것.
+_ALLOWED_DUP_CLASSES = {"Settings", "Config", "Meta"}
 
 
 def test_arch_003_no_domain_package_outside_core():
@@ -148,17 +154,26 @@ def test_arch_003_no_domain_package_outside_core():
 
 
 def test_arch_003_domain_types_defined_once():
-    """핵심 도메인 타입이 두 곳에서 정의되지 않는다."""
-    dupes: dict[str, list[str]] = {}
-    for py in (_ROOT / "app").rglob("*.py"):
+    """★`app/core/` 안에서 같은 이름의 클래스가 두 번 정의되지 않는다.
+
+    이름이 같으면 팀원이 어느 쪽을 import 해야 할지 모른다.
+    역할이 다르면 **이름을 다르게** 지어야 한다.
+    """
+    seen: dict[str, set[str]] = {}
+    for py in (_ROOT / "app" / "core").rglob("*.py"):
         if "__pycache__" in str(py):
             continue
         text = py.read_text(encoding="utf-8", errors="replace")
-        for token in _SINGLE_DEFINITION:
-            if re.search(rf"^{re.escape(token)}\b", text, re.M):
-                dupes.setdefault(token, []).append(str(py.relative_to(_ROOT)))
-    offenders = {k: v for k, v in dupes.items() if len(v) > 1}
-    assert offenders == {}, f"도메인 타입이 여러 곳에 정의됨: {offenders}"
+        for m in re.finditer(r"^class\s+(\w+)", text, re.M):
+            name = m.group(1)
+            if name in _ALLOWED_DUP_CLASSES:
+                continue
+            seen.setdefault(name, set()).add(str(py.relative_to(_ROOT)))
+    offenders = {k: sorted(v) for k, v in seen.items() if len(v) > 1}
+    assert offenders == {}, (
+        "같은 이름의 클래스가 여러 곳에 정의됐습니다. "
+        f"역할이 다르면 이름을 나누세요: {offenders}"
+    )
 
 
 def test_arch_003_usecases_do_not_import_adapters():

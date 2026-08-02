@@ -2,7 +2,7 @@
 
 ★HTTP 상태 코드 규칙 — **"확인 불가"는 오류가 아니다**
 
-    200  판정했다. `verdict=unknown` 이어도 200 이다.
+    200  판정했다. `verdict=needs_expert` 로 기권해도 200 이다.
          근거를 못 대서 기권한 것은 **정상 결과**이지 서버 잘못이 아니다.
     422  입력이 잘못됐다(가입일 형식 등).
     503  검색·저장소 장애. 이때만 "우리 잘못"이다.
@@ -20,7 +20,6 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, status
 
-from app.adapters import file_clause_store, manifest_policy_resolver
 from app.core.domain.precheck_result import PrecheckInput, PrecheckOutcome
 from app.core.errors import InfraError, ValidationErr
 from app.core.usecases import precheck
@@ -35,10 +34,18 @@ from app.schemas.precheck import (
 
 router = APIRouter(prefix="/v1", tags=["precheck"])
 
-#: ★유스케이스는 포트만 안다. 구체 어댑터를 고르는 것은 **여기(바깥)** 의 일이다.
-#:   DB 적재가 끝나면 이 줄만 바꾸면 된다 — 유스케이스는 손대지 않는다.
-_POLICIES = manifest_policy_resolver
-_CLAUSES = file_clause_store
+#: ★어댑터를 고르는 것은 **조립 지점(`app/composition.py`)** 의 일이다.
+#:   라우터가 직접 import 하면 "어느 저장소를 쓰는가"가 HTTP 계층에 흩어진다.
+_DEPS = None
+
+
+def _deps():
+    global _DEPS
+    if _DEPS is None:
+        from app.composition import build_precheck
+
+        _DEPS = build_precheck()
+    return _DEPS
 
 #: 약관 버전 목록은 매 요청마다 읽을 필요가 없다.
 _VERSIONS = None
@@ -47,7 +54,7 @@ _VERSIONS = None
 def _versions():
     global _VERSIONS
     if _VERSIONS is None:
-        _VERSIONS = _POLICIES.load_versions()
+        _VERSIONS = _deps()["policies"].load_versions()
     return _VERSIONS
 
 
@@ -127,14 +134,14 @@ def _to_dto(o: PrecheckOutcome) -> PrecheckResult:
 def create_precheck(body: PrecheckRequest) -> PrecheckResult:
     """가입일·질병기호로 보장 여부를 미리 본다.
 
-    ★근거 조항을 못 대면 `verdict="unknown"` 으로 답한다(HTTP 200).
+    ★근거 조항을 못 대면 `verdict="needs_expert"` 로 답한다(HTTP 200).
       추측해서 "보장됩니다"라고 말하지 않는다.
     """
     try:
         outcome = precheck.run(
             _to_input(body),
-            policies=_POLICIES,
-            clauses=_CLAUSES,
+            policies=_deps()["policies"],
+            clauses=_deps()["clauses"],
             versions=_versions(),
         )
         return _to_dto(outcome)
@@ -187,7 +194,7 @@ def support_manifest() -> dict:
         },
         "notes": [
             "판정은 약관 원문 조항만을 근거로 한다.",
-            "근거를 못 대면 verdict=unknown 으로 답한다(HTTP 200).",
+            "근거를 못 대면 verdict=needs_expert 로 기권한다(HTTP 200).",
             "면책 목록에 없다는 것이 보장된다는 뜻은 아니다.",
         ],
     }

@@ -13,7 +13,10 @@ from app.core.config import get_settings
 from app.db.database import engine
 
 # migration으로 생성돼야 하는 핵심 테이블(존재로 준비 여부 판정)
-_REQUIRED_TABLES = ("products", "orders", "run_events")
+#: ★보험 서비스가 **쇼핑몰 테이블 때문에 "준비 안 됨"** 이 되고 있었다.
+#:   (products · orders 는 커머스 실습 테이블이다 — legacy 로 옮겼다)
+#:   지금 판정은 파일을 읽으므로 필수 테이블이 없다. DB 적재 후 다시 채운다.
+_REQUIRED_TABLES: tuple[str, ...] = ()
 
 
 def check_readiness() -> dict[str, object]:

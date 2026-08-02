@@ -29,20 +29,6 @@ def build_graph_answer_question(top_k: int | None = None) -> AnswerQuestion:
     return AnswerQuestion(retriever=fusion, model=LlmGateway(), top_k=top_k)
 
 
-def build_preview_order(db):
-    """미리보기 유스케이스(읽기전용) — SqlCatalog 주입(Phase 6)."""
-    from app.adapters.sql_catalog import SqlCatalog
-    from app.application.commerce import PreviewOrder
-
-    return PreviewOrder(catalog=SqlCatalog(db))
-
-
-def build_place_order(db):
-    """승인(주문 생성) 유스케이스 — SqlOrderRepository 주입(Phase 6, 멱등·원자)."""
-    from app.adapters.sql_order_repo import SqlOrderRepository
-    from app.application.commerce import PlaceOrder
-
-    return PlaceOrder(orders=SqlOrderRepository(db))
 
 
 def build_chat_commerce(db, chat_fn=None, max_steps: int = 3):
@@ -103,3 +89,15 @@ def build_hybrid_answer_question(top_k: int | None = None, rerank: bool = False)
 
         retriever = RerankedRetriever(retriever, LlmReranker(model))
     return AnswerQuestion(retriever=retriever, model=model, top_k=top_k)
+
+
+def build_precheck():
+    """보장 사전판정에 쓸 어댑터 묶음.
+
+    ★구체 구현을 고르는 것은 **조립 지점의 일**이다.
+      라우터가 어댑터를 직접 import 하면 "어느 저장소를 쓰는가"가
+      HTTP 계층에 흩어진다. DB 적재가 끝나면 여기 두 줄만 바꾸면 된다.
+    """
+    from app.adapters import file_clause_store, manifest_policy_resolver
+
+    return {"policies": manifest_policy_resolver, "clauses": file_clause_store}

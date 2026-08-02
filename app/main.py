@@ -106,11 +106,27 @@ def create_app(role: str = "full") -> FastAPI:
 
     app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
-    landing = {"customer": "shop.html", "admin": "admin.html"}.get(role, "index.html")
+    #: ★없는 파일을 반환하고 있었다.
+    #:   `shop.html` · `index.html` 은 커머스 화면이라 `legacy/` 로 옮겼는데
+    #:   여기 이름이 그대로 남아 500 이 났다. 보험 화면은 아직 없다.
+    #:   **없는 것을 있는 척하지 않는다** — 무엇이 없는지 말하고 API 로 안내한다.
+    landing = {"admin": "admin.html"}.get(role, "")
 
     @app.get("/", include_in_schema=False)
-    def index() -> FileResponse:
-        return FileResponse(str(_STATIC_DIR / landing))
+    def index():
+        target = _STATIC_DIR / landing if landing else None
+        if target and target.is_file():
+            return FileResponse(str(target))
+        return PlainTextResponse(
+            "올바른 보험비서 — 보장 사전판정 API\n"
+            "\n"
+            "  POST /v1/prechecks         보장 사전판정\n"
+            "  GET  /v1/support-manifest  무엇을 지원하는지\n"
+            "  GET  /docs                 API 문서\n"
+            "\n"
+            "웹 화면은 아직 없습니다.\n",
+            status_code=200,
+        )
 
     return app
 
