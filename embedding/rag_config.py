@@ -11,6 +11,7 @@
 """
 import re
 from functools import lru_cache
+import hashlib 
 
 # ================= 확정 설정 (변경 시 여기만 수정) =================
 EMBED_MODEL = "intfloat/multilingual-e5-large"   # 2026-08-02 확정
@@ -64,8 +65,7 @@ def _query(coll_name, question, where, k):
     res = coll.query(**kw)
     hits, seen = [], set()
     for m, d in zip(res["metadatas"][0], res["documents"][0]):
-        raw = (m.get("term") or d[:50]).replace(" ", "")
-        key = (raw[:15], m["insurer"], m["generation"])
+        key = (hashlib.md5(d.encode()).hexdigest()[:12], m["insurer"], m["generation"])
         if key in seen:              # 동일 (내용, 보험사, 세대) 중복 접기
             continue
         seen.add(key)
