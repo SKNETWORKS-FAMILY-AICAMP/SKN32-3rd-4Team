@@ -10,6 +10,16 @@ README_FEATURE5_TERMS.md (기능5 용어 챗봇 — Qwen3 + 가드)
 
 ---
 
+## 0. 선 결론 - 모델 선정 현황 (2026-08-03 기준, 전부 실측)
+
+| 영역 | 확정 | 근거 | 문서 |
+|---|---|---|---|
+| 임베딩 | multilingual-e5-large | 6모델 × 80문항 전 지표 1위 | README_EMBEDDING.md |
+| 기능1 보장판별 RAG | GPT-4.1 | 2모델 × 30문항, 함정 방어 일관성 | README_LLM.md |
+| 기능2·3·4 툴 변환 | Qwen3 8B + 코드 | 3모델 × 14케이스 멀티턴 13/14 | docs/README_FEATURE234_TOOLS.md |
+| 기능5 용어 챗봇 | Qwen3 8B + 용어 가드 | 함정 검증, 차단 시 0.0s·환각 구조적 차단 | docs/README_FEATURE5_TERMS.md |
+| 기능6 대시보드 | LLM 미사용 | 라우터 로깅에서 파생 (구현 단계) | — |
+
 ## 1. 왜 tool calling인가 (기능 2·3·4의 공통 구조)
 
 세 기능의 본체는 LLM이 아니라 **코드/DB**다:
