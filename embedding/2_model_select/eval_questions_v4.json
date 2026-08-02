@@ -1,0 +1,815 @@
+[
+ {
+  "id": "a01",
+  "type": "조항지정",
+  "query": "보장종목별 보상내용에 대한 조항 내용을 알려주세요",
+  "where": null,
+  "expect": {
+   "citation_contains": "보장종목별 보상내용"
+  }
+ },
+ {
+  "id": "a02",
+  "type": "조항지정",
+  "query": "보상하지 않는 사항에 대한 조항 내용을 알려주세요",
+  "where": null,
+  "expect": {
+   "citation_contains": "보상하지 않는 사항"
+  }
+ },
+ {
+  "id": "a03",
+  "type": "조항지정",
+  "query": "약관에서 준용규정 부분이 궁금해요",
+  "where": null,
+  "expect": {
+   "citation_contains": "준용규정"
+  }
+ },
+ {
+  "id": "a04",
+  "type": "조항지정",
+  "query": "보상내용에 대한 조항 내용을 알려주세요",
+  "where": null,
+  "expect": {
+   "citation_contains": "보상내용"
+  }
+ },
+ {
+  "id": "a05",
+  "type": "조항지정",
+  "query": "담보종목별 보장내용에 대한 조항 내용을 알려주세요",
+  "where": null,
+  "expect": {
+   "citation_contains": "담보종목별 보장내용"
+  }
+ },
+ {
+  "id": "a06",
+  "type": "조항지정",
+  "query": "보장종목별보상내용에 대한 조항 내용을 알려주세요",
+  "where": null,
+  "expect": {
+   "citation_contains": "보장종목별보상내용"
+  }
+ },
+ {
+  "id": "a07",
+  "type": "조항지정",
+  "query": "담보종목별보장내용에 대한 조항 내용을 알려주세요",
+  "where": null,
+  "expect": {
+   "citation_contains": "담보종목별보장내용"
+  }
+ },
+ {
+  "id": "a08",
+  "type": "조항지정",
+  "query": "용어의 정의에 대한 조항 내용을 알려주세요",
+  "where": null,
+  "expect": {
+   "citation_contains": "용어의 정의"
+  }
+ },
+ {
+  "id": "a09",
+  "type": "조항지정",
+  "query": "약관에서 계약재개에 관한 사항 부분이 궁금해요",
+  "where": null,
+  "expect": {
+   "citation_contains": "계약재개에 관한 사항"
+  }
+ },
+ {
+  "id": "a10",
+  "type": "조항지정",
+  "query": "보상하지않는사항에 대한 조항 내용을 알려주세요",
+  "where": null,
+  "expect": {
+   "citation_contains": "보상하지않는사항"
+  }
+ },
+ {
+  "id": "a11",
+  "type": "조항지정",
+  "query": "주계약 약관 및 단체취급특약 규정의 준용에 대한 조항 내용을 알려주세요",
+  "where": null,
+  "expect": {
+   "citation_contains": "주계약 약관 및 단체취급특약 규정의 준용"
+  }
+ },
+ {
+  "id": "a12",
+  "type": "조항지정",
+  "query": "알릴 의무 위반의 효과에 대한 조항 내용을 알려주세요",
+  "where": null,
+  "expect": {
+   "citation_contains": "알릴 의무 위반의 효과"
+  }
+ },
+ {
+  "id": "a13",
+  "type": "조항지정",
+  "query": "보험료의납입을연체하여해지된계약의부활(효력회복에 대한 조항 내용을 알려주세요",
+  "where": null,
+  "expect": {
+   "citation_contains": "보험료의납입을연체하여해지된계약의부활(효력회복"
+  }
+ },
+ {
+  "id": "a14",
+  "type": "조항지정",
+  "query": "예금보험에 의한 지급보장에 대한 조항 내용을 알려주세요",
+  "where": null,
+  "expect": {
+   "citation_contains": "예금보험에 의한 지급보장"
+  }
+ },
+ {
+  "id": "a15",
+  "type": "조항지정",
+  "query": "보험금의 지급절차에 대한 조항 내용을 알려주세요",
+  "where": null,
+  "expect": {
+   "citation_contains": "보험금의 지급절차"
+  }
+ },
+ {
+  "id": "a16",
+  "type": "구어체",
+  "query": "병원비에서 얼마를 빼고 보험금을 주나요?",
+  "where": null,
+  "expect": {
+   "text_contains": "공제"
+  }
+ },
+ {
+  "id": "a17",
+  "type": "구어체",
+  "query": "공제되는 금액 기준이 궁금해요",
+  "where": null,
+  "expect": {
+   "text_contains": "공제"
+  }
+ },
+ {
+  "id": "a18",
+  "type": "구어체",
+  "query": "보상받을 수 있는 최대 금액이 있나요?",
+  "where": null,
+  "expect": {
+   "text_contains": "한도"
+  }
+ },
+ {
+  "id": "a19",
+  "type": "구어체",
+  "query": "한도가 어떻게 되나요?",
+  "where": null,
+  "expect": {
+   "text_contains": "한도"
+  }
+ },
+ {
+  "id": "a20",
+  "type": "구어체",
+  "query": "제가 직접 부담해야 하는 비율이 있나요?",
+  "where": null,
+  "expect": {
+   "text_contains": "자기부담"
+  }
+ },
+ {
+  "id": "a21",
+  "type": "구어체",
+  "query": "자기부담금 기준을 알려주세요",
+  "where": null,
+  "expect": {
+   "text_contains": "자기부담"
+  }
+ },
+ {
+  "id": "a22",
+  "type": "구어체",
+  "query": "병원에 다니면서 치료받으면 보장되나요?",
+  "where": null,
+  "expect": {
+   "text_contains": "통원"
+  }
+ },
+ {
+  "id": "a23",
+  "type": "구어체",
+  "query": "외래로 진료받은 비용은요?",
+  "where": null,
+  "expect": {
+   "text_contains": "통원"
+  }
+ },
+ {
+  "id": "a24",
+  "type": "구어체",
+  "query": "입원하면 어디까지 보상해주나요?",
+  "where": null,
+  "expect": {
+   "text_contains": "입원"
+  }
+ },
+ {
+  "id": "a25",
+  "type": "구어체",
+  "query": "병원에 누워있는 동안 비용은요?",
+  "where": null,
+  "expect": {
+   "text_contains": "입원"
+  }
+ },
+ {
+  "id": "a26",
+  "type": "구어체",
+  "query": "수술받으면 보험금 나오나요?",
+  "where": null,
+  "expect": {
+   "text_contains": "수술"
+  }
+ },
+ {
+  "id": "a27",
+  "type": "구어체",
+  "query": "수술비 보장 기준이 궁금해요",
+  "where": null,
+  "expect": {
+   "text_contains": "수술"
+  }
+ },
+ {
+  "id": "a28",
+  "type": "구어체",
+  "query": "약값도 보상이 되나요?",
+  "where": null,
+  "expect": {
+   "text_contains": "약제"
+  }
+ },
+ {
+  "id": "a29",
+  "type": "구어체",
+  "query": "처방받은 약 비용은요?",
+  "where": null,
+  "expect": {
+   "text_contains": "약제"
+  }
+ },
+ {
+  "id": "a30",
+  "type": "구어체",
+  "query": "계약을 연장할 때 조건이 있나요?",
+  "where": null,
+  "expect": {
+   "text_contains": "갱신"
+  }
+ },
+ {
+  "id": "a31",
+  "type": "구어체",
+  "query": "갱신은 어떻게 되나요?",
+  "where": null,
+  "expect": {
+   "text_contains": "갱신"
+  }
+ },
+ {
+  "id": "a32",
+  "type": "구어체",
+  "query": "계약을 그만두면 어떻게 되나요?",
+  "where": null,
+  "expect": {
+   "text_contains": "해지"
+  }
+ },
+ {
+  "id": "a33",
+  "type": "구어체",
+  "query": "중간에 해지하면요?",
+  "where": null,
+  "expect": {
+   "text_contains": "해지"
+  }
+ },
+ {
+  "id": "a34",
+  "type": "구어체",
+  "query": "보험금을 받으려면 뭘 해야 하나요?",
+  "where": null,
+  "expect": {
+   "text_contains": "청구"
+  }
+ },
+ {
+  "id": "a35",
+  "type": "구어체",
+  "query": "청구 절차가 궁금해요",
+  "where": null,
+  "expect": {
+   "text_contains": "청구"
+  }
+ },
+ {
+  "id": "a36",
+  "type": "구어체",
+  "query": "보장이 안 되는 기간이 있나요?",
+  "where": null,
+  "expect": {
+   "text_contains": "면책"
+  }
+ },
+ {
+  "id": "a37",
+  "type": "구어체",
+  "query": "면책 조건을 알려주세요",
+  "where": null,
+  "expect": {
+   "text_contains": "면책"
+  }
+ },
+ {
+  "id": "a38",
+  "type": "구어체",
+  "query": "간병 관련 비용도 보상되나요?",
+  "where": null,
+  "expect": {
+   "text_contains": "간호"
+  }
+ },
+ {
+  "id": "a39",
+  "type": "구어체",
+  "query": "간호 비용은요?",
+  "where": null,
+  "expect": {
+   "text_contains": "간호"
+  }
+ },
+ {
+  "id": "a40",
+  "type": "구어체",
+  "query": "도수치료 받은 것도 청구 가능한가요?",
+  "where": null,
+  "expect": {
+   "text_contains": "도수"
+  }
+ },
+ {
+  "id": "a41",
+  "type": "구어체",
+  "query": "도수치료 보장 여부가 궁금해요",
+  "where": null,
+  "expect": {
+   "text_contains": "도수"
+  }
+ },
+ {
+  "id": "a42",
+  "type": "구어체",
+  "query": "MRI 촬영 비용도 보장되나요?",
+  "where": null,
+  "expect": {
+   "text_contains": "자기공명"
+  }
+ },
+ {
+  "id": "a43",
+  "type": "구어체",
+  "query": "MRI 찍은 거 청구할 수 있나요?",
+  "where": null,
+  "expect": {
+   "text_contains": "자기공명"
+  }
+ },
+ {
+  "id": "a44",
+  "type": "구어체",
+  "query": "주사 치료 비용은 보상해주나요?",
+  "where": null,
+  "expect": {
+   "text_contains": "주사"
+  }
+ },
+ {
+  "id": "a45",
+  "type": "구어체",
+  "query": "주사료도 포함인가요?",
+  "where": null,
+  "expect": {
+   "text_contains": "주사"
+  }
+ },
+ {
+  "id": "a46",
+  "type": "구어체",
+  "query": "치과 치료도 보장 대상인가요?",
+  "where": null,
+  "expect": {
+   "text_contains": "치과"
+  }
+ },
+ {
+  "id": "a47",
+  "type": "구어체",
+  "query": "이빨 치료받은 비용은요?",
+  "where": null,
+  "expect": {
+   "text_contains": "치과"
+  }
+ },
+ {
+  "id": "a48",
+  "type": "구어체",
+  "query": "한의원 다닌 것도 보상되나요?",
+  "where": null,
+  "expect": {
+   "text_contains": "한방"
+  }
+ },
+ {
+  "id": "a49",
+  "type": "구어체",
+  "query": "한방 치료 비용은요?",
+  "where": null,
+  "expect": {
+   "text_contains": "한방"
+  }
+ },
+ {
+  "id": "a50",
+  "type": "구어체",
+  "query": "1인실 쓰면 병실료 차액도 주나요?",
+  "where": null,
+  "expect": {
+   "text_contains": "상급병실"
+  }
+ },
+ {
+  "id": "a51",
+  "type": "구어체",
+  "query": "상급병실 비용은 어떻게 되나요?",
+  "where": null,
+  "expect": {
+   "text_contains": "상급병실"
+  }
+ },
+ {
+  "id": "a52",
+  "type": "표숫자",
+  "query": "공제 관련 구체적인 금액 기준을 알려주세요",
+  "where": null,
+  "expect": {
+   "content_type": "table",
+   "text_contains": "공제"
+  }
+ },
+ {
+  "id": "a53",
+  "type": "표숫자",
+  "query": "한도 관련 구체적인 금액 기준을 알려주세요",
+  "where": null,
+  "expect": {
+   "content_type": "table",
+   "text_contains": "한도"
+  }
+ },
+ {
+  "id": "a54",
+  "type": "표숫자",
+  "query": "통원 관련 구체적인 금액 기준을 알려주세요",
+  "where": null,
+  "expect": {
+   "content_type": "table",
+   "text_contains": "통원"
+  }
+ },
+ {
+  "id": "a55",
+  "type": "표숫자",
+  "query": "입원 관련 구체적인 금액 기준을 알려주세요",
+  "where": null,
+  "expect": {
+   "content_type": "table",
+   "text_contains": "입원"
+  }
+ },
+ {
+  "id": "a56",
+  "type": "표숫자",
+  "query": "보험가입금액 관련 구체적인 금액 기준을 알려주세요",
+  "where": null,
+  "expect": {
+   "content_type": "table",
+   "text_contains": "보험가입금액"
+  }
+ },
+ {
+  "id": "a57",
+  "type": "필터교차",
+  "query": "통원 관련 내용을 알려주세요",
+  "where": {
+   "insurer": "DB손해보험"
+  },
+  "expect": {
+   "insurer": "DB손해보험",
+   "text_contains": "통원"
+  }
+ },
+ {
+  "id": "a58",
+  "type": "필터교차",
+  "query": "입원 관련 내용을 알려주세요",
+  "where": {
+   "insurer": "DB손해보험"
+  },
+  "expect": {
+   "insurer": "DB손해보험",
+   "text_contains": "입원"
+  }
+ },
+ {
+  "id": "a59",
+  "type": "필터교차",
+  "query": "통원 관련 내용을 알려주세요",
+  "where": {
+   "insurer": "NH농협생명"
+  },
+  "expect": {
+   "insurer": "NH농협생명",
+   "text_contains": "통원"
+  }
+ },
+ {
+  "id": "a60",
+  "type": "필터교차",
+  "query": "입원 관련 내용을 알려주세요",
+  "where": {
+   "insurer": "NH농협생명"
+  },
+  "expect": {
+   "insurer": "NH농협생명",
+   "text_contains": "입원"
+  }
+ },
+ {
+  "id": "a61",
+  "type": "필터교차",
+  "query": "통원 관련 내용을 알려주세요",
+  "where": {
+   "insurer": "동양생명"
+  },
+  "expect": {
+   "insurer": "동양생명",
+   "text_contains": "통원"
+  }
+ },
+ {
+  "id": "a62",
+  "type": "필터교차",
+  "query": "입원 관련 내용을 알려주세요",
+  "where": {
+   "insurer": "동양생명"
+  },
+  "expect": {
+   "insurer": "동양생명",
+   "text_contains": "입원"
+  }
+ },
+ {
+  "id": "a63",
+  "type": "필터교차",
+  "query": "통원 관련 내용을 알려주세요",
+  "where": {
+   "insurer": "삼성화재"
+  },
+  "expect": {
+   "insurer": "삼성화재",
+   "text_contains": "통원"
+  }
+ },
+ {
+  "id": "a64",
+  "type": "필터교차",
+  "query": "입원 관련 내용을 알려주세요",
+  "where": {
+   "insurer": "삼성화재"
+  },
+  "expect": {
+   "insurer": "삼성화재",
+   "text_contains": "입원"
+  }
+ },
+ {
+  "id": "a65",
+  "type": "필터교차",
+  "query": "통원 기준이 어떻게 되나요?",
+  "where": {
+   "generation": "2세대"
+  },
+  "expect": {
+   "generation": "2세대",
+   "text_contains": "통원"
+  }
+ },
+ {
+  "id": "a66",
+  "type": "필터교차",
+  "query": "입원 기준이 어떻게 되나요?",
+  "where": {
+   "generation": "2세대"
+  },
+  "expect": {
+   "generation": "2세대",
+   "text_contains": "입원"
+  }
+ },
+ {
+  "id": "a67",
+  "type": "필터교차",
+  "query": "통원 기준이 어떻게 되나요?",
+  "where": {
+   "generation": "3세대"
+  },
+  "expect": {
+   "generation": "3세대",
+   "text_contains": "통원"
+  }
+ },
+ {
+  "id": "a68",
+  "type": "필터교차",
+  "query": "입원 기준이 어떻게 되나요?",
+  "where": {
+   "generation": "3세대"
+  },
+  "expect": {
+   "generation": "3세대",
+   "text_contains": "입원"
+  }
+ },
+ {
+  "id": "a69",
+  "type": "필터교차",
+  "query": "통원 기준이 어떻게 되나요?",
+  "where": {
+   "generation": "4세대"
+  },
+  "expect": {
+   "generation": "4세대",
+   "text_contains": "통원"
+  }
+ },
+ {
+  "id": "a70",
+  "type": "필터교차",
+  "query": "입원 기준이 어떻게 되나요?",
+  "where": {
+   "generation": "4세대"
+  },
+  "expect": {
+   "generation": "4세대",
+   "text_contains": "입원"
+  }
+ },
+ {
+  "id": "a71",
+  "type": "필터교차",
+  "query": "통원 기준이 어떻게 되나요?",
+  "where": {
+   "generation": "5세대"
+  },
+  "expect": {
+   "generation": "5세대",
+   "text_contains": "통원"
+  }
+ },
+ {
+  "id": "a72",
+  "type": "필터교차",
+  "query": "입원 기준이 어떻게 되나요?",
+  "where": {
+   "generation": "5세대"
+  },
+  "expect": {
+   "generation": "5세대",
+   "text_contains": "입원"
+  }
+ },
+ {
+  "id": "a73",
+  "type": "필터교차2중",
+  "query": "통원이(가) 어떻게 되는지 알려주세요",
+  "where": {
+   "insurer": "DB손해보험",
+   "generation": "2세대"
+  },
+  "expect": {
+   "insurer": "DB손해보험",
+   "generation": "2세대",
+   "text_contains": "통원"
+  }
+ },
+ {
+  "id": "a74",
+  "type": "필터교차2중",
+  "query": "통원이(가) 어떻게 되는지 알려주세요",
+  "where": {
+   "insurer": "DB손해보험",
+   "generation": "3세대"
+  },
+  "expect": {
+   "insurer": "DB손해보험",
+   "generation": "3세대",
+   "text_contains": "통원"
+  }
+ },
+ {
+  "id": "a75",
+  "type": "필터교차2중",
+  "query": "통원이(가) 어떻게 되는지 알려주세요",
+  "where": {
+   "insurer": "DB손해보험",
+   "generation": "4세대"
+  },
+  "expect": {
+   "insurer": "DB손해보험",
+   "generation": "4세대",
+   "text_contains": "통원"
+  }
+ },
+ {
+  "id": "a76",
+  "type": "필터교차2중",
+  "query": "통원이(가) 어떻게 되는지 알려주세요",
+  "where": {
+   "insurer": "DB손해보험",
+   "generation": "5세대"
+  },
+  "expect": {
+   "insurer": "DB손해보험",
+   "generation": "5세대",
+   "text_contains": "통원"
+  }
+ },
+ {
+  "id": "a77",
+  "type": "필터교차2중",
+  "query": "통원이(가) 어떻게 되는지 알려주세요",
+  "where": {
+   "insurer": "동양생명",
+   "generation": "2세대"
+  },
+  "expect": {
+   "insurer": "동양생명",
+   "generation": "2세대",
+   "text_contains": "통원"
+  }
+ },
+ {
+  "id": "a78",
+  "type": "필터교차2중",
+  "query": "통원이(가) 어떻게 되는지 알려주세요",
+  "where": {
+   "insurer": "동양생명",
+   "generation": "3세대"
+  },
+  "expect": {
+   "insurer": "동양생명",
+   "generation": "3세대",
+   "text_contains": "통원"
+  }
+ },
+ {
+  "id": "a79",
+  "type": "필터교차2중",
+  "query": "통원이(가) 어떻게 되는지 알려주세요",
+  "where": {
+   "insurer": "동양생명",
+   "generation": "4세대"
+  },
+  "expect": {
+   "insurer": "동양생명",
+   "generation": "4세대",
+   "text_contains": "통원"
+  }
+ },
+ {
+  "id": "a80",
+  "type": "필터교차2중",
+  "query": "통원이(가) 어떻게 되는지 알려주세요",
+  "where": {
+   "insurer": "삼성화재",
+   "generation": "2세대"
+  },
+  "expect": {
+   "insurer": "삼성화재",
+   "generation": "2세대",
+   "text_contains": "통원"
+  }
+ }
+]

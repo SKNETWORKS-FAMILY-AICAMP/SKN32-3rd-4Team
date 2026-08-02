@@ -1,0 +1,18 @@
+# 임베딩 파이프라인 공통 (필수)
+torch                   # GPU면 설치 방법이 다름 — 아래 주석 참조
+sentence-transformers   # e5-large 실행
+transformers            # prep_new.py 토크나이저 (512토큰 검사·분할)
+chromadb                # 벡터DB
+
+# 모델 비교 재현 시에만 필요 (선택)
+openai                  # openai-3-small 비교용 (API 키 필요)
+
+# [GPU 설치 안내] pip install torch 는 CPU 버전이 설치됨.
+# NVIDIA GPU 사용 시 아래로 별도 설치 (requirements 설치 후 실행):
+#   pip uninstall torch -y
+#   pip install torch --index-url https://download.pytorch.org/whl/cu126
+
+# LLM 평가 단계 (rag_llm_eval.py 사용 시)
+langchain-core
+langchain-openai        # GPT 계열 (OPENAI_API_KEY 필요)
+langchain-ollama        # 로컬 모델 (Ollama 설치 + ollama pull 필요)

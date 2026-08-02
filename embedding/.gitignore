@@ -1,0 +1,13 @@
+cd C:\teamproject_test\3rd_teamproject\insurance-rag
+@"
+# 약관 PDF 원문 (절대 커밋 금지)
+data/
+*.pdf
+
+# 대용량 산출물
+out/
+out_*/
+chunks_*.jsonl
+documents_*.csv
+*.zip
+"@ | Set-Content .gitignore -Encoding utf8
