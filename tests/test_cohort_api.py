@@ -91,3 +91,14 @@ def test_합성_데이터는_경고를_반드시_붙인다(monkeypatch, tmp_path
     c = TestClient(create_app())
     j = c.get("/v1/demo/cohorts?code=F32").json()
     assert any("합성 데이터" in w for w in j["warnings"])
+
+
+def test_합성_경고가_두_번_나오지_않는다(client):
+    """★실제로 화면을 열어 보고 찾은 결함이다.
+
+    어댑터와 유스케이스가 각각 "합성 데이터입니다" 를 붙여 **두 번** 나왔다.
+    경고가 겹쳐 보이면 읽는 쪽이 경고 자체를 흘려보낸다.
+    """
+    b = client.get("/v1/demo/cohorts", params={"code": "F32"}).json()
+    n = sum(1 for w in b["warnings"] if "합성 데이터입니다" in w)
+    assert n == 1, f"합성 표시가 {n}번 나옵니다: {b['warnings']}"

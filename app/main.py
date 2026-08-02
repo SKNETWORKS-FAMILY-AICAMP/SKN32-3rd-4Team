@@ -115,7 +115,8 @@ def create_app(role: str = "full") -> FastAPI:
     #:   `shop.html` · `index.html` 은 커머스 화면이라 `legacy/` 로 옮겼는데
     #:   여기 이름이 그대로 남아 500 이 났다. 보험 화면은 아직 없다.
     #:   **없는 것을 있는 척하지 않는다** — 무엇이 없는지 말하고 API 로 안내한다.
-    landing = {"admin": "admin.html"}.get(role, "")
+    #: ★보험 화면이 생겼다. 앞서 여기 `shop.html`(커머스)이 남아 500 이 났었다.
+    landing = {"admin": "admin.html"}.get(role, "insurance.html")
 
     @app.get("/", include_in_schema=False)
     def index():

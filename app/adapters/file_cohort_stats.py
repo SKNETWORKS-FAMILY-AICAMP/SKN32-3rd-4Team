@@ -97,9 +97,10 @@ def fetch(
 
     #: ★구조적 경고(제보 편향 등)는 **유스케이스가 붙인다.** 여기서 중복해 넣지 않는다.
     #:   어댑터는 저장소 사실만 말한다.
+    #: ★합성 표시도 **유스케이스가 붙인다**(`cohort.py`). 여기서도 넣었더니
+    #:   화면에 "합성 데이터입니다" 가 **두 번** 나왔다. 실제로 열어 보고 알았다.
+    #:   경고가 겹쳐 보이면 읽는 쪽이 경고 자체를 흘려보낸다.
     warnings: list[str] = []
-    if data_source is DataSource.SYNTHETIC:
-        warnings.append("합성 데이터입니다. 실제 지급 통계가 아닙니다.")
 
     return CohortStats(
         n=len(rows),
