@@ -1,0 +1,10 @@
+langgraph
+langchain
+langchain-community
+langchain-huggingface
+langchain-openai
+chromadb
+sentence-transformers
+fastmcp
+python-dotenv
+pytest

@@ -1,1 +1,8 @@
 ﻿.idea/
+.env
+__pycache__/
+.venv
+
+# 벡터DB/대용량 데이터 산출물 -- 재생성 가능, 커밋 대상 아님
+langgraph_agent/data/chroma_db/
+langgraph_agent/data/*.jsonl
