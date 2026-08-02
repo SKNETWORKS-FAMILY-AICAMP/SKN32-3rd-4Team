@@ -1,169 +1,117 @@
-# 올바른 보험비서
+# 바로봄 — AI 커머스·지식 상담 플랫폼
 
-진료비 내역서의 **KCD 질병기호**와 **실손보험 약관**을 대조해
-**보장 여부를 미리 알려주는** 서비스. 그 판정을 API로도 제공한다.
+RAG 기반 문서 질의응답을 코어로, 커머스 승인 루프·AI 에이전트(ReAct+CoT)·MCP·A2A·RBAC 관리자와
+음성/화상 상담·얼굴 로그인 2차 인증까지 통합한 **로컬 우선(API 키 없이 기본 동작)** 플랫폼이다.
 
-팀 **비서단** — 송채영(팀장) · 김지혜 · 서유현 · 정재희 · 최연우
+설계 원칙은 **개념적 Clean Architecture + 무폴백**: 오류를 그럴듯한 가짜 결과로 대체하지 않고
+정의된 타입(`ConfigError`/`InfraError`/`LLMOutputError`/`ValidationErr`)으로 명시적으로 실패시킨다.
 
----
-
-## 제1원칙 — 모르면 모른다고 한다
-
-**"보장됩니다"라고 잘못 말하면 사용자가 청구했다가 거절당하거나, 받을 걸 포기한다.**
-그래서 정확도보다 **정직성**이 앞선다.
-
-- 근거 조항을 못 대면 `verdict="needs_expert"` 로 답한다. 이건 **정상 결과**다(HTTP 200)
-- **면책 목록에 없다 ≠ 보장된다.** 보장은 '보상하는 사항' 조항이 정한다
-- 가입 시점 약관을 못 찾았을 때 **현행 약관으로 대신하지 않는다** — 가장 위험한 폴백이다
-- 추론과 사실을 구분해 저장한다(`date_confidence`, `inferred`, `verification`)
-- 외부에서 받은 데이터를 약관과 같은 근거로 쓰지 않는다(`evidence_tier`)
-
-자세한 규칙은 [`CLAUDE.md`](CLAUDE.md).
+> 📐 **시스템 아키텍처 설계 보고서**(다이어그램 포함): [`docs/architecture.md`](docs/architecture.md)
+> 📸 화면 갤러리: [`docs/index.html`](docs/index.html) · 📁 계획·이력·리포트: [`docs/`](docs/)
 
 ---
 
-## 빠른 시작
+## 1. 빠른 시작
 
 ```bash
 pip install -r requirements.txt
-uvicorn app.main:app --reload
+python -m scripts.manage migrate      # 테이블 생성(기동 시 자동 생성하지 않음)
+python -m scripts.manage seed         # 상품·재고 시드
+python -m scripts.manage ingest       # 문서 임베딩 → FAISS 인덱스
 ```
+
+준비 상태는 `GET /api/health/ready`로 확인한다(미준비면 명시적으로 알린다 — 자동 폴백 없음).
+
+---
+
+## 2. 배정된 사이트 — 주소와 사용법
+
+고객 사이트와 운영 도구는 **서로 다른 프로세스·포트**로 물리 분리돼 있다. 실무에서 관리자
+대시보드를 VPN·사내망 뒤에 두는 패턴의 축소판이다.
+
+| 사이트 | 실행 | 주소 | 무엇이 있나 |
+|---|---|---|---|
+| **고객 웹** | `python -m scripts.run_customer_server` | http://127.0.0.1:8080 | 스토어·AI 상담·화상 상담·마이페이지 |
+| **운영/관리자** | `python -m scripts.run_admin_server` | http://127.0.0.1:8081 | 관리자 대시보드 + 운영 도구 전체 |
+| 개발 전체(편의) | `python scripts/run_dev_server.py` | http://127.0.0.1:8080 | 위 둘을 합친 앱(테스트·개발용) |
+
+> ⚠️ 고객 웹과 개발 전체 앱은 **같은 8080 포트**를 쓴다. 둘을 동시에 띄우지 말 것.
+
+### 2-1. 고객 웹 (8080) — 일반 사용자용
+
+| 페이지 | 주소 | 사용법 |
+|---|---|---|
+| 스토어(랜딩) | `/` 또는 `/static/shop.html` | 상품 목록 → 장바구니 담기 → **주문 미리보기** → 승인하면 주문 확정 |
+| AI 상담 | `/static/index.html` | 질문 입력 → ReAct 에이전트가 도구를 호출하며 단계(Thought/Action/Observation) 표시 |
+| 화상 상담 | `/static/video.html` | 카메라 켜고 말하면 STT→상담→TTS 음성 답변. 카메라 없이 텍스트로도 진행 가능 |
+| 마이페이지 | `/static/mypage.html` | 얼굴 등록/해제(로그인 2차 인증용) |
+
+이 포트에서는 관리자 API와 운영 페이지가 **물리적으로 없다**(404). 라우터 자체를 싣지 않는다.
+
+### 2-2. 운영/관리자 (8081) — 내부용
+
+| 페이지 | 주소 | 사용법 |
+|---|---|---|
+| 관리자 대시보드(랜딩) | `/` 또는 `/static/admin.html` | 주문·이벤트·인덱스·지식갭 조회, **요약 보고서 PDF** 생성/저장/인쇄 |
+| RAG 실험실 | `/static/rag.html` | 백엔드(faiss/hybrid/graph) 바꿔가며 검색·QA 비교 |
+| MCP 도구 | `/static/mcp.html` | MCP 도구 목록 조회 및 직접 호출 |
+| 얼굴인식 벤치마크 | `/static/facebench.html` | 3개 백엔드(AdaFace/LVFace/insightface) 코사인·지연 실측 비교 (관리자 전용) |
+| 주문 관리 | `/static/orders.html` | 주문 미리보기/승인 흐름 점검 |
+
+**관리자 계정**: 관리자 승격은 **CLI 전용**이다(권한상승 사고 방지 — UI 버튼 없음).
 
 ```bash
-# 무엇을 지원하는지
-curl localhost:8000/v1/support-manifest
-
-# 보장 사전판정
-curl -X POST localhost:8000/v1/prechecks -H 'Content-Type: application/json' -d '{
-  "insurer": "DB손해보험",
-  "enrolled_on": "20200301",
-  "kcd_codes": ["F32", "E66", "S72"],
-  "product_name": "프로미라이프 실손의료비"
-}'
+python -m scripts.manage promote <username>    # USER → ADMIN
+python -m scripts.manage demote <username>     # ADMIN → USER (마지막 관리자는 거부)
 ```
 
-응답 예:
+### 2-3. 함께 쓰는 외부 서비스
 
-```json
-{
-  "verdict": "unlikely",
-  "abstained": false,
-  "reason_code": "excluded_by_clause",
-  "applied_policy": {
-    "insurer": "DB손해보험", "generation": 3, "generation_label": "3세대 (착한실손)",
-    "sale_start": "20200101", "product_name": "무배당 프로미라이프 실손의료비보험2001"
-  },
-  "per_code": [
-    {"code": "F32", "verdict": "needs_documents", "note": "면책의 예외에 해당합니다…"},
-    {"code": "E66", "verdict": "unlikely",        "note": "면책 조항에 해당합니다."},
-    {"code": "S72", "verdict": "needs_expert",    "note": "면책 조항에는 없습니다. 다만…"}
-  ],
-  "citations": [{"qualified_no": "보통약관/4.1", "page_from": 33, "page_to": 38, "quote": "…"}],
-  "trace_id": "744154edbbe8a46e"
-}
-```
+| 서비스 | 기본 주소 | 실행 | 필요한 때 |
+|---|---|---|---|
+| 로컬 LLM(Gemma, OpenAI 호환) | http://127.0.0.1:8000/v1 | `python scripts/local_model_server.py` | 에이전트·RAG 답변 생성 |
+| PostgreSQL + pgvector | 127.0.0.1:5433 (`mall_vec`) | `python -m scripts.pg` | hybrid·graph RAG 백엔드 |
+| MCP 서버(stdio) | 표준입출력 | `python -m app.mcp.server` | MCP 클라이언트 연동 |
+
+OpenAI/Gemini 키를 쓰려면 `.env`에 설정한다(`.env.example` 참고). **기본값은 로컬이라 키가 없어도 동작한다.**
 
 ---
 
-## 지금 있는 것
-
-| 항목 | 값 |
-|---|---:|
-| 수집한 실손약관 | 1,703문서 (12개사) |
-| 판정 대상 | 1,367 (격리 336 제외) |
-| 조항 구조화 완료 | 1,240 (`parse_status=ok`) |
-| 조항 총수 | 129,525 |
-| 세대 판정 | 1~5세대 |
-
-> ⚠ **약관 원문·파생물은 이 저장소에 없다.** 저작물이라 재배포하지 않는다.
-> 매니페스트(메타데이터)만 들어 있다 — 출처 URL 이 있으므로 각자 받으면 된다.
-
-### ★약관이 KCD 코드를 직접 쓴다
-
-이게 이 프로젝트의 핵심 자산이다. 표본 300문서 중 **239개(80%)** 에 코드가 있다.
-
-```
-② 회사는 '한국표준질병사인분류'에 따른 다음의 의료비에 대해서는 보상하지 않습니다.
-   ① 정신 및 행동장애(F04∼F99). 다만, F04∼F09, F20∼F29 …는 보상합니다.
-   ⑤ 비만(E66)   ⑥ 요실금(N39.3, N39.4, R32)
-```
-
-**외부 KCD 표 없이 면책 판정이 된다.** 진료비 내역서에도 코드가 적혀 있으므로 이게 주 경로다.
-
----
-
-## 구조
-
-```
-app/
-  core/                                        ← ★프레임워크도 바깥도 모른다
-    domain/     kcd_ranges · citation_guard · policy_naming
-                precheck_result · insurance · generation
-    ports/      precheck · insurance           ← 바깥에 요구하는 것
-    usecases/   precheck · cohort · diagnosis  ← 판정 흐름
-  adapters/     manifest_policy_resolver · file_clause_store  ← 파일 I/O
-  schemas/      precheck · auth                ← HTTP DTO (pydantic)
-  routers/      precheck · auth · admin · health …
-                ↑ 도메인 ↔ HTTP 변환은 여기서 한다
-scripts/
-  crawl/        약관 수집·매니페스트·세대 판정
-  extract/      PDF → 페이지 JSON → 조항 JSON
-docs/
-  handoff/      ★팀 인수인계 — 계약서·ERD·설계
-  reports/      작업 기록·디버그
-```
-
-### 클린 아키텍처 — 테스트로 강제한다
-
-```
-ARCH-001  app/application 이 fastapi·langchain·sqlalchemy·openai 를 import 안 함
-ARCH-002  app/core/{domain,ports,usecases} 가 프레임워크도 바깥 계층도 모름
-          (app.adapters · app.routers · app.schemas · app.db …)
-ARCH-003  경계 밖 도메인 패키지 금지 · 도메인 타입 단일 정의 · 유스케이스가 어댑터 import 금지
-ARCH-004  현행 코드가 legacy/ 를 참조하지 않음
-```
+## 3. 테스트
 
 ```bash
-pytest tests/test_arch.py
+pytest -m "not llm and not ml and not mcp and not pg"   # CI 기본(외부 의존 없음)
+pytest -m "ml"                                          # 무거운 로컬 모델(얼굴·음성·감성)
+pytest -m "mcp"                                         # MCP stdio 왕복
+pytest -m "pg"                                          # 실 PostgreSQL 필요
 ```
 
+마커별로 외부 의존을 분리해 뒀다. CI(GitHub Actions)는 첫 번째 조합만 돌린다.
+
 ---
 
-## 팀원별 문서
+## 4. 주요 기능
 
-[`docs/handoff/`](docs/handoff/) 에 있다. **각자 것을 먼저 읽으라.**
+- **RAG**: FAISS · pgvector(Hybrid RRF) · GraphRAG(PG 재귀 CTE) · LLM 리랭커 — 모두 같은 `RetrieverPort` 뒤에서 교체
+- **커머스**: 읽기전용 미리보기 → 명시 승인, `Idempotency-Key` 필수, 조건부 원자 재고 차감
+- **에이전트**: 수동 ReAct 루프 + LangChain 자동 에이전트 + CoT 자기검증(미지지 초안 차단)
+- **MCP**: FastMCP stdio 10개 도구, REST와 유스케이스·프리젠터 공유(parity)
+- **A2A**: 전문 에이전트 카드 발견 + 위임(order/catalog/knowledge/recommend)
+- **보안**: role은 JWT에 넣지 않고 매 요청 DB 조회(강등 즉시 반영), 관리자 라우터 fail-closed,
+  얼굴 2차 인증(pre2fa 챌린지 일회성 소비), 업로드 크기 상한
+- **부가**: 음성 상담(STT/TTS), 화상 상담, 관리자 요약 보고서 PDF
 
-| 문서 | 대상 |
+한계는 숨기지 않고 [`docs/architecture.md` §9](docs/architecture.md)에 기록한다.
+
+---
+
+## 5. 저장소 구조
+
+| 경로 | 용도 |
 |---|---|
-| [01_데이터_현황](docs/handoff/01_데이터_현황.md) | 전원 |
-| [02_ERD_및_스키마](docs/handoff/02_ERD_및_스키마.md) | 백엔드 |
-| [03_에이전트_데이터_축적_설계](docs/handoff/03_에이전트_데이터_축적_설계.md) | 전원 |
-| [04_계약_AI1_검색](docs/handoff/04_계약_AI1_검색.md) | 서유현 |
-| [05_계약_AI2_판정](docs/handoff/05_계약_AI2_판정.md) | 송채영 |
-| [06_계약_Agent](docs/handoff/06_계약_Agent.md) | 정재희 |
-| [07_계약_백엔드](docs/handoff/07_계약_백엔드.md) | 김지혜 |
-| [08_계약_프론트](docs/handoff/08_계약_프론트.md) | 최연우 |
-| [09_A2A_판단](docs/handoff/09_A2A_판단.md) | 전원 |
-| `erd_briefing.html` | 브라우저로 열기 |
-
----
-
-## 아직 안 된 것 (정직 기록)
-
-| 항목 | 상태 |
-|---|---|
-| 임베딩 검색 | 없다. 낱말 포함 검색만 한다 |
-| 준용 해소 | 참조의 **2/3이 문서 밖**을 가리키는데 아직 안 따라간다 |
-| 질병명 → 코드 | 없다. 코드 입력만 받는다 |
-| 표(table) 의미 | 셀만 뽑았다. **보장 한도·자기부담금이 표에 있다** |
-| 조 번호 충돌 | 부까지 포함해도 겹친다. 식별키 개선 필요 |
-| LLM 판정 | 없다. 지금은 규칙 기반이다. 붙일 때 `verify_explanation()` 을 반드시 통과시킨다 |
-| DB 적재 | 아직 파일을 직접 읽는다 |
-
----
-
-## 이 저장소의 내력
-
-쇼핑몰 실습(`_unified_mall`)에서 출발해 보험 도메인으로 전환했다.
-커머스 코드는 **삭제하지 않고** 로컬 `legacy/` 에 압축 보관한다(저장소에는 올리지 않는다).
-현행 코드가 레거시를 참조하지 않도록 `ARCH-004` 가 막는다.
+| `app/` | 애플리케이션(계층: application / adapters / routers / ml / mcp / a2a) |
+| `tests/` | 테스트 + 요구사항↔테스트 매트릭스 |
+| `scripts/` | 실행·운영 스크립트(서버 기동, DB 관리, 데모, 캡처) |
+| `docs/` | **모든 문서** — 아키텍처·계획(`plans/`)·이력(`history/`)·리포트(`reports/`)·화면 갤러리 |
+| `data/` | 시드 데이터·문서 코퍼스·평가셋 |
+| `legacy/` | 대체·폐기된 코드 보존 |

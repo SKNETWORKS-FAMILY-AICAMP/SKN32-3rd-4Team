@@ -30,6 +30,7 @@ from app.routers import (
     admin,
     auth,
     bounty,
+    cohort,
     face,
     health,
     lab,
@@ -80,6 +81,7 @@ def create_app(role: str = "full") -> FastAPI:
     app.include_router(auth.router)
     #: 보험 보장 사전판정 — 이 프로젝트의 본체다.
     app.include_router(precheck.router)
+    app.include_router(cohort.router)
     app.include_router(voice.router)
     app.include_router(face.router)
 

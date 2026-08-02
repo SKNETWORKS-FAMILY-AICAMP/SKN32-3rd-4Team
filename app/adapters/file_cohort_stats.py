@@ -1,0 +1,114 @@
+"""코호트 집계 — 파일에서 읽는 어댑터.
+
+★지금 실제 데이터는 **0건**이다. 그걸 숨기지 않는다.
+
+    `CohortStatsPort` 구현체가 테스트의 `_FakePort` 뿐이라 엔드포인트가 없었다.
+    이제 구현은 있지만 **`verified` 증빙이 하나도 없어 `n=0` 을 돌려준다.**
+    그게 정직한 답이다 — 없는 통계를 만들어 내지 않는다.
+
+★합성과 실제를 **물리적으로 나눈다**
+
+    `is_synthetic` 같은 불리언 컬럼으로 가르지 않는다. 그게 사고의 원인이다 —
+    쿼리 하나에서 `WHERE` 를 빠뜨리면 섞인다.
+
+        data/cohort/verified_real/events.jsonl    실제 (지금 0건)
+        data/cohort/synthetic/events.jsonl        합성 (데모용)
+
+    호출할 때 `data_source` 를 **반드시** 주고, 어댑터는 그 폴더만 본다.
+    ★두 폴더를 합치는 코드를 만들지 않는다.
+
+★`verified` 만 센다
+
+    `/v1/observations` 로 들어온 보고는 `unverified` 다.
+    검증 전에는 통계에 **넣지 않는다** — 넣으면
+    "우리 서비스로 청구하면 90% 나옵니다" 같은 수치가 근거 없이 만들어진다.
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+from app.core.domain.insurance import CohortStats, DataSource, KcdCode
+from app.core.errors import InfraError
+from app.core.usecases.cohort import DEFAULT_MIN_SAMPLE
+
+_ROOT = Path(__file__).resolve().parents[2]
+_BASE = _ROOT / "data" / "cohort"
+
+#: ★집계에 넣을 검증 등급. `unverified` 는 **넣지 않는다.**
+_COUNTED = {"document_backed", "confirmed"}
+
+#: 폴더 이름 — `DataSource` 값과 1:1. 섞이지 않게 물리적으로 나눈다.
+_DIR = {
+    DataSource.VERIFIED_REAL: "verified_real",
+    DataSource.SYNTHETIC: "synthetic",
+}
+
+
+def _events(source: DataSource) -> list[dict]:
+    d = _BASE / _DIR[source]
+    if not d.exists():
+        #: 폴더가 없는 것은 **장애가 아니라 "아직 아무것도 없다"** 이다.
+        return []
+    out: list[dict] = []
+    for p in sorted(d.glob("*.jsonl")):
+        for line in p.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            try:
+                out.append(json.loads(line))
+            except json.JSONDecodeError as e:
+                raise InfraError(f"코호트 이벤트가 깨졌습니다: {p.name} — {e}") from e
+    return out
+
+
+def _matches(ev: dict, *, code: str, product_id: str, age_band: str | None) -> bool:
+    if code and code not in (ev.get("kcd_codes") or []):
+        return False
+    if product_id and ev.get("product_id") != product_id:
+        return False
+    #: ★연령대는 주어졌을 때만 좁힌다. 없으면 전체를 본다.
+    if age_band and ev.get("age_band") != age_band:
+        return False
+    return True
+
+
+def fetch(
+    *,
+    kcd_code: KcdCode,
+    product_id: str,
+    age_band: str | None,
+    data_source: DataSource,
+) -> CohortStats:
+    """코호트 집계. **`verified` 증빙만** 센다.
+
+    ★표본이 `MIN_SAMPLE` 미만이면 `CohortStats` 가 비율 계산을 거부한다.
+      여기서 비율을 미리 계산해 주지 않는다 — 그 판단은 도메인의 몫이다.
+    """
+    rows = [
+        e
+        for e in _events(data_source)
+        if (e.get("verification") in _COUNTED)
+        and _matches(e, code=kcd_code.code, product_id=product_id, age_band=age_band)
+    ]
+    approved = sum(1 for e in rows if e.get("outcome") == "paid")
+    denied = sum(1 for e in rows if e.get("outcome") == "denied")
+
+    #: ★구조적 경고(제보 편향 등)는 **유스케이스가 붙인다.** 여기서 중복해 넣지 않는다.
+    #:   어댑터는 저장소 사실만 말한다.
+    warnings: list[str] = []
+    if data_source is DataSource.SYNTHETIC:
+        warnings.append("합성 데이터입니다. 실제 지급 통계가 아닙니다.")
+
+    return CohortStats(
+        n=len(rows),
+        approved_n=approved,
+        denied_n=denied,
+        data_source=data_source,
+        min_sample=DEFAULT_MIN_SAMPLE,
+        warnings=tuple(warnings),
+    )
+
+
+__all__ = ["fetch"]

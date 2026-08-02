@@ -137,7 +137,10 @@ def load_clauses(sha256: str, *, usable_only: bool = True) -> list[ClauseRow]:
         usable_only: 판정 근거로 쓸 수 있는 것만. `False` 면 전부(검색용).
     """
     doc = _load_doc(sha256)
-    status = doc.get("parse_status", "ok")
+    #: ★기본값이 `"ok"` 였다 — 필드가 없으면 **통과시켰다**(fail-open).
+    #:   옛 스키마 산출물이나 깨진 파일이 조용히 판정 근거가 된다.
+    #:   모르면 못 믿는 것으로 본다.
+    status = doc.get("parse_status") or "unknown"
     out = [_to_clause(sha256, c, status) for c in doc.get("clauses", [])]
     return [c for c in out if c.usable] if usable_only else out
 
@@ -193,7 +196,8 @@ def stats(sha256: str) -> dict:
     total = len(doc.get("clauses", []))
     usable = sum(1 for c in load_clauses(sha256, usable_only=False) if c.usable)
     return {
-        "parse_status": doc.get("parse_status", "ok"),
+        #: ★fail-closed. 없으면 "ok" 가 아니라 "unknown" 이다.
+        "parse_status": doc.get("parse_status") or "unknown",
         "numbering": doc.get("numbering", ""),
         "pages": st.get("pages", 0),
         "clauses_total": total,

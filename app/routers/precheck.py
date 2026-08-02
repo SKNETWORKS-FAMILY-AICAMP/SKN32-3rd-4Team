@@ -179,9 +179,33 @@ def support_manifest() -> dict:
             d["earliest"] = v.sale_start
         if v.sale_start > d["latest"]:
             d["latest"] = v.sale_start
+    from app.core.ports.precheck import REQUIRE_CONFIRMED
+
+    #: ★확정 게이트를 껐으면 **반드시 드러낸다.**
+    #:   조용히 미확정 약관으로 답하는 것이 가장 위험하다.
+    notes = [
+        "판정은 약관 원문 조항만을 근거로 한다.",
+        "근거를 못 대면 verdict=needs_expert 로 기권한다(HTTP 200).",
+        "면책 목록에 없다는 것이 보장된다는 뜻은 아니다.",
+    ]
+    if not REQUIRE_CONFIRMED:
+        notes.insert(
+            0,
+            "⚠ 확정 게이트가 꺼져 있습니다(PRECHECK_ALLOW_UNCONFIRMED=1). "
+            "식별이 확정되지 않은 약관도 판정에 쓰고 있습니다 — 시연용입니다.",
+        )
+    elif not vs:
+        notes.insert(
+            0,
+            "⚠ 판정 가능한 약관이 0건입니다. 수집은 끝났으나 "
+            "'이 파일이 무엇인가'를 사람이 확정하는 절차가 아직 남았습니다. "
+            "확인 안 된 약관으로 보장 여부를 답하지 않습니다.",
+        )
+
     return {
         "schema_version": "v1",
         "rule_engine_version": precheck.RULE_ENGINE_VERSION,
+        "require_confirmed_documents": REQUIRE_CONFIRMED,
         "total_policy_versions": len(vs),
         "insurers": {
             k: {
@@ -192,11 +216,7 @@ def support_manifest() -> dict:
             }
             for k, d in sorted(by_insurer.items())
         },
-        "notes": [
-            "판정은 약관 원문 조항만을 근거로 한다.",
-            "근거를 못 대면 verdict=needs_expert 로 기권한다(HTTP 200).",
-            "면책 목록에 없다는 것이 보장된다는 뜻은 아니다.",
-        ],
+        "notes": notes,
     }
 
 
@@ -210,14 +230,36 @@ def submit_observation(body: ExternalCaseSubmission) -> dict:
         검증되지 않은 남의 보고로 "보장됩니다"라고 말하면 안 되기 때문이다.
         쓰임은 둘이다 — **승인율 통계**와 **우리 판정의 사후 검증**.
 
-    ★지금은 받기만 하고 저장은 뒤로 미룬다(프로토타입).
-      저장 스키마는 `docs/handoff/` 의 데이터 축적 설계를 따른다.
+    ★원본을 그대로 남기고, 정규화한 것은 append-only 로 쌓는다.
+
+        data/external/submissions/{YYYY-MM}/{client_ref}/{ts}_{idem}.json
+        data/external/events/{YYYY-MM-DD}.jsonl
+
+      나중에 파싱 규칙이 바뀐다. 정규화한 것만 두면 "그때 뭘 받았나"를
+      다시 볼 수 없다(약관 PDF 를 원본으로 두는 것과 같은 이유).
+
+    ★`verification` 은 **클라이언트가 뭐라 보내든 `unverified`** 다.
+      남이 자기 데이터를 스스로 "검증됨"이라 하면 그건 검증이 아니다.
     """
+    from app.adapters import external_submission_store as store
+
+    try:
+        res = store.store(body.model_dump())
+    except InfraError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e)
+        ) from e
+
     return {
         "accepted": True,
+        "stored": res.stored,
+        "duplicate": res.duplicate,
+        "idempotency_key": res.idempotency_key,
         "verification": "unverified",
         "note": (
-            "접수했습니다. 이 보고는 검증 전까지 통계에 반영되지 않으며, "
+            "이미 접수된 보고입니다(재시도로 판단해 새로 쌓지 않았습니다)."
+            if res.duplicate
+            else "접수했습니다. 이 보고는 검증 전까지 통계에 반영되지 않으며, "
             "약관 조항과 같은 근거로 쓰이지 않습니다."
         ),
         "echo": {

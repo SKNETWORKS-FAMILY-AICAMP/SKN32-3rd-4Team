@@ -21,6 +21,22 @@ from dataclasses import dataclass
 from typing import Protocol, Sequence, runtime_checkable
 
 
+#: ★확정되지 않은 문서로 판정할 것인가. **기본은 아니다.**
+#:
+#:   지금 확정 문서가 0건이라 이걸 켜면 판정 가능 문서가 0이 된다.
+#:   그래서 프로토타입 시연을 위해 끌 수 있게 뒀다. 다만 **끄면 응답에 표시한다** —
+#:   조용히 미확정 약관으로 답하면 그게 가장 위험하다.
+#:
+#:   환경변수 `PRECHECK_ALLOW_UNCONFIRMED=1` 로 끈다.
+import os
+
+REQUIRE_CONFIRMED = os.getenv("PRECHECK_ALLOW_UNCONFIRMED", "").strip() not in (
+    "1",
+    "true",
+    "TRUE",
+)
+
+
 @dataclass(frozen=True)
 class PolicyVersionRow:
     """매니페스트 한 줄을 판정에 필요한 만큼만 투영한 것.
@@ -50,9 +66,32 @@ class PolicyVersionRow:
 
         return looks_like_rider(self.product_name)
 
+    #: ★이 문서가 **무엇인지 확정됐는가**.
+    #:   `unidentified` / `ambiguous` / `confirmed`.
+    #:   받아왔다는 이유로 무엇인지 안다고 하지 않는다 — 수집과 식별은 별개다.
+    identification: str = "unidentified"
+
     @property
     def usable_for_judgment(self) -> bool:
-        """자동 판정에 쓸 수 있는가."""
+        """자동 판정에 쓸 수 있는가.
+
+        ★**확정된 문서만** 쓴다.
+
+            ERD 는 `policy_version.confirmed_document_id` 를 NOT NULL FK 로 두어
+            "확인 안 된 약관으로 판정하지 않는다"를 **구조로** 만들었다.
+            그런데 이 판정 코드가 매니페스트를 직접 읽으면서 그 절차를 우회했다 —
+            확정 0건인데 `load_versions()` 가 **1,361건을 내줬다.**
+
+            실측(2026-08-02): `identification` 이 `unidentified` 2,117행 ·
+            확정 매니페스트 573행이 전부 `ambiguous`. **`confirmed` 는 0건이다.**
+
+            ★그래서 지금 이 게이트를 켜면 판정 가능 문서가 **0이 된다.**
+              기능이 죽은 것처럼 보이지만 **그게 정답이다** —
+              확인 안 된 약관으로 "보장됩니다"라고 말하는 것보다 낫다.
+              `REQUIRE_CONFIRMED` 로 끌 수 있게 두되 **기본은 켬**이다.
+        """
+        if REQUIRE_CONFIRMED and self.identification != "confirmed":
+            return False
         if self.date_confidence not in ("exact", "month"):
             return False
         #: ★`00000000` 은 "모른다"를 뜻하는 자리표시자다. 날짜가 아니다.

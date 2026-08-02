@@ -51,6 +51,8 @@ def _row_to_version(r: dict) -> PolicyVersionRow:
         date_confidence=r.get("date_confidence", "exact"),
         generation_confidence=r.get("generation_confidence", ""),
         generation_review=r.get("generation_review", ""),
+        #: ★확정 여부. 없으면 미확정으로 본다(fail-closed).
+        identification=r.get("identification") or "unidentified",
     )
 
 

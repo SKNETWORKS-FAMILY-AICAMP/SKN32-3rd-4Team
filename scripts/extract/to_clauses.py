@@ -751,14 +751,33 @@ def build(page_doc: dict) -> dict:
     #:   지우지는 않는다 — 세어서 `suspect` 로 보낸다.
     TINY_CLAUSE_CHARS = 100
     HEADS_PER_PAGE_ALARM = 20
+    #: ★★별표에 실린 **법령 조문**은 여기 해당하지 않는다.
+    #:
+    #:   실측(s5 전량): 이 경고로 `suspect` 가 된 135문서 중 **85문서(63%)** 가
+    #:   별표에 조세특례제한법 시행령·형법 조문을 그대로 실은 것이었다.
+    #:
+    #:       제298조(강제추행)
+    #:       폭행 또는 협박으로 사람에 대하여 추행을 한 자는 10년 이하의 징역…
+    #:       제299조(준강간, 준강제추행)
+    #:       사람의 심신상실 또는 항거불능의 상태를 이용하여…
+    #:
+    #:   짧은 조항이 한 쪽에 촘촘한 것은 **법령 조문의 정상 모습**이다.
+    #:   목차가 아니다. 이걸 `suspect` 로 내리면 **정상 문서 85건이
+    #:   판정 대상에서 빠진다.**
+    #:
+    #:   ★s5 는 이미 조항마다 `statute` 를 붙여 법령 조문을 표시하고 있었는데
+    #:     이 검사가 그걸 **보지 않았다**. 표시해 놓고 안 쓴 것이다.
     if clauses:
         per_page = Counter(c["locator"]["page_from"] for c in clauses)
         page, cnt = per_page.most_common(1)[0]
         if cnt >= HEADS_PER_PAGE_ALARM:
-            lens = sorted(c["char_length"] for c in clauses
-                          if c["locator"]["page_from"] == page)
+            same = [c for c in clauses if c["locator"]["page_from"] == page]
+            n_statute = sum(1 for c in same if c.get("statute"))
+            lens = sorted(c["char_length"] for c in same)
             med = lens[len(lens) // 2]
-            if med < TINY_CLAUSE_CHARS:
+            #: 그 쪽의 절반 이상이 법령 조문이면 목차가 아니라 별표다.
+            is_statute_page = n_statute >= len(same) / 2
+            if med < TINY_CLAUSE_CHARS and not is_statute_page:
                 warnings.append(
                     f"p{page} 한 쪽에서 조항 {cnt}개(중앙 {med}자) — "
                     f"목차를 본문으로 읽은 것으로 보인다"

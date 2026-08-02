@@ -101,3 +101,14 @@ def build_precheck():
     from app.adapters import file_clause_store, manifest_policy_resolver
 
     return {"policies": manifest_policy_resolver, "clauses": file_clause_store}
+
+
+def build_cohort():
+    """코호트 조회 유스케이스.
+
+    ★어느 저장소를 볼지는 여기서 정한다. DB 적재 후엔 이 줄만 바꾼다.
+    """
+    from app.adapters import file_cohort_stats
+    from app.core.usecases.cohort import CohortQuery
+
+    return CohortQuery(file_cohort_stats)
