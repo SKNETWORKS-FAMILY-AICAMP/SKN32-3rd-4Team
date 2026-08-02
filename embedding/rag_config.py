@@ -111,6 +111,18 @@ def search_terms_guarded(question, k=TOP_K):
     return [], f"용어 불일치 차단 (질문: {q_term} / 검색됨: {found})"
 
 
+@lru_cache(maxsize=1)
+def get_insurers():
+    """색인된 보험사 목록 (컬렉션 메타에서 자동 추출)"""
+    coll = get_client().get_collection(COLL_MAIN)
+    seen = set()
+    n = coll.count()
+    for offset in range(0, min(n, 50000), 10000):
+        page = coll.get(limit=10000, offset=offset, include=["metadatas"])
+        seen.update(m["insurer"] for m in page["metadatas"])
+    return sorted(seen)
+
+
 if __name__ == "__main__":
     # 자가 테스트: python rag_config.py
     print(f"모델: {EMBED_MODEL} / DB: {DB_PATH}")

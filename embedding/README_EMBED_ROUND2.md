@@ -90,7 +90,47 @@ SOTA 10선 제안을 반영해 1라운드 대비 방법을 개선한 버전이�
 | 10 | openai-3-small | 66% | 30% | 0.425 | 유료 API |
 | 11 | ko-sroberta | 57% | 30% | 0.373 | 1R 85% → 정밀도 부족 노출 |
 | 12 | nemotron-1b | 50% | 20% | 0.334 | 사용법 미확인 참고치 |
-| 제외 | KaLM-12B, llama-embed-8b | — | — | — | 8GB VRAM 불가 |
+
+### 인프라·라이선스 제약으로 미실측 (제외 목록)
+
+로컬 GPU(RTX 3060 Ti 8GB) 기준 구동 불가이거나 접근 제약이 있어 이번
+라운드에서 실측하지 못한 후보. **클라우드 GPU(runpod 24–80GB) 세션에서
+실측 전환 예정** — 실측되는 대로 본 표에 편입한다.
+
+| 후보 | 구분 | 제외 사유 | 실측 계획 |
+|---|---|---|---|
+| tencent/KaLM-Embedding-Gemma3-12B | 임베딩 (SOTA 1위) | 12B — 8GB 불가 | runpod 24GB+ |
+| nvidia/llama-embed-nemotron-8b | 임베딩 (SOTA 2위) | 8B 임베딩 — 8GB 경계 초과 | runpod 24GB |
+| gemma3:27b | 디코딩 | 27B — 양자화로도 8GB 초과 | runpod 24–48GB |
+| Nextnine/ExtGemma4-44B | 디코딩 (한국어 법률 특화) | 44B — 8GB 불가. 비상업 권장 라이선스 | runpod 48–80GB (팀 프로젝트는 비상업이라 테스트 가능) |
+| Bllossom-70B | 디코딩 (한국어 특화) | 70B — 8GB 불가 | runpod 80GB (선택) |
+| AI Hub 민사법 LLM | 디코딩 (한국어 법률, 정부 공식) | 활용 신청 승인 대기 (주말 — 주중 승인 예상) | 승인 후 형태·크기 확인, 필요 시 runpod |
+
+### 조사 결과 사용 불가 판정 (실측 대상 아님)
+
+| 후보 | 사유 |
+|---|---|
+| LBox LCube-base | 유일한 공개 한국 판례 학습 LM이나 GPT-2 base(2022) — instruct 불가, RAG QA 부적합 |
+| lawma-8b | 미국 판례 분류 전용 (객관식 출력만), 영어 |
+| Legal_Specific_KoLLM | 대학 연구 프로젝트 — 배포 형태·유지보수 불명확, 재현 리스크 |
+
+조사 결론: **"한국어 + 법률 특화 + instruct + 공개 배포" 조건을 모두
+만족하는 모델은 현재 부재.** 법률 특화 축은 AI Hub 공식 모델(승인 대기)이
+유일한 경로이며, 대체로 한국어 특화 일반 모델(Llama-3-Open-Ko-8B,
+Bllossom-8B)을 디코딩 평가 라인업에 편입한다.
+
+### 검색 속도 (질의당, PC RTX 3060 Ti 실측 — 참고 지표)
+
+| 구간 | 모델 (질의당 평균) |
+|---|---|
+| ~20ms (체감 즉시) | bge-m3·kure-v1·e5-large 14ms, arctic-ko 16ms, **arctic-l-v2 17ms** |
+| 30~50ms | nemotron-1b 35ms, qwen3-embed-0.6b 47ms |
+| 100ms+ | jina-v5-small 146ms, qwen3-embed-4b 229ms, openai-3-small 276ms(API 왕복) |
+
+- 상위권(arctic·e5)은 모두 최속 구간 — **속도가 선정을 가르지 않음** (품질로 결정).
+- granite·ko-sroberta는 노트북(CPU) 실측이라 기기 조건이 달라 표에서 제외.
+- 참고: 검색은 질의 1건 임베딩이라 CPU로도 초 단위 — 서비스 검색 자체는
+  GPU 불필요 (색인만 GPU 권장).
 
 ## 8. 해석
 
@@ -135,3 +175,8 @@ python 2_model_select\embed_eval.py --models <모델들,쉼표구분> `
 - 전체 코퍼스(160배) 규모 조건 재검증 — v5 최종전에서 수행
 - jina-v5 라이선스: 팀 프로젝트(비상업)에서는 사용 가능하나 서비스 전환
   시 제외 대상임을 결과표에 항구 명시
+- **runpod 세션: 제외 목록 실측 전환** — 대형 임베딩 2종(KaLM-12B,
+  llama-embed-8b) 44문항 + 대형 디코딩(gemma3:27b 등) 30문항. 예상 비용
+  세션당 수천 원~2만 원, 종료 즉시 인스턴스 삭제로 통제
+- AI Hub 민사법 LLM 승인 확인 → 상세 설명서로 형태(크기·가중치/LoRA) 판정
+  → 8GB 가능 시 로컬, 불가 시 runpod 편입

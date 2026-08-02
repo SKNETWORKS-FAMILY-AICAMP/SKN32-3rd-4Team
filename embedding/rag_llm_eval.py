@@ -8,7 +8,7 @@ import re
 import time
 from pathlib import Path
 
-from rag_config import search, search_terms_guarded, TOP_K
+from rag_config import search, search_terms_guarded, get_insurers, TOP_K
 
 TOP_K = 5
 TERM_PAT = re.compile(r"(이?란\??$|뭐야|무슨 뜻|정의)")
@@ -20,13 +20,20 @@ SYSTEM = """당신은 실손의료보험 약관 안내 챗봇입니다. 규칙:
 4. 보험사마다 내용이 다르면 보험사별로 구분해서 답하세요."""
 
 
+OLLAMA_MODELS = {
+    "qwen3": "qwen3:8b",
+    "gemma3": "gemma3:12b",
+    "ko-llama3": "ko-llama3",
+}
+
+
 def build_llm(name):
     if name.startswith("gpt"):
         from langchain_openai import ChatOpenAI
         return ChatOpenAI(model=name, temperature=0)
-    if name.startswith("qwen"):
+    if name in OLLAMA_MODELS:
         from langchain_ollama import ChatOllama
-        return ChatOllama(model="qwen3:8b", temperature=0)
+        return ChatOllama(model=OLLAMA_MODELS[name], temperature=0)
     raise ValueError(name)
 
 
