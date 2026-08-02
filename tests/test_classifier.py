@@ -59,7 +59,15 @@ def test_confusion_pairs_length_mismatch_raises():
         confusion_pairs(["결제"], ["결제", "환불"])
 
 
+@pytest.mark.legacy_data
 def test_load_cs_dataset():
+    """CS 문의 데이터셋 로드.
+
+    ★`data/cs_inquiries.csv` 는 커머스 실습 자료라 **레거시로 압축 격리했다**
+      (`legacy/v3_commerce.zip` 안에 있다). 되살리면 레거시 의존성이 생긴다.
+      그래서 마커로 빼되 **왜 빠졌는지 여기 적어 둔다** — 조용한 스킵이 아니다.
+      분류기 자체(`normalize_category`·`classify_one`)는 이 파일의 다른 테스트가 계속 지킨다.
+    """
     texts, labels = load_cs_dataset()
     assert len(texts) == 60
     assert len(labels) == 60

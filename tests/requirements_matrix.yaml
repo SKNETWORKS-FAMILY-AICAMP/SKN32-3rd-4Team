@@ -125,6 +125,7 @@ requirements:
     tests:
       - node: "tests/test_commerce_approval.py::test_api_preview_does_not_mutate_db"
         basis: "미리보기 호출 전후 재고·주문수 불변을 API 레벨에서 직접 확인"
+    retired: "레거시(v3 커머스)로 격리 — 이 제품에 없는 기능이다. 테스트는 legacy/v3_commerce.zip 안에 보존돼 있다(2026-08-02)"
     status: DONE
 
   - id: REQ-COM-02
@@ -132,6 +133,7 @@ requirements:
     tests:
       - node: "tests/test_commerce_approval.py::test_api_preview_only_creates_no_order"
         basis: "미리보기 3회 반복 후 주문 0건을 직접 확인"
+    retired: "레거시(v3 커머스)로 격리 — 이 제품에 없는 기능이다. 테스트는 legacy/v3_commerce.zip 안에 보존돼 있다(2026-08-02)"
     status: DONE
 
   - id: REQ-COM-03
@@ -141,6 +143,7 @@ requirements:
         basis: "같은 키 2회 호출 시 place()가 1회만 실행됨(재생)을 직접 확인"
       - node: "tests/test_commerce_approval.py::test_api_idempotent_create_decrements_stock_once"
         basis: "API 레벨에서 같은 order_no·재고 1회 차감을 직접 확인"
+    retired: "레거시(v3 커머스)로 격리 — 이 제품에 없는 기능이다. 테스트는 legacy/v3_commerce.zip 안에 보존돼 있다(2026-08-02)"
     status: DONE
 
   - id: NFR-REL-01
@@ -148,6 +151,7 @@ requirements:
     tests:
       - node: "tests/test_commerce_approval.py::test_is_unique_violation_discriminates_constraint_kind"
         basis: "멱등키 unique 위반만 경합 수렴 대상으로 판별(다른 무결성 오류와 구분)함을 직접 확인"
+    retired: "레거시(v3 커머스)로 격리 — 이 제품에 없는 기능이다. 테스트는 legacy/v3_commerce.zip 안에 보존돼 있다(2026-08-02)"
     status: DONE
 
   - id: REQ-AGT-01
@@ -155,6 +159,7 @@ requirements:
     tests:
       - node: "tests/test_agent_verified.py::test_chat_commerce_pipes_agent_then_verifies"
         basis: "에이전트 턴(도구사용 포함) → 자기검증까지 파이프라인 동작을 직접 확인"
+    retired: "레거시(v3 커머스)로 격리 — 이 제품에 없는 기능이다. 테스트는 legacy/v3_commerce.zip 안에 보존돼 있다(2026-08-02)"
     status: DONE
 
   - id: REQ-COT-01
@@ -162,6 +167,7 @@ requirements:
     tests:
       - node: "tests/test_agent_verified.py::test_unsupported_draft_is_blocked_and_not_leaked"
         basis: "미지지 판정 시 초안이 차단되고 응답에 유출되지 않음을 직접 확인"
+    retired: "레거시(v3 커머스)로 격리 — 이 제품에 없는 기능이다. 테스트는 legacy/v3_commerce.zip 안에 보존돼 있다(2026-08-02)"
     status: DONE
 
   - id: REQ-MCP-01

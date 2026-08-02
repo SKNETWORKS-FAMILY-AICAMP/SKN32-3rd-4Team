@@ -62,6 +62,16 @@ def _all_collected_node_ids() -> frozenset[str]:
             cwd=_REPO_ROOT,
             capture_output=True,
             text=True,
+            #: ★인코딩을 못 박는다.
+            #:
+            #:   `text=True` 만 두면 Windows 에서 **시스템 코드페이지(cp949)** 로 디코딩한다.
+            #:   테스트 id 에 한글이 섞여 있어 리더 스레드가 `UnicodeDecodeError` 로 죽고,
+            #:   `proc.stdout` 이 `None` 이 되어 아래가 통째로 실패했다 —
+            #:   그래서 매트릭스 36개·보안 13개가 **Windows 에서만 항상 빨간불**이었다.
+            #:   CI(우분투)는 UTF-8 기본이라 통과해 아무도 눈치채지 못했다.
+            #:   `errors="replace"` 는 node id 비교에 영향을 주지 않는다(ASCII 부분만 쓴다).
+            encoding="utf-8",
+            errors="replace",
             timeout=240,
         )
     except subprocess.TimeoutExpired as exc:
@@ -109,7 +119,14 @@ def _skip_or_xfail_marks(rel_path: str, func_name: str) -> set[str]:
 
 def _iter_all_entries():
     for req in _load_matrix():
+        if req.get("retired"):
+            #: ★기능 자체가 사라진 요구사항. 아래 `test_retired_...` 가 따로 검증한다.
+            continue
         for t in req["tests"]:
+            if t.get("retired"):
+                #: ★요구사항은 살아 있는데 **노드 하나만** 사라진 경우.
+                #:   요구사항째 폐기하면 살아 있는 검증까지 꺼진다.
+                continue
             yield req["id"], t["node"], t.get("basis")
 
 
@@ -146,3 +163,37 @@ def test_matrix_covers_every_must_req_at_least_once():
     for r in reqs:
         assert r["status"] == "DONE", f"{r['id']}가 DONE이 아닙니다: {r['status']}"
         assert r["tests"], f"{r['id']}에 매핑된 테스트가 없습니다."
+
+    #: ★폐기된 것을 **센다.** 조용히 빼면 커버리지가 실제보다 좋아 보인다.
+    live = [r for r in reqs if not r.get("retired")]
+    assert len(live) >= 15, (
+        f"살아 있는 REQ 가 {len(live)}개뿐입니다(폐기 {len(reqs)-len(live)}). "
+        "폐기가 늘고 있다면 매트릭스가 제품을 못 따라가고 있는 것입니다."
+    )
+
+
+def test_retired_requirements_are_actually_gone_not_just_labelled():
+    """폐기 표시가 **깨진 테스트를 덮는 딱지**로 쓰이지 않는지.
+
+    ★레거시를 압축 격리하면서 커머스 테스트 파일들이 사라졌는데
+      매트릭스는 계속 그 파일을 가리키고 있었다. 그 결과 격리 커밋 이후
+      매트릭스 테스트 49개가 **줄곧 빨간불이었다**(2026-08-02에 발견).
+      선택한 테스트 파일만 돌려 보느라 몰랐다.
+
+    딱지를 붙이는 것으로 끝내면 같은 일이 반복된다. 그래서 두 가지를 강제한다 —
+      1. 폐기에는 **이유**가 있어야 한다.
+      2. 가리키는 파일이 **정말로 없어야** 한다. 파일이 살아 있으면 폐기가 아니라
+         **고쳐야 할 테스트**다.
+    """
+    for r in _load_matrix():
+        for t in r["tests"]:
+            reason = r.get("retired") or t.get("retired")
+            if not reason:
+                continue
+            assert isinstance(reason, str) and len(reason.strip()) > 10, (
+                f"{r['id']}: 폐기 이유가 비어 있습니다."
+            )
+            rel = t["node"].split("::")[0]
+            assert not (_REPO_ROOT / rel).exists(), (
+                f"{r['id']}: {rel} 는 아직 있습니다. 폐기가 아니라 고쳐야 할 테스트입니다."
+            )

@@ -14,6 +14,7 @@ cases:
         basis: "근거 내 실제 섹션 라벨([답변]/[질문])이 무력화돼 프롬프트 구조를 재구성 못함을 직접 확인(신규, Phase 10)"
       - node: "tests/test_agent_verified.py::test_evidence_is_delimited_as_data_with_ignore_instruction"
         basis: "CoT 자기검증 프롬프트에서도 근거가 데이터 경계 안에 격리됨을 직접 확인"
+        retired: "레거시(v3 커머스)로 격리 — 이 제품에 없는 기능이다. 테스트는 legacy/v3_commerce.zip 안에 보존돼 있다(2026-08-02)"
     status: DONE
 
   - id: TEST-SEC-002
@@ -22,6 +23,7 @@ cases:
     tests:
       - node: "tests/test_agent_verified.py::test_tool_registry_is_readonly_allowlist"
         basis: "에이전트 도구 레지스트리에 쓰기 도구가 전혀 없음을 직접 확인(구조적으로 유도 자체가 불가능)"
+    retired: "레거시(v3 커머스)로 격리 — 이 제품에 없는 기능이다. 테스트는 legacy/v3_commerce.zip 안에 보존돼 있다(2026-08-02)"
     status: DONE
 
   - id: TEST-SEC-003
@@ -30,6 +32,7 @@ cases:
     tests:
       - node: "tests/test_orders.py::test_other_users_order_forbidden_403"
         basis: "타인 주문 조회 시 403을 직접 확인"
+    retired: "레거시(v3 커머스)로 격리 — 이 제품에 없는 기능이다. 테스트는 legacy/v3_commerce.zip 안에 보존돼 있다(2026-08-02)"
     status: DONE
 
   - id: TEST-SEC-004
@@ -46,6 +49,7 @@ cases:
     tests:
       - node: "tests/test_commerce_approval.py::test_api_preview_only_creates_no_order"
         basis: "미리보기 3회 반복 후 주문 0건을 직접 확인"
+    retired: "레거시(v3 커머스)로 격리 — 이 제품에 없는 기능이다. 테스트는 legacy/v3_commerce.zip 안에 보존돼 있다(2026-08-02)"
     status: DONE
 
   - id: TEST-SEC-006
@@ -54,6 +58,7 @@ cases:
     tests:
       - node: "tests/test_commerce_approval.py::test_api_idempotent_create_decrements_stock_once"
         basis: "같은 키 2회 호출 → 같은 order_no, 재고 1회만 차감을 직접 확인"
+    retired: "레거시(v3 커머스)로 격리 — 이 제품에 없는 기능이다. 테스트는 legacy/v3_commerce.zip 안에 보존돼 있다(2026-08-02)"
     status: DONE
 
   - id: TEST-SEC-007
@@ -84,6 +89,7 @@ cases:
     tests:
       - node: "tests/test_mcp.py::test_tool_error_marker_injection_is_ignored"
         basis: "인자에 마커 문자열을 심어도 taxonomy가 조작되지 않음을 직접 확인(원본 프로젝트 승계 자산)"
+    retired: "레거시(v3 커머스)로 격리 — 이 제품에 없는 기능이다. 테스트는 legacy/v3_commerce.zip 안에 보존돼 있다(2026-08-02)"
     status: DONE
 
   - id: TEST-SEC-010
@@ -94,4 +100,5 @@ cases:
         basis: "레지스트리에 쓰기 도구 없음(1층)을 직접 확인"
       - node: "tests/test_agent_verified.py::test_agent_run_mutates_nothing"
         basis: "에이전트를 실제로 실행한 뒤 orders/items/payments/idempotency·재고 불변(2층 실증)을 직접 확인"
+    retired: "레거시(v3 커머스)로 격리 — 이 제품에 없는 기능이다. 테스트는 legacy/v3_commerce.zip 안에 보존돼 있다(2026-08-02)"
     status: DONE

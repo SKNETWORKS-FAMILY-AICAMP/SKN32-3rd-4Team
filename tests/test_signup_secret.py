@@ -34,7 +34,10 @@ def test_signup_preflight_no_user_created(monkeypatch):
         before = db.query(User).filter(User.username == username).count()
         raised = False
         try:
-            from app.schemas.commerce import SignupRequest
+            #: ★`app.schemas.commerce` 는 레거시 격리 때 사라졌다.
+            #:   `SignupRequest` 는 커머스가 아니라 인증 스키마라 `app.schemas.auth` 로 갔는데
+            #:   이 테스트만 옛 경로를 붙들고 있어 격리 이후 계속 실패하고 있었다.
+            from app.schemas.auth import SignupRequest
 
             auth_router.signup(SignupRequest(username=username, password="pass1234"), db=db)
         except ConfigError:

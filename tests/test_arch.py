@@ -205,6 +205,37 @@ _LEGACY_REF = re.compile(
 )
 
 
+def _docstring_lines(source: str) -> set[int]:
+    """문서화 문자열이 차지하는 줄 번호.
+
+    ★줄 앞이 `#` 인지만 보면 **여러 줄 문서화 문자열의 가운데 줄**을 놓친다.
+      실제로 "이 데이터셋은 `legacy/v3_commerce.zip` 안에 있다"고 적은 설명이
+      코드 참조로 잡혀 ARCH-004 가 틀리게 실패했다(2026-08-02).
+      설명을 지우면 **자료가 어디로 갔는지 아무도 모르게 된다** — 규칙이 기록을 죽이면 안 된다.
+      그래서 AST 로 문서화 문자열만 정확히 골라 뺀다. 보통 문자열 리터럴은 그대로 검사한다.
+    """
+    import ast
+
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return set()
+    lines: set[int] = set()
+    for node in ast.walk(tree):
+        if not isinstance(
+            node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
+        ):
+            continue
+        body = getattr(node, "body", None)
+        if not body:
+            continue
+        first = body[0]
+        if isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant):
+            if isinstance(first.value.value, str):
+                lines.update(range(first.lineno, (first.end_lineno or first.lineno) + 1))
+    return lines
+
+
 def test_arch_004_current_code_does_not_reference_legacy():
     """`app/` · `tests/` · `scripts/` 가 `legacy/` 를 코드로 참조하지 않는다."""
     targets = [_ROOT / d for d in ("app", "tests", "scripts")]
@@ -215,10 +246,12 @@ def test_arch_004_current_code_does_not_reference_legacy():
         for py in base.rglob("*.py"):
             if "__pycache__" in str(py) or py.name == "test_arch.py":
                 continue
-            for i, line in enumerate(py.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+            source = py.read_text(encoding="utf-8", errors="replace")
+            prose = _docstring_lines(source)
+            for i, line in enumerate(source.splitlines(), 1):
                 stripped = line.strip()
                 #: 주석·문서화 문자열의 언급은 참조가 아니다.
-                if stripped.startswith("#") or stripped.startswith("*"):
+                if stripped.startswith("#") or stripped.startswith("*") or i in prose:
                     continue
                 if re.search(_LEGACY_REF, line):
                     offenders.append(f"{py.relative_to(_ROOT)}:{i}: {stripped[:70]}")

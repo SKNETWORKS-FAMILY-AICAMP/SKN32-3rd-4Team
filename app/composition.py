@@ -112,3 +112,15 @@ def build_cohort():
     from app.core.usecases.cohort import CohortQuery
 
     return CohortQuery(file_cohort_stats)
+
+
+def build_glossary():
+    """용어 설명이 볼 구절 색인.
+
+    ★판정용 어댑터와 **다른 것을 준다.** 용어 경로는 전역·완화 필터라
+      같은 것을 나눠 쓰면 완화된 필터가 판정으로 샌다
+      (`docs/handoff/11_AI_구조_지도.md` §2).
+    """
+    from app.adapters import file_glossary_source
+
+    return file_glossary_source

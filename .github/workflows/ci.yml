@@ -35,6 +35,7 @@ jobs:
 
       # 외부 인프라·무거운 로컬 모델이 필요한 테스트는 마커로 제외한다.
       #   llm: 실제 LLM 호출 / ml: 무거운 모델 로드 / mcp: stdio 서브프로세스 / pg: 실 PostgreSQL
+#   legacy_data: 압축 격리한 커머스 데이터셋이 있어야 도는 것 (되살리면 레거시 의존성이 생긴다)
       # 나머지 결정론 테스트는 외부 의존 없이 깨끗한 러너에서 그대로 통과해야 한다.
       - name: Run tests
-        run: pytest -q -m "not llm and not ml and not mcp and not pg"
+        run: pytest -q -m "not llm and not ml and not mcp and not pg and not legacy_data"

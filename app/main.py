@@ -36,6 +36,7 @@ from app.routers import (
     lab,
     precheck,
     rag,
+    terms,
     voice,
     workflow,
 )
@@ -82,6 +83,8 @@ def create_app(role: str = "full") -> FastAPI:
     #: 보험 보장 사전판정 — 이 프로젝트의 본체다.
     app.include_router(precheck.router)
     app.include_router(cohort.router)
+    #: 용어 설명 — 판정과 **다른 유스케이스**다. 응답에 verdict 가 없다.
+    app.include_router(terms.router)
     app.include_router(voice.router)
     app.include_router(face.router)
 

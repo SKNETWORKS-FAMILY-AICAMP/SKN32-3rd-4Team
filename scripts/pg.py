@@ -7,7 +7,8 @@ Windows에서 큰 PATH로 띄우면 쿼리 백엔드가 0xC0000142(DLL init 실�
     python -m scripts.pg start    # 클러스터 initdb(최초) + 서버 기동(포트 5433)
     python -m scripts.pg stop
     python -m scripts.pg status
-    python -m scripts.pg setup     # DB/확장/스키마 생성 + corpus 적재(psycopg, TCP)
+    python -m scripts.pg init      # DB + 확장만 (보험 인덱스용 부트스트랩)
+    python -m scripts.pg setup     # DB/확장/스키마 생성 + corpus 적재(커머스 실습 문서)
 """
 
 from __future__ import annotations
@@ -73,9 +74,61 @@ def cmd_status() -> None:
         sys.exit(1)
 
 
+def _ensure_database() -> None:
+    """`mall_vec` 데이터베이스를 만든다(멱등).
+
+    ★없었다 — `start` 는 클러스터만 만들고 `setup` 은 `mall_vec` 에 바로 붙었다.
+      새 기계에서는 `FATAL: database "mall_vec" does not exist` 로 막힌다.
+      "먼저 PG를 기동하세요"라는 메시지가 나오지만 **PG 는 이미 떠 있어서**
+      사실을 잘못 전한다(CLAUDE.md §3).
+    """
+    import psycopg
+
+    admin = f"host=127.0.0.1 port={_PORT} user=postgres dbname=postgres"
+    with psycopg.connect(admin, connect_timeout=5, autocommit=True) as conn:
+        got = conn.execute(
+            "SELECT 1 FROM pg_database WHERE datname = %s", (_DBNAME,)
+        ).fetchone()
+        if got:
+            print(f"[setup] 데이터베이스 {_DBNAME} 이미 있음")
+            return
+        conn.execute(f'CREATE DATABASE "{_DBNAME}"')
+        print(f"[setup] 데이터베이스 {_DBNAME} 생성")
+
+
+def _ensure_extensions() -> None:
+    """`vector`·`pg_trgm` 확장을 만든다(멱등).
+
+    ★`get_conn()` 이 `register_vector()` 를 호출하는데, 확장이 없으면
+      `vector type not found in the database` 로 죽는다. 즉 **확장은 연결보다 먼저**여야 한다.
+      여기서는 확장 등록 없이 맨 psycopg 로 붙어서 만든다.
+    """
+    import psycopg
+
+    dsn = f"host=127.0.0.1 port={_PORT} user=postgres dbname={_DBNAME}"
+    with psycopg.connect(dsn, connect_timeout=5, autocommit=True) as conn:
+        conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
+        conn.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm")
+    print("[setup] 확장 vector·pg_trgm 준비")
+
+
+def cmd_init() -> None:
+    """데이터베이스 + 확장만 만든다. **코퍼스 적재는 하지 않는다.**
+
+    ★`setup` 은 `ingest_corpus()` 까지 하는데, 그 코퍼스는 `data/docs/` —
+      **커머스 실습 문서**다. 보험 인덱스를 만들려고 부트스트랩했다가
+      레거시 문서를 적재하게 되면 안 된다. 그래서 갈라 둔다.
+    """
+    _ensure_database()
+    _ensure_extensions()
+    print("[init] 완료. 인덱스 A 적재: python -m scripts.index.build_clause_index")
+
+
 def cmd_setup() -> None:
     from app.adapters.pgvector_index import ensure_schema, get_conn, ingest_corpus
 
+    _ensure_database()
+    _ensure_extensions()
     conn = get_conn()
     ensure_schema(conn)
     res = ingest_corpus(conn)
@@ -87,9 +140,15 @@ def main(argv: list[str] | None = None) -> None:
     import argparse
 
     p = argparse.ArgumentParser(description="userspace pgvector 관리")
-    p.add_argument("command", choices=["start", "stop", "status", "setup"])
+    p.add_argument("command", choices=["start", "stop", "status", "init", "setup"])
     args = p.parse_args(argv)
-    {"start": cmd_start, "stop": cmd_stop, "status": cmd_status, "setup": cmd_setup}[args.command]()
+    {
+        "start": cmd_start,
+        "stop": cmd_stop,
+        "status": cmd_status,
+        "init": cmd_init,
+        "setup": cmd_setup,
+    }[args.command]()
 
 
 if __name__ == "__main__":

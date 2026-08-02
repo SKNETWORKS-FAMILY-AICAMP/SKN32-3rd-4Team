@@ -60,3 +60,6 @@ data/cohort/
 # 임시 측정 출력 — 실수로 커밋돼 있었다.
 _cov.txt
 _gap.txt
+
+# 용어 정의 구절 색인 — 약관 원문 조각이다. 저작물이므로 커밋하지 않는다.
+data/glossary/
