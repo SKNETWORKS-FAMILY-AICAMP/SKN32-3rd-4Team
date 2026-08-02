@@ -88,7 +88,23 @@ class ClauseRow:
 
     @property
     def clause_id(self) -> str:
-        return f"{self.sha256[:12]}/{self.qualified_no}"
+        """문서 안에서 이 조항을 가리키는 식별자.
+
+        ★`{sha12}/{qualified_no}` 만으로는 **유일하지 않다.**
+          실측(v4 전량 1,367문서): `qualified_no` 중복 31,085건 / 1,181문서(86%).
+          부 탐지 입도가 특약보다 굵어 서로 다른 특약이 한 라벨 아래 뭉친다.
+
+              p73  보험료 자동납입 특별약관/1.   "보험료 납입"            324자
+              p73  보험료 자동납입 특별약관/1.   "특별약관의 체결 및 효력"  798자
+
+          그래서 **내용 해시**를 덧붙인다. 같은 자리에 실린 다른 내용이 구분된다.
+          `content_hash` 는 조항 구조화 때 이미 계산해 둔 값이다.
+
+        ★영속 식별자가 아니다. 재추출하면 부 라벨이 바뀔 수 있다.
+          저장소에 넣을 때는 별도 UUID 를 발급하고 이건 조회 키로만 쓴다.
+        """
+        tail = f"#{self.content_hash[:8]}" if self.content_hash else ""
+        return f"{self.sha256[:12]}/{self.qualified_no}{tail}"
 
 
 @runtime_checkable

@@ -19,16 +19,17 @@
 
 from __future__ import annotations
 
-from enum import Enum
-
 from pydantic import BaseModel, Field
 
 from app.core.domain.insurance import Verdict
+from app.core.domain.precheck_result import EvidenceTier, ReasonCode
 
 SCHEMA_VERSION = "v1"
 
 
-#: ★판정 결과는 **도메인이 정의한다.** 여기서 다시 만들지 않는다.
+#: ★판정 결과 타입은 **전부 도메인이 정의한다.** 여기서 다시 만들지 않는다.
+#:   이 파일은 **HTTP 로 나가는 모양**만 정한다(pydantic).
+#:   `Verdict` · `ReasonCode` · `EvidenceTier` 는 `app/core/domain/` 것을 쓴다.
 #:
 #:   처음에 `covered / not_covered / conditional / unknown` 4값을 여기 새로 만들었다가
 #:   `app/core/domain/insurance.py` 에 이미 `Verdict` 가 있는 것을 뒤늦게 알았다.
@@ -43,30 +44,8 @@ SCHEMA_VERSION = "v1"
 #:       NEEDS_EXPERT     ★근거가 부족하다. 사람이 봐야 한다(정상 결과다)
 
 
-class ReasonCode(str, Enum):
-    """왜 그렇게 판정했는지. `unknown` 일 때 특히 중요하다."""
-
-    # 판정에 이른 경우
-    EXCLUDED_BY_CLAUSE = "excluded_by_clause"
-    EXCEPTION_APPLIES = "exception_applies"
-    COVERED_BY_CLAUSE = "covered_by_clause"
-    # 판정하지 못한 경우
-    INSURER_NOT_SUPPORTED = "insurer_not_supported"
-    NO_VERSION_AT_DATE = "no_version_at_date"
-    AMBIGUOUS_PRODUCT = "ambiguous_product"
-    AMBIGUOUS_PRODUCT_LINE = "ambiguous_product_line"
-    NO_EVIDENCE = "no_evidence"
-    DOCUMENT_NOT_RELIABLE = "document_not_reliable"
-    CITATION_UNVERIFIED = "citation_unverified"
-    INVALID_CODE = "invalid_code"
 
 
-class EvidenceTier(str, Enum):
-    """근거의 급. ★섞어 쓰지 않는다."""
-
-    POLICY_CLAUSE = "policy_clause"       # 약관 원문 — 유일하게 판정 근거가 된다
-    EXTERNAL_REPORT = "external_report"   # 외부 에이전트가 준 사례 — 참고만
-    STATISTICS = "statistics"             # 승인율 등 집계 — 참고만
 
 
 class Citation(BaseModel):

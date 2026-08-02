@@ -13,9 +13,27 @@ _FORBIDDEN = ("fastapi", "langchain", "sqlalchemy", "openai")
 
 
 def _import_lines(text: str) -> list[str]:
+    """실제 import 문만 고른다.
+
+    ★주석과 문서화 문자열은 뺀다. 주석에 `app.schemas` 를 **설명하려고** 적었는데
+      그게 위반으로 잡혔다. 규칙을 적어 두는 것과 어기는 것은 다르다.
+    """
     lines = []
+    in_doc = False
     for raw in text.splitlines():
         s = raw.strip()
+        #: 삼중따옴표 블록을 건너뛴다(한 줄에 열고 닫는 경우도 처리).
+        if in_doc:
+            if '"""' in s or "'''" in s:
+                in_doc = False
+            continue
+        if s.startswith(('"""', "'''")) and not (
+            s.count('"""') >= 2 or s.count("'''") >= 2
+        ):
+            in_doc = True
+            continue
+        if s.startswith("#"):
+            continue
         if s.startswith("import ") or s.startswith("from "):
             lines.append(s)
     return lines
@@ -56,6 +74,12 @@ _OUTER_PACKAGES = (
     "app.services",
     "app.mcp",
     "app.a2a",
+    #: ★`app.schemas` 는 **pydantic DTO** 다 — HTTP 로 나가는 모양이다.
+    #:   목록에 없어서 `app/core/usecases/precheck.py` 가 그걸 import 하고도
+    #:   테스트를 빠져나갔다. **테스트의 빈틈이었다.**
+    #:   판정 결과는 `app/core/domain/precheck_result.py` 에 순수 dataclass 로 두고,
+    #:   HTTP 변환은 라우터가 한다.
+    "app.schemas",
 )
 
 

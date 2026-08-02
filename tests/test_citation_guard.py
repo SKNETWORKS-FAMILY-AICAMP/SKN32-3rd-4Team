@@ -1,7 +1,16 @@
-"""인용 검증 — 지어낸 조항을 거르는지."""
+"""인용 검증 — 지어낸 조항·틀린 인용문·우회를 거르는지.
 
-from app.core.domain.citation_guard import EvidenceClause, verify
+★v1 은 87% 문서에서 무력했다. 그 결함들이 다시 생기지 않게 못박는다.
+"""
 
+from app.core.domain.citation_guard import (
+    EvidenceClause,
+    Resolution,
+    make_handles,
+    verify,
+)
+
+#: 실제 약관 구조를 본뜬 근거.
 _EV = [
     EvidenceClause(
         qualified_no="보통약관/제9조",
@@ -13,24 +22,34 @@ _EV = [
     ),
 ]
 
+#: ★한 문서에서 `1.` 이 여러 부에 있는 실제 상황(실측: 최대 96개).
+_EV_COLLIDING = [
+    EvidenceClause(qualified_no="보통약관/1.", text="보장종목은 상해와 질병입니다."),
+    EvidenceClause(qualified_no="특별약관/1.", text="이 특별약관의 보장종목은 다릅니다."),
+    EvidenceClause(
+        qualified_no="이륜자동차 운전중상해 부담보 특별약관/1.",
+        text="특별약관의 체결 및 효력에 관한 사항입니다.",
+    ),
+]
 
-def test_근거에_있는_조항만_인용하면_통과한다():
+
+# ── 기본 ──────────────────────────────────────────────────────────────
+def test_전체_경로로_인용하면_통과한다():
     r = verify(cited_clauses=["보통약관/제9조"], evidence=_EV)
     assert r.ok
-    assert not r.unknown_citations
+    assert r.checks[0].resolution is Resolution.EXACT
 
 
 def test_근거에_없는_조항을_인용하면_폐기한다():
-    #: ★핵심 — LLM 이 '제15조' 를 지어냈다. 근거에 없다.
     r = verify(cited_clauses=["보통약관/제15조"], evidence=_EV)
     assert not r.ok
-    assert "보통약관/제15조" in r.unknown_citations
+    assert r.reason_code == "citation_not_in_evidence"
 
 
-def test_부_이름이_달라도_번호가_맞으면_통과한다():
-    #: LLM 이 부 이름까지 정확히 쓰길 기대하지 않는다. 번호가 근거에 있으면 된다.
+def test_번호만_와도_후보가_하나면_해소한다():
     r = verify(cited_clauses=["제9조"], evidence=_EV)
     assert r.ok
+    assert r.checks[0].resolution is Resolution.RESOLVED
 
 
 def test_공백_표기_차이를_흡수한다():
@@ -38,23 +57,97 @@ def test_공백_표기_차이를_흡수한다():
     assert r.ok
 
 
-def test_본문에서만_말하고_선언하지_않으면_경고한다():
+# ── ★v1 의 핵심 결함 ──────────────────────────────────────────────────
+def test_같은_번호가_여러_부에_있으면_기권한다():
+    """★v1 은 부 이름을 떼서 `보통약관/1.` `특별약관/1.` 을 같은 것으로 봤다.
+
+    그래서 LLM 이 **어느 특약의 1조를 인용하든** 통과했다(87% 문서에서).
+    이제는 특정할 수 없다고 말한다 — 통과시키지도, 무작정 폐기하지도 않는다.
+    """
+    r = verify(cited_clauses=["1."], evidence=_EV_COLLIDING)
+    assert not r.ok
+    assert r.reason_code == "ambiguous_citation"
+    assert len(r.checks[0].candidates) == 3
+
+
+def test_부를_명시하면_충돌_상황에서도_통과한다():
+    r = verify(cited_clauses=["특별약관/1."], evidence=_EV_COLLIDING)
+    assert r.ok
+    assert r.checks[0].matched.text.startswith("이 특별약관의")
+
+
+def test_손잡이로_인용하면_충돌이_없다():
+    """★근거마다 `E001` 을 주면 이름·번호를 정확히 쓸 필요가 없다."""
+    ev = make_handles(_EV_COLLIDING)
+    r = verify(cited_clauses=["E002"], evidence=ev)
+    assert r.ok
+    assert r.checks[0].resolution is Resolution.EXACT
+    assert r.checks[0].matched.qualified_no == "특별약관/1."
+
+
+def test_없는_손잡이는_폐기한다():
+    ev = make_handles(_EV_COLLIDING)
+    r = verify(cited_clauses=["E099"], evidence=ev)
+    assert not r.ok
+    assert r.reason_code == "citation_not_in_evidence"
+
+
+def test_부를_썼는데_틀리면_번호로_강등하지_않는다():
+    """`없는특약/제9조` 는 제9조가 근거에 있어도 통과하면 안 된다."""
+    r = verify(cited_clauses=["없는특약/제9조"], evidence=_EV)
+    assert not r.ok
+    assert r.reason_code == "citation_not_in_evidence"
+
+
+# ── ★코덱스가 찾은 우회 경로 ─────────────────────────────────────────
+def test_인용이_아예_없으면_폐기한다():
+    """★v1 은 `ok = not unknown` 이라 빈 인용도 통과했다."""
+    r = verify(cited_clauses=[], evidence=_EV, answer_text="보장됩니다.")
+    assert not r.ok
+    assert r.reason_code == "no_citation"
+
+
+def test_본문에서만_말하고_선언하지_않으면_폐기한다():
+    """★v1 은 경고로만 뒀다. 그러면 선언을 비우고 본문에만 써서 우회할 수 있다."""
     r = verify(
         cited_clauses=["보통약관/제9조"],
         evidence=_EV,
-        answer_text="제9조와 제3조에 따라 보장됩니다.",
+        answer_text="제9조와 제77조에 따라 보장됩니다.",
     )
-    assert r.ok                      # 폐기 사유는 아니다
-    assert "제3조" in r.undeclared_mentions
+    assert not r.ok
+    assert r.reason_code == "undeclared_citation"
+    assert "제77조" in r.undeclared_mentions
 
 
-def test_인용문이_원문에_없으면_경고한다():
+def test_인용한_조항_자신은_선언_누락이_아니다():
     r = verify(
         cited_clauses=["보통약관/제9조"],
         evidence=_EV,
-        quotes={"보통약관/제9조": "회사는 전액을 지급합니다"},   # 원문에 없는 문장
+        answer_text="제9조에 따라 자기부담금을 공제합니다.",
     )
-    assert "보통약관/제9조" in r.quote_mismatches
+    assert r.ok
+
+
+def test_인용문이_원문에_없으면_폐기한다():
+    """★v1 은 경고로만 뒀다."""
+    r = verify(
+        cited_clauses=["보통약관/제9조"],
+        evidence=_EV,
+        quotes={"보통약관/제9조": "회사는 전액을 지급합니다"},
+    )
+    assert not r.ok
+    assert r.reason_code == "quote_not_in_source"
+
+
+def test_빈_인용문은_통과가_아니라_실패다():
+    """★`quote=""` 로 대조를 통째로 건너뛸 수 있으면 안 된다."""
+    r = verify(
+        cited_clauses=["보통약관/제9조"],
+        evidence=_EV,
+        quotes={"보통약관/제9조": ""},
+    )
+    assert not r.ok
+    assert r.reason_code == "quote_not_in_source"
 
 
 def test_인용문이_원문에_있으면_통과한다():
@@ -63,4 +156,39 @@ def test_인용문이_원문에_있으면_통과한다():
         evidence=_EV,
         quotes={"보통약관/제9조": "자기부담금을 공제합니다"},
     )
-    assert not r.quote_mismatches
+    assert r.ok
+
+
+def test_같은_조항의_인용문_여러_개를_모두_본다():
+    """★v1 은 dict 라 마지막 것만 남았다."""
+    r = verify(
+        cited_clauses=["보통약관/제9조"],
+        evidence=_EV,
+        quotes={"보통약관/제9조": ["자기부담금을 공제합니다", "전액 지급합니다"]},
+    )
+    assert not r.ok  # 두 번째가 원문에 없다
+    assert r.reason_code == "quote_not_in_source"
+
+
+def test_조항_표기가_아니면_invalid_다():
+    """★v1 은 `search` 라 `"아무말 제9조 아무말"` 이 통과했다."""
+    r = verify(cited_clauses=["우울증은 보장됩니다"], evidence=_EV)
+    assert not r.ok
+    assert r.reason_code == "invalid_citation"
+
+
+def test_조와_호를_구분한다():
+    """★`제1조` 와 `1.` 은 문법 층이 다르다. v1 은 같은 키로 만들었다."""
+    ev = [EvidenceClause(qualified_no="보통약관/제1조", text="목적")]
+    r = verify(cited_clauses=["1."], evidence=ev)
+    assert not r.ok  # `1.` 로는 `제1조` 에 닿지 않는다
+
+
+def test_조항의_가지번호를_구분한다():
+    ev = [
+        EvidenceClause(qualified_no="보통약관/제9조", text="본조"),
+        EvidenceClause(qualified_no="보통약관/제9조의2", text="가지조"),
+    ]
+    r = verify(cited_clauses=["제9조의2"], evidence=ev)
+    assert r.ok
+    assert r.checks[0].matched.text == "가지조"

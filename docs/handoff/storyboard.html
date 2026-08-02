@@ -90,15 +90,15 @@
 
 <h2>1. 전체 흐름</h2>
 <pre>                        사람 화면                      에이전트 JSON
- ①  지원범위 선언        안내 카드                      GET  /v1/support-manifest
- ②  KCD 추출·승인        체크박스로 사용자 승인          POST /v1/prechecks (kcd_codes[])
- ③  되묻기               상품군 카드 3종                200 + reason_code + candidates[]
- ④  약관 버전 확정       "왜 이 약관인가" 표시           applied_policy 블록
+ ①  지원범위 선언        안내 카드                      <span style="white-space:pre">	</span>GET  /v1/support-manifest
+ ②  KCD 추출·승인        체크박스로 사용자 승인         <span style="white-space:pre">	</span>POST /v1/prechecks (kcd_codes[])
+ ③  되묻기               상품군 카드 3종                <span style="white-space:pre">	</span>200 + reason_code + candidates[]
+ ④  약관 버전 확정       "왜 이 약관인가" 표시           <span style="white-space:pre">	</span>applied_policy 블록
  ⑤  판정 + 근거          근거 사슬 화면                  verdict + per_code[] + citations[]
  ⑥  확인 불가            '확인 불가' 카드                200 + abstained=true    ← ★기권도 200
- ⑦  경고                 ⚠ 배너 (숨기지 않음)            warnings[] + *_confidence
+ ⑦  경고                 ⚠ 배너 (숨기지 않음)           warnings[] + *_confidence
  ⑧  코호트               실제 / DEMO 두 구역 분리        data_source 필드 필수
- ⑨  증빙 제출 → 검수     제출 → 검수 대기                POST /v1/observations (+멱등키)
+ ⑨  증빙 제출 → 검수     제출 → 검수 대기                <span style="white-space:pre">	</span>POST /v1/observations (+멱등키)
 </pre>
 
 <h2>2. 컷</h2>
@@ -425,6 +425,21 @@ GET /v1/demo/cohorts     ← 합성
 ★<b>에이전트에게 <code>data_source</code> 를 생략하지 않는다.</b> 사람은 화면의 DEMO 배지를 보지만,
 에이전트는 필드를 안 보면 <b>합성 수치를 실제로 오해해 자기 사용자에게 전달한다.</b></div>
 
+<div class="box d" style="margin:.9rem 0 0">
+<b>★왜 "승인 확률"로 표시하지 않나 — 이유 셋</b>
+<ul style="margin:.25rem 0 .5rem">
+<li><b>빈도는 사실, 확률은 예측이다.</b> "40건 중 33건"은 과거 사실이지만 "82% 확률로 승인"은 예측이고, 우리 표본으로는 못 받친다</li>
+<li><b>개인 확률은 비범위다.</b> <code>MVP §4</code> — "개인 예상 지급액 제시(손해사정 유사행위 소지) · 과거 분포만 표시"</li>
+<li><b>확률로 말하면 편향이 숫자 안으로 숨는다.</b> 빈도로 말하면 편향 경고가 숫자 <b style="display:inline">바깥</b>에 남는다</li>
+</ul>
+★<b style="display:inline">그래서 문구에 주어를 박는다.</b> "승인 비율 68%~91%" 라고만 쓰면
+사용자는 <b style="display:inline">"내가 그 확률로 받는다"</b> 로 읽는다 — 신뢰구간은
+<b style="display:inline">모수(과거 사례들의 비율)</b> 에 대한 진술이지 개인에 대한 것이 아니다.
+<pre style="margin:.4rem 0 0">검증된 과거 사례 40건 중 33건 승인 · 7건 부지급
+(이 사례들의 승인 비율은 68%~91% 범위로 추정됩니다
+ · 95% 신뢰구간 · 본인의 결과를 예측하지 않습니다)</pre>
+</div>
+
 
 </div></div>
 
@@ -475,6 +490,51 @@ Idempotency-Key: 891f15ac-…      ← 쓰기엔 필수
 ★<b>외부 에이전트가 준 사례는 판정 근거가 아니다</b>(<code>tier="external_report"</code>).
 통계·사후검증에만 쓰고 약관 조항과 같은 인덱스에 넣지 않는다.
 <code>precheck_trace_id</code> 가 있으면 <b>우리 판정과 실제 결과를 대조</b>할 수 있다 — 이게 이 제품의 학습 고리다.</div>
+
+<div class="box w" style="margin:.9rem 0 0">
+<b>★"사람이 검수한다"는 영구 전제가 아니다 — 확장 경로</b>
+지금은 관리자가 한 건씩 본다. <b style="display:inline">규모가 커지면 이건 못 버틴다.</b>
+적어 두지 않으면 "사람이 다 본다"가 영구 전제처럼 굳는다.
+
+<div style="margin:.55rem 0 .35rem"><b style="display:inline">병목 상한을 미리 안다</b> —
+1건 5분 · 하루 2시간이면 <b style="display:inline">하루 24건 · 월 500건 남짓</b>이 한계다.</div>
+
+<div style="margin:.55rem 0 .3rem">★핵심은 <b style="display:inline">"검증"이 한 덩어리가 아니라는 것</b>이다.
+등급을 쪼개면 사람 판단이 꼭 필요한 부분은 생각보다 작다.</div>
+<table style="margin:.3rem 0 .5rem">
+<tbody><tr><th>등급</th><th>실제로 하는 일</th><th>무엇이 대체하나</th></tr>
+<tr><td><code>self_reported</code></td><td>신원 확인</td><td><b>이미 자동</b> — <code>agent_client</code> 인증 + 동의 기록</td></tr>
+<tr><td><code>document_backed</code></td><td>문서가 붙었나, 말이 되나</td><td><b>규칙엔진</b> — 해시 중복 · OCR 필드 추출 · 금액/날짜/보험사/질병코드 정합성</td></tr>
+<tr><td><code>confirmed</code></td><td>발행처가 실제로 그렇게 결정했나</td><td><b>조회지 판단이 아니다</b> — 보험사·기관 API</td></tr>
+<tr><td>(나머지)</td><td>위 어디에도 안 걸리는 건</td><td>★<b>여기만 사람이 본다</b></td></tr>
+</tbody></table>
+<div style="margin:.2rem 0 .5rem">목표는 "사람을 없앤다"가 아니라
+<b style="display:inline">"사람이 전수가 아니라 예외만 본다"</b> 이다.</div>
+
+<pre style="margin:.3rem 0 .5rem">1단계 (지금)  전수 사람 검수                    n &lt; 500
+2단계         자동 정합성 검사 + 이상탐지       → 통과분은 표본 검수(예: 10%)
+3단계         발행처 API 확인                   → confirmed 자동 승격
+4단계         클라이언트 신뢰등급               → 이력 좋은 곳은 표본율 하향
+                                                (감사 추적은 100% 유지)</pre>
+
+<div style="margin:.35rem 0"><b style="display:inline">★스키마는 바뀌지 않는다</b> —
+<code>verification_method NOT NULL</code> 이 이미 "누가·무엇으로"를 요구한다.
+검증 주체가 사람이든 규칙엔진이든 API든 <b style="display:inline">같은 자리에 기록된다.</b>
+자동화는 스키마 변경이 아니라 값의 추가다:
+<code>admin_review | consistency_rules | issuer_api | cross_submission</code></div>
+
+<div style="margin:.35rem 0"><b style="display:inline">★대가 — 등급을 뭉뚱그리지 않는다.</b>
+자동 검증은 사람 검수보다 강도가 낮다. <code>verified</code> 하나로 합치면
+<b style="display:inline">자동화가 진행될수록 통계가 조용히 묽어진다.</b>
+그래서 코호트를 <code>verification_method</code> 별로 쪼개 보고, 화면에는
+"검증 40건"이 아니라 <b style="display:inline">"발행처 확인 12건 · 자동 정합성 28건"</b> 으로 쓴다.</div>
+
+<div><b style="display:inline">하지 않을 것</b> — LLM 이 지급통지서를 읽고 "검증됨"으로 올리는 것.
+그건 검증이 아니라 추측이다. LLM 은 <b style="display:inline">필드를 뽑는 데까지만</b> 쓰고,
+맞는지는 규칙·해시·외부 조회가 판단한다.
+검증 단계의 오류는 <b style="display:inline">판정 오류보다 범위가 넓다</b> — 통계 전체로 번진다.
+자세한 것은 <code>03_에이전트_데이터_축적_설계.md</code> §3-1.</div>
+</div>
 </div></div>
 
 <h2>3. 담당 매핑</h2>

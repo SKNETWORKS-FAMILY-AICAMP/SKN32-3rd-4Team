@@ -96,13 +96,15 @@ curl -X POST localhost:8000/v1/prechecks -H 'Content-Type: application/json' -d 
 
 ```
 app/
-  core/
-    domain/     kcd_ranges · citation_guard · policy_naming · insurance · generation
+  core/                                        ← ★프레임워크도 바깥도 모른다
+    domain/     kcd_ranges · citation_guard · policy_naming
+                precheck_result · insurance · generation
     ports/      precheck · insurance           ← 바깥에 요구하는 것
     usecases/   precheck · cohort · diagnosis  ← 판정 흐름
   adapters/     manifest_policy_resolver · file_clause_store  ← 파일 I/O
-  schemas/      precheck · auth                ← DTO
+  schemas/      precheck · auth                ← HTTP DTO (pydantic)
   routers/      precheck · auth · admin · health …
+                ↑ 도메인 ↔ HTTP 변환은 여기서 한다
 scripts/
   crawl/        약관 수집·매니페스트·세대 판정
   extract/      PDF → 페이지 JSON → 조항 JSON
@@ -116,6 +118,7 @@ docs/
 ```
 ARCH-001  app/application 이 fastapi·langchain·sqlalchemy·openai 를 import 안 함
 ARCH-002  app/core/{domain,ports,usecases} 가 프레임워크도 바깥 계층도 모름
+          (app.adapters · app.routers · app.schemas · app.db …)
 ARCH-003  경계 밖 도메인 패키지 금지 · 도메인 타입 단일 정의 · 유스케이스가 어댑터 import 금지
 ARCH-004  현행 코드가 legacy/ 를 참조하지 않음
 ```
@@ -154,7 +157,7 @@ pytest tests/test_arch.py
 | 질병명 → 코드 | 없다. 코드 입력만 받는다 |
 | 표(table) 의미 | 셀만 뽑았다. **보장 한도·자기부담금이 표에 있다** |
 | 조 번호 충돌 | 부까지 포함해도 겹친다. 식별키 개선 필요 |
-| LLM 판정 | 없다. 지금은 규칙 기반이다 |
+| LLM 판정 | 없다. 지금은 규칙 기반이다. 붙일 때 `verify_explanation()` 을 반드시 통과시킨다 |
 | DB 적재 | 아직 파일을 직접 읽는다 |
 
 ---

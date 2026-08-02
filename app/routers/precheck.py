@@ -21,9 +21,13 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, status
 
 from app.adapters import file_clause_store, manifest_policy_resolver
+from app.core.domain.precheck_result import PrecheckInput, PrecheckOutcome
 from app.core.errors import InfraError, ValidationErr
 from app.core.usecases import precheck
 from app.schemas.precheck import (
+    AppliedPolicy,
+    Citation,
+    CodeAssessment,
     ExternalCaseSubmission,
     PrecheckRequest,
     PrecheckResult,
@@ -47,6 +51,78 @@ def _versions():
     return _VERSIONS
 
 
+#: ★도메인 ↔ HTTP 변환은 **여기(바깥)** 의 일이다.
+#:
+#:   유스케이스가 pydantic 모델을 직접 쓰면 **안쪽이 바깥을 참조**하게 된다.
+#:   실제로 그랬고, `ARCH-002` 의 금지 목록에 `app.schemas` 가 없어 빠져나갔다.
+#:   유스케이스는 `PrecheckOutcome`(순수 dataclass)을 돌려주고 여기서 옮긴다.
+
+
+def _to_input(body: PrecheckRequest) -> PrecheckInput:
+    return PrecheckInput(
+        insurer=body.insurer,
+        enrolled_on=body.enrolled_on,
+        kcd_codes=tuple(body.kcd_codes),
+        product_name=body.product_name,
+        client_ref=body.client_ref,
+    )
+
+
+def _cite(c) -> Citation:
+    return Citation(
+        clause_id=c.clause_id,
+        qualified_no=c.qualified_no,
+        section=c.section,
+        title=c.title,
+        quote=c.quote,
+        page_from=c.page_from,
+        page_to=c.page_to,
+        tier=c.tier,
+    )
+
+
+def _policy(p) -> AppliedPolicy:
+    return AppliedPolicy(
+        insurer=p.insurer,
+        product_name=p.product_name,
+        sale_start=p.sale_start,
+        sale_end=p.sale_end,
+        generation=p.generation,
+        generation_label=p.generation_label,
+        product_line=p.product_line,
+        sha256=p.sha256,
+        date_confidence=p.date_confidence,
+        generation_confidence=p.generation_confidence,
+        parse_status=p.parse_status,
+    )
+
+
+def _to_dto(o: PrecheckOutcome) -> PrecheckResult:
+    return PrecheckResult(
+        verdict=o.verdict,
+        abstained=o.abstained,
+        reason_code=o.reason_code,
+        message=o.message,
+        applied_policy=_policy(o.applied_policy) if o.applied_policy else None,
+        per_code=[
+            CodeAssessment(
+                code=a.code,
+                verdict=a.verdict,
+                reason_code=a.reason_code,
+                citations=[_cite(c) for c in a.citations],
+                note=a.note,
+            )
+            for a in o.per_code
+        ],
+        citations=[_cite(c) for c in o.citations],
+        candidates=[_policy(c) for c in o.candidates],
+        rule_engine_version=o.rule_engine_version,
+        extractor=o.extractor,
+        trace_id=o.trace_id,
+        warnings=o.warnings,
+    )
+
+
 @router.post("/prechecks", response_model=PrecheckResult)
 def create_precheck(body: PrecheckRequest) -> PrecheckResult:
     """가입일·질병기호로 보장 여부를 미리 본다.
@@ -55,9 +131,13 @@ def create_precheck(body: PrecheckRequest) -> PrecheckResult:
       추측해서 "보장됩니다"라고 말하지 않는다.
     """
     try:
-        return precheck.run(
-            body, policies=_POLICIES, clauses=_CLAUSES, versions=_versions()
+        outcome = precheck.run(
+            _to_input(body),
+            policies=_POLICIES,
+            clauses=_CLAUSES,
+            versions=_versions(),
         )
+        return _to_dto(outcome)
     except ValidationErr as e:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e)

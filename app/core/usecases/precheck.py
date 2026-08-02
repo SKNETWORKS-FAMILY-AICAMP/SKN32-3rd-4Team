@@ -44,13 +44,13 @@ from app.core.ports.precheck import (
     PolicyVersionSourcePort,
 )
 from app.core.domain.insurance import Verdict
-from app.schemas.precheck import (
-    AppliedPolicy,
-    Citation,
-    CodeAssessment,
+from app.core.domain.precheck_result import (
+    AppliedPolicyInfo,
+    CitationRef,
+    CodeVerdict,
     EvidenceTier,
-    PrecheckRequest,
-    PrecheckResult,
+    PrecheckInput,
+    PrecheckOutcome,
     ReasonCode,
 )
 
@@ -60,7 +60,7 @@ RULE_ENGINE_VERSION = "rules-2026.08.02"
 _USABLE_PARSE_STATUS = {"ok"}
 
 
-def _trace_id(req: PrecheckRequest) -> str:
+def _trace_id(req: PrecheckInput) -> str:
     """같은 요청이면 같은 값. 감사·재현에 쓴다."""
     raw = json.dumps(
         {
@@ -75,8 +75,8 @@ def _trace_id(req: PrecheckRequest) -> str:
     return hashlib.sha256(raw.encode()).hexdigest()[:16]
 
 
-def _to_applied(v: PolicyVersionRow, parse_status: str = "") -> AppliedPolicy:
-    return AppliedPolicy(
+def _to_applied(v: PolicyVersionRow, parse_status: str = "") -> AppliedPolicyInfo:
+    return AppliedPolicyInfo(
         insurer=v.insurer,
         product_name=v.product_name,
         sale_start=v.sale_start,
@@ -100,12 +100,12 @@ _REASON_MAP = {
 
 
 def run(
-    req: PrecheckRequest,
+    req: PrecheckInput,
     *,
     policies: PolicyVersionSourcePort,
     clauses: ClauseSourcePort,
     versions: list[PolicyVersionRow] | None = None,
-) -> PrecheckResult:
+) -> PrecheckOutcome:
     """사전판정 한 건.
 
     Args:
@@ -131,7 +131,7 @@ def run(
     )
     if isinstance(got, NotResolved):
         #: ★현행 약관으로 때우지 않는다. 못 정하면 못 정했다고 답한다.
-        return PrecheckResult(
+        return PrecheckOutcome(
             verdict=Verdict.NEEDS_EXPERT,
             abstained=True,
             reason_code=_REASON_MAP.get(got.reason_code),
@@ -144,7 +144,7 @@ def run(
     try:
         st = clauses.stats(got.sha256)
     except Exception as e:  # noqa: BLE001
-        return PrecheckResult(
+        return PrecheckOutcome(
             verdict=Verdict.NEEDS_EXPERT,
             abstained=True,
             reason_code=ReasonCode.NO_EVIDENCE,
@@ -156,7 +156,7 @@ def run(
     applied = _to_applied(got, st["parse_status"])
     if st["parse_status"] not in _USABLE_PARSE_STATUS:
         #: ★구조화가 미심쩍은 문서로 "보장됩니다"라고 말하지 않는다.
-        return PrecheckResult(
+        return PrecheckOutcome(
             verdict=Verdict.NEEDS_EXPERT,
             abstained=True,
             reason_code=ReasonCode.DOCUMENT_NOT_RELIABLE,
@@ -175,7 +175,7 @@ def run(
         for m in kcd.scan_clause(c.text):
             mentions.append((m, c))
     if not mentions:
-        return PrecheckResult(
+        return PrecheckOutcome(
             verdict=Verdict.NEEDS_EXPERT,
             abstained=True,
             reason_code=ReasonCode.NO_EVIDENCE,
@@ -185,13 +185,13 @@ def run(
         )
 
     # ── 4) 코드별 판정 ──────────────────────────────────────────
-    per_code: list[CodeAssessment] = []
-    all_cites: list[Citation] = []
+    per_code: list[CodeVerdict] = []
+    all_cites: list[CitationRef] = []
     for code in req.kcd_codes:
         judged = kcd.judge(code, [m for m, _ in mentions])
         if judged["status"] == "invalid_code":
             per_code.append(
-                CodeAssessment(
+                CodeVerdict(
                     code=code,
                     verdict=Verdict.NEEDS_EXPERT,
                     reason_code=ReasonCode.INVALID_CODE,
@@ -222,7 +222,7 @@ def run(
                 "이 단계에서 보장된다고 단정할 수 없습니다.",
             )
         per_code.append(
-            CodeAssessment(code=judged["code"], verdict=v, reason_code=rc, citations=cites, note=note)
+            CodeVerdict(code=judged["code"], verdict=v, reason_code=rc, citations=cites, note=note)
         )
 
     # ── 5) 전체 결론 ────────────────────────────────────────────
@@ -240,7 +240,7 @@ def run(
     if applied.generation_confidence == "ambiguous":
         warnings.append("세대 판정이 경계에 걸쳐 있습니다.")
 
-    return PrecheckResult(
+    return PrecheckOutcome(
         verdict=overall,
         abstained=overall == Verdict.NEEDS_EXPERT,
         reason_code=rc,
@@ -254,15 +254,64 @@ def run(
     )
 
 
-def _citations(pairs, status: str) -> list[Citation]:
+def verify_explanation(
+    *,
+    cited_clauses: list[str],
+    evidence: list[ClauseRow],
+    answer_text: str = "",
+    quotes: dict | None = None,
+) -> tuple[bool, ReasonCode | None, str]:
+    """LLM 이 만든 설명의 인용을 검증한다. `(통과, 사유코드, 메시지)`.
+
+    ★규칙 엔진이 판정을 소유하고 LLM 은 **설명만** 만든다.
+
+        이 함수는 그 설명을 받아 인용이 우리 근거 안에 있는지 본다.
+        통과하지 못하면 **설명을 버린다** — 판정(verdict)은 규칙이 이미 정했으므로
+        설명이 없어도 답할 수 있다. 다만 근거를 못 대는 설명을 내보내면 안 된다.
+
+    ★`ambiguous` 를 어떻게 다루나
+
+        "어느 조항인지 특정할 수 없다"는 **통과도 폐기도 아니다.**
+        같은 번호가 여러 특약에 있어 우리가 못 가리는 상황이다.
+        그때는 `AMBIGUOUS_CITATION` 으로 기권한다 — 사람이 봐야 한다.
+
+    ★아직 호출부가 없다(정직 기록)
+
+        `run()` 은 지금 LLM 없이 규칙만으로 판정하므로 검증할 설명이 없다.
+        LLM 을 붙일 때 이 함수를 통과한 설명만 응답에 싣는다.
+        미리 만들어 두는 이유는 **경계를 코드로 못박아 두기 위해서**다 —
+        나중에 급할 때 "일단 그냥 내보내자"가 되지 않도록.
+    """
+    from app.core.domain import citation_guard as cg
+
+    ev = cg.make_handles(
+        [cg.EvidenceClause(qualified_no=c.qualified_no, text=c.text) for c in evidence]
+    )
+    r = cg.verify(
+        cited_clauses=cited_clauses,
+        evidence=ev,
+        answer_text=answer_text,
+        quotes=quotes,
+    )
+    if r.ok:
+        return True, None, ""
+    code = (
+        ReasonCode.AMBIGUOUS_CITATION
+        if r.reason_code == "ambiguous_citation"
+        else ReasonCode.CITATION_UNVERIFIED
+    )
+    return False, code, r.reason
+
+
+def _citations(pairs, status: str) -> list[CitationRef]:
     """근거 조항 → 인용. ★성격이 불명한(`mention`) 것은 근거로 내지 않는다."""
     want = {"excluded": {"exclude"}, "exception": {"exception", "exclude"}}.get(status, set())
-    out: list[Citation] = []
+    out: list[CitationRef] = []
     for m, c in pairs:
         if m.kind not in want:
             continue
         out.append(
-            Citation(
+            CitationRef(
                 clause_id=c.clause_id,
                 qualified_no=c.qualified_no,
                 section=c.section,
@@ -276,12 +325,21 @@ def _citations(pairs, status: str) -> list[Citation]:
     return out
 
 
-def _dedupe(cites: list[Citation]) -> list[Citation]:
-    seen: set[str] = set()
-    out: list[Citation] = []
+def _dedupe(cites: list[CitationRef]) -> list[CitationRef]:
+    """같은 인용을 한 번만 남긴다.
+
+    ★`clause_id` 하나로 접으면 **서로 다른 조항이 조용히 사라진다.**
+      `{sha12}/{qualified_no}` 는 31,085건 충돌한다(문서의 86%) —
+      부 탐지 입도가 특약보다 굵어 다른 특약이 한 라벨에 뭉치기 때문이다.
+      `clause_id` 에 내용 해시를 붙여 고쳤지만, 여기서도 **페이지를 함께 본다.**
+      같은 내용이 다른 쪽에 또 실렸으면 그건 다른 인용이다.
+    """
+    seen: set[tuple[str, int, int]] = set()
+    out: list[CitationRef] = []
     for c in cites:
-        if c.clause_id in seen:
+        key = (c.clause_id, c.page_from, c.page_to)
+        if key in seen:
             continue
-        seen.add(c.clause_id)
+        seen.add(key)
         out.append(c)
     return out

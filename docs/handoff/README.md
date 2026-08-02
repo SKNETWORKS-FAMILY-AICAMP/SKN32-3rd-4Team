@@ -21,7 +21,8 @@
 | [08_계약_프론트.md](08_계약_프론트.md) | 최연우 | 화면 상태표 |
 | [09_A2A_판단.md](09_A2A_판단.md) | 전원 | 에이전트 간 위임을 할 것인가 |
 | [10_계약_모델_평가.md](10_계약_모델_평가.md) | 서유현·송채영 | **모델 평가 지표·평가셋·색인 입력 계약** |
-| [erd_briefing.html](erd_briefing.html) | 전원 | ERD·스키마 브리핑(브라우저로 열기) |
+| [erd_briefing.html](erd_briefing.html) | 전원 | ERD·스키마 브리핑 — **왜 이렇게 설계했나**(브라우저로 열기) |
+| [erd_tables.html](erd_tables.html) | 백엔드·전원 | ★**테이블·컬럼 사전** — 27테이블+뷰1의 전 컬럼·타입·제약·enum(브라우저로 열기) |
 | [storyboard.html](storyboard.html) | 전원 | **데모 흐름 스토리보드(브라우저로 열기)** |
 
 ---

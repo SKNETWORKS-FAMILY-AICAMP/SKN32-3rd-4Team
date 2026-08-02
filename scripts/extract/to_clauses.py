@@ -15,12 +15,21 @@
     8 중복 처리(준비)  : 조항마다 **내용 해시**를 계산한다
                         ★번호가 아니라 **내용**이 정체성이다 — 같은 번호라도 내용이
                           다르면 다른 조항이고, 번호가 바뀌어도 내용이 같을 수 있다
-    9 계층형 청킹      : 부 → 조 → (긴 조는 항 단위) 로 나눈다
+    9 계층형 청킹      : 부 → 조 → **항(①)** 으로 나누고, 항 안의 **호(1./가./1))**
+                        위치를 표시한다. 인용은 `제4조(보상하지 않는 사항) 제1항` 형태
+
+    ★9단계는 v5(2026-08-02)에 실제로 구현했다. v4 까지는 이 자리에
+      "부 → 조 → (긴 조는 항 단위) 로 나눈다"고 적혀 있었지만 **하지 않았다** —
+      `_PARA.split()` 결과의 개수만 세고 버렸다. `2026-07-31_전처리_파이프라인_현황.md`
+      는 9단계를 `❌ 없음` 으로 정확히 기록하고 있었는데, 이 독스트링만 앞서 있었다.
+      **문서가 코드보다 앞서 가면 아무도 그게 비어 있는 줄 모른다.**
 
 이 스크립트가 **하지 않는 일**
     - 조항이 무엇을 뜻하는지 해석하지 않는다
     - 표가 어느 조항에 속하는지 **추정하지 않는다.** 같은 페이지에 있으면 그 사실만 기록한다
     - 경계를 못 찾으면 조용히 넘어가지 않고 그 사실을 남긴다
+    - **읽지 못한 항 번호를 지어내지 않는다.** `paragraph_no=null` 로 두고 세어 남긴다
+    - 목(目, `(1)`/`(가)`)은 나누지 않는다. 호까지만 한다
 
 실행:
     python -m scripts.extract.to_clauses --sha 968e67f4d3b6
@@ -113,8 +122,49 @@ CLAUSE_MAX_CHARS = 30_000
 
 #: 목차 판정용(줄 위치 무관). 목차는 조 번호가 촘촘히 나열되므로 전체 검색이 맞다.
 _ARTICLE_ANY = re.compile(r"제\s*\d{1,3}\s*조")
-#: 항 번호(①②③ 또는 1. 2. 3.)
-_PARA = re.compile(r"(?:^|\n)\s*([①-⑳]|\d{1,2}\.)\s")
+#: ★항(項)과 호(號)는 **다른 층이다.** v4 의 `_PARA` 는 둘을 섞었다
+#:   (`([①-⑳]|\d{1,2}\.)` — `①` 과 `1.` 을 같은 것으로 봤다).
+#:   그래서 `paragraph_count` 가 항 수도 호 수도 아닌 값이었고,
+#:   **"제N조 제M항"을 조립할 수 없었다.**
+#:
+#:   약관의 층은 이렇다:  조 > 항(①②③) > 호(1. / 가. / 1)) > 목((1) / (가) / 가))
+#:   실측(표본 120문서): 항 52,046 · 호 78,162(숫자점 47,368 · 가나다 18,507 · 숫자괄호 12,287)
+#:
+#: ★줄머리에 있는 것만 인정한다. 조 머리와 같은 이유다 —
+#:   본문 중간의 `①` 은 인용이거나 표 안의 기호다.
+#:   (DB손보 일부 문서는 항 마커가 문장 중간에 인라인으로 온다. 그건 못 잡는다 —
+#:    잡으려다 오탐을 만드느니 놓치고 세는 편이 낫다.)
+_PARA_MARK = re.compile(r"^[ \t]*([①-⑳])[ \t]*")
+
+#: ★번호를 **못 읽은** 항. 지우지 않고 센다.
+#:
+#:   `①~⑨` 는 보조 사용자영역(U+F02B1~F02B9)에서 복구했지만(`to_page_json`),
+#:   `⑩` 부터는 두 글자가 겹쳐 나와 산술 매핑이 **틀린다**(v4 리포트 §3).
+#:   그래서 복구하지 않았고, 그 자리엔 아직 PUA 문자가 남아 있다.
+#:   실측(표본 120문서): 줄머리 미매핑 PUA **241개 / 12문서**
+#:   (`U+F02BA` 52 · `U+F0289` 42 · `U+F02C3` 31 …).
+#:
+#:   이런 항은 `paragraph_no=null` 로 두고 `stats.unresolved_paragraphs` 에 센다.
+#:   **번호를 지어내지 않는다** — 틀린 "제10항"은 없는 것만 못하다.
+_PARA_UNKNOWN = re.compile(r"^[ \t]*([\U000F0000-\U000FFFFD])[ \t]*")
+
+#: 호(號). `1.` `가.` `1)` 세 조판을 다 받는다.
+#:
+#: ★`re.MULTILINE` 이 없으면 `^` 가 **문자열 맨 앞에만** 걸려 호가 0개로 나온다
+#:   (첫 구현에서 그렇게 나왔다. 항은 줄 단위로 돌려 무사했고 호만 비었다).
+#:
+#: ★★`[가-하]` 로 쓰면 안 된다. 정규식의 `-` 는 **유니코드 코드포인트 범위**라
+#:   `가`(U+AC00)~`하`(U+D558) 사이 **10,585자**를 전부 잡는다 —
+#:   `값.` `강.` `곱.` 처럼 **아무 한글 음절 + 마침표**가 호가 된다.
+#:   문장이 한 글자로 끝나고 마침표가 오면 그게 전부 호로 잡혔다(코덱스가 잡았다).
+#:   가나다 호 기호는 **14개뿐**이므로 그대로 나열한다.
+_HO_KOR = "가나다라마바사아자차카타파하"
+_ITEM_MARK = re.compile(
+    r"^[ \t]*(\d{1,2}\.|[" + _HO_KOR + r"]\.|\d{1,2}\))[ \t]", re.MULTILINE
+)
+
+#: 원문자 → 숫자. `chr(0x2460)` 이 `①`.
+_CIRCLED_NO = {chr(0x2460 + i): i + 1 for i in range(20)}
 #: ★목차 신호 1 — **점선(dot leader)**.
 #: 목차 줄은 `제1 조 【보장종목】 ......................... 1` 꼴이다.
 #: 이 점선이 글자수를 부풀려 목차 판정을 무력화했다(실측: p25 비율 202 로
@@ -261,6 +311,34 @@ def _toc_verdict(text: str) -> str:
 #: p23 '보통약관', p63 '별표' 처럼 **한 줄에 그것만** 있다.
 _SECTION_LINE = re.compile(r"^\s*(보통약관|특별약관|별\s*표\s*\d*|부\s*록|약관\s*요약서)\s*$")
 
+#: ★★인용 법령 구간 — **약관 조항이 아니다.**
+#:
+#:   약관 뒤에는 본문이 인용한 법령 원문이 통째로 실린다(상법·의료법·개인정보보호법…).
+#:   그게 그대로 조항으로 잡히면 판정이 이렇게 근거를 댄다:
+#:
+#:       "단체취급 특별약관 제651조(고지의무위반으로 인한 계약해지)에 따르면 …"
+#:
+#:   **그런 조항은 약관에 없다.** 제651조는 상법이다. 부(部) 이름이 직전 특별약관에서
+#:   안 바뀌어 그대로 따라붙은 것이다.
+#:   실측(표본 300문서): 조 번호 100 이상 3,086개 중 **604개가 약관 부 이름**을 달고 있었다
+#:   (`별표` 1,362 · `부록` 1,120 은 구분이 됐다).
+#:
+#:   문서에 **명시적 경계가 있다.** 보험사별 표기를 실측(표본 250문서)했다:
+#:     `[법규5] 상법`      삼성화재 1,494 · 현대해상 196 · DB 50 · NH손보 37 · KB 22
+#:     `인용법·규정`        현대해상 163 · 롯데 5 · 메리츠 2
+#:     `○ 개인정보보호법`   흥국생명 81 · 현대해상 11
+#:
+#:   추정이 아니라 **문서가 스스로 표시한 것**을 읽는다.
+_STATUTE_HEAD = re.compile(r"^\s*[\[【]\s*법\s*규\s*\d{0,3}\s*[\]】]\s*(.{2,30}?)\s*$")
+#: 구간 진입만 알리고 법령명은 안 주는 표기.
+_STATUTE_ZONE = re.compile(
+    r"^\s*(관\s*계\s*법\s*령|관\s*련\s*법\s*규|약관에서\s*인용된\s*법령"
+    r"|인용\s*법[·․.]?\s*규정|약관\s*인용\s*법[·․.]?\s*규정)\s*$"
+)
+#: ★`○` 뒤에 **공백이 있어야** 한다. 없으면 `○보험금지급안내및심사절차조회방법` 같은
+#:   안내 문구가 `…방법` 의 `법` 때문에 걸린다(실측).
+_STATUTE_LAW = re.compile(r"^\s*○\s+(.{2,20}법(?:\s*시행령|\s*시행규칙)?)\s*$")
+
 #: ★부 경계를 넓힌다 — 위 규칙만으로는 403쪽 약관의 부가 2개뿐이었고,
 #:   그래서 조 번호가 **52종 충돌**했다(제2조가 51회). 특별약관마다 조 번호가
 #:   1부터 다시 시작하는데 구분이 안 돼 섞인 것이다.
@@ -329,6 +407,100 @@ def _norm(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+def _split_paragraphs(body: str, clause_cite: str) -> tuple[list[dict], int]:
+    """조 본문 → 항(項) 목록. `(항 목록, 번호를 못 읽은 항 수)`.
+
+    ★9단계(계층형 청킹). v4 는 이걸 **하는 일로 적어 놓고 하지 않았다** —
+      `_PARA.split()` 결과의 **개수만** 세고 버렸다.
+
+    반환하는 항 하나:
+        paragraph_no  항 번호(정수). ★못 읽으면 `None` — 지어내지 않는다
+        marker        원문 표기(`①`). 못 읽었으면 빈 문자열
+        text          항 본문(마커 줄 포함)
+        citation      `제4조(보상하지 않는 사항) 제1항`
+        items         호 위치 `[{item_no, offset, length}]`
+                      ★본문을 복사하지 않고 **항 텍스트 안의 위치**로 준다.
+                        복사하면 산출물이 두 배가 되고, 두 벌이 어긋날 수 있다.
+
+    ★첫 항 앞의 서술은 버리지 않는다. `paragraph_no=None` 인 **조 서두**로 남긴다
+      (항 없이 한 문장으로 끝나는 조가 실제로 많다).
+    """
+    lines = body.split("\n")
+    paras: list[dict] = []
+    cur: dict | None = None
+    unresolved = 0
+
+    def flush() -> None:
+        if cur is None:
+            return
+        text = "\n".join(cur["_lines"]).strip()
+        if not text:
+            return
+        no = cur["paragraph_no"]
+        cite = clause_cite + (f" 제{no}항" if no else "")
+        items: list[dict] = []
+        first_para = not paras
+        for m in _ITEM_MARK.finditer(text):
+            #: 줄머리만 인정 — `re.MULTILINE` 없이 줄 단위로 재확인한다.
+            if m.start() and text[m.start() - 1] != "\n":
+                continue
+            #: ★조 머리 자신을 호로 세지 않는다.
+            #:   특별약관은 조 머리가 `1. (보장종목)` 꼴이라 `_ITEM_MARK` 에 그대로 걸린다.
+            #:   조 본문의 맨 앞은 언제나 그 조의 머리이므로 건너뛴다(코덱스 지적).
+            if first_para and m.start() == 0:
+                continue
+            raw = m.group(1)
+            style = ("숫자점" if raw.endswith(".") and raw[0].isdigit()
+                     else "숫자괄호" if raw.endswith(")")
+                     else "가나다")
+            items.append({"item_no": raw.rstrip(".)"), "offset": m.start(),
+                          "length": 0, "_style": style})
+        #: ★한 항 안에 두 층이 섞이면 **위층만 호**다.
+        #:
+        #:   `가.` 는 호일 수도 목(目)일 수도 있다. 문맥 없이는 못 가른다.
+        #:     1. 제1차 의료급여기관          ← 호
+        #:        가. 「의료법」 …            ← 목 (호 아래)
+        #:        나. 제1항제2호 …            ← 목
+        #:   전부 호로 세면 `1.` 호의 범위가 `가.` 에서 잘린다(코덱스 지적).
+        #:
+        #:   약관 조판은 한 층에 한 표기를 쓴다. 그래서 **우세한 표기만 호로 인정**하고
+        #:   나머지는 그 호의 본문 안에 그대로 둔다(목은 나누지 않는다 — 독스트링 참조).
+        if items:
+            order = ["숫자점", "숫자괄호", "가나다"]
+            present = {it["_style"] for it in items}
+            top = next(s for s in order if s in present)
+            items = [it for it in items if it["_style"] == top]
+        for it in items:
+            del it["_style"]
+        for i, it in enumerate(items):
+            nxt = items[i + 1]["offset"] if i + 1 < len(items) else len(text)
+            it["length"] = nxt - it["offset"]
+        paras.append({
+            "paragraph_no": no, "marker": cur["marker"], "text": text,
+            "char_length": len(text), "citation": cite, "items": items,
+        })
+
+    for ln in lines:
+        m = _PARA_MARK.match(ln)
+        if m:
+            flush()
+            cur = {"paragraph_no": _CIRCLED_NO[m.group(1)], "marker": m.group(1),
+                   "_lines": [ln]}
+            continue
+        mu = _PARA_UNKNOWN.match(ln)
+        if mu:
+            flush()
+            unresolved += 1
+            #: ★번호를 모른다. `None` 으로 두고 센다. 추정 금지.
+            cur = {"paragraph_no": None, "marker": "", "_lines": [ln]}
+            continue
+        if cur is None:
+            cur = {"paragraph_no": None, "marker": "", "_lines": []}
+        cur["_lines"].append(ln)
+    flush()
+    return paras, unresolved
+
+
 def _clause_hash(section: str, title: str, body: str) -> str:
     """★조항의 정체성. **번호를 넣지 않는다** — 번호가 바뀌어도 내용이 같으면 같은 조항이다."""
     return hashlib.sha256(f"{section}\x1f{title}\x1f{_norm(body)}".encode()).hexdigest()
@@ -361,14 +533,29 @@ def build(page_doc: dict) -> dict:
 
     # ── 5) 문서 구조 복원: 단독 줄로 나온 부 제목만 인정 ──
     section_of_page: dict[int, str] = {}
+    statute_of_page: dict[int, bool] = {}
     current = "머리말"
+    in_statute = False           # 인용 법령 구간 안인가
     for pg in pages:
         if pg["page"] not in toc_pages:  # ★목차 안의 부 제목은 경계가 아니다
             for line in pg["text"].splitlines():
+                #: ★인용 법령 경계가 먼저다 — `[법규5] 상법` 은 부 제목이 아니라
+                #:   **약관이 끝나고 법령이 시작된다**는 표시다.
+                ms = _STATUTE_HEAD.match(line) or _STATUTE_LAW.match(line)
+                if ms:
+                    current = re.sub(r"\s+", " ", ms.group(1)).strip()
+                    in_statute = True
+                    break
+                if _STATUTE_ZONE.match(line):
+                    current = "관계법령"
+                    in_statute = True
+                    break
                 #: 옛 규칙 — `보통약관` 처럼 그 단어만 있는 줄.
                 m = _SECTION_LINE.match(line)
                 if m:
                     current = re.sub(r"\s+", "", m.group(1))
+                    #: 약관 부(部)로 되돌아오면 법령 구간이 끝난 것이다.
+                    in_statute = current in ("부록", "별표")  and in_statute
                     break
                 #: 넓힌 규칙 — `○○ 특별약관` 처럼 제목형 줄.
                 m2 = _SECTION_TITLE.match(line)
@@ -377,8 +564,10 @@ def build(page_doc: dict) -> dict:
                     if not _looks_like_section(line, title):
                         continue
                     current = title
+                    in_statute = False
                     break
         section_of_page[pg["page"]] = current
+        statute_of_page[pg["page"]] = in_statute
 
     # ── 6) 조항 경계 찾기 (목차 페이지 제외) ──
     #: (페이지, 페이지내 오프셋, 조번호, 가지번호, 제목)
@@ -439,6 +628,8 @@ def build(page_doc: dict) -> dict:
     tables_of = {pg["page"]: pg.get("tables", []) for pg in pages}
 
     clauses: list[dict] = []
+    doc_unresolved = 0          # 번호를 못 읽은 항 (문서 전체)
+    doc_ambiguous_cite = 0      # 한 조 안에서 항 번호가 되풀이되는 조항 수
     for i, (page, off, no, sub, title) in enumerate(heads):
         # 본문 = 이 머리부터 다음 머리 전까지 (페이지를 넘어갈 수 있다)
         if i + 1 < len(heads):
@@ -460,14 +651,34 @@ def build(page_doc: dict) -> dict:
             parts.append(t[a:b])
         body = "\n".join(parts)
 
-        # ── 9) 계층형 청킹: 긴 조항은 항 단위로 쪼갠다 ──
-        paras = [x for x in _PARA.split(body) if x and x.strip()]
         if numbering == "numbered":
             #: 특별약관 번호 형식. `제N조` 가 아니므로 그렇게 부르지 않는다.
-            label = f"{no}." + (f"{sub}" if sub else "")
+            #: ★원문 표기를 그대로 쓴다. `4-1.` 을 `4.1` 로 적으면 **원문에 없는 번호**가 된다
+            #:   (v5 첫 구현이 `f"{no}." + sub` 로 조립해 `4.1(보상하지 않는 사항)` 이 나왔다).
+            label = (f"{no}-{sub}." if sub else f"{no}.")
         else:
             label = f"제{no}조" + (f"의{sub}" if sub else "")
         section_name = section_of_page.get(page, "미상")
+
+        # ── 9) 계층형 청킹: 부 → 조 → **항** ──
+        #: ★조 수준 인용 문자열. 판정 근거에 그대로 실린다.
+        clause_cite = f"{label}({title})" if title else label
+        is_statute = statute_of_page.get(page, False)
+        paragraphs, n_unresolved = _split_paragraphs(body, clause_cite)
+        doc_unresolved += n_unresolved
+        #: ★한 조 안에서 항 번호가 **되풀이**될 수 있다.
+        #:
+        #:   실측(NH `42ce81976809` 제4조): 조 하나가 보장종목 여럿을 덮고
+        #:   `(1) 상해급여` `(2) 질병급여` 마다 `①②③` 이 다시 시작한다.
+        #:   그러면 `제4조 제1항` 이 **한 조 안에서 두 곳을 가리킨다.**
+        #:
+        #:   나누지도 합치지도 않는다 — 어느 보장종목인지는 목(目) 층이고
+        #:   우리는 거기까지 안 내려간다. 대신 **인용이 유일하지 않다는 사실을 표시**한다.
+        #:   판정이 이 조항을 근거로 들 때 항 번호만으로 특정하면 안 된다.
+        _nos = [p["paragraph_no"] for p in paragraphs if p["paragraph_no"]]
+        cite_ambiguous = len(_nos) != len(set(_nos))
+        if cite_ambiguous:
+            doc_ambiguous_cite += 1
         clauses.append(
             {
                 "clause_no": label,
@@ -476,11 +687,24 @@ def build(page_doc: dict) -> dict:
                 # 부 이름을 함께 들고 다녀야 유일해진다.
                 "section": section_name,
                 "qualified_no": f"{section_name}/{label}",
+                #: ★True 면 **약관 조항이 아니라 인용된 법령 원문**이다.
+                #:   판정 근거로 "약관 제651조" 라고 대면 안 된다 — 그건 상법이다.
+                "statute": is_statute,
                 # ── 7) 메타데이터: locator ──
                 "locator": {"page_from": page, "page_to": end_page, "char_offset": off},
+                #: ★조 단위 원문·해시는 **바꾸지 않는다.** 항 분해는 얹기만 한다
+                #:   (기존 색인·해시가 그대로 유효해야 한다).
                 "text": body,
                 "char_length": len(body),
-                "paragraph_count": max(len(paras) - 1, 0),
+                "citation": clause_cite,
+                # ── 9) 항 단위 ──
+                "paragraphs": paragraphs,
+                #: ★번호가 붙은 항만 센다. 조 서두(번호 없음)와
+                #:   번호를 못 읽은 항은 여기 안 들어간다.
+                "paragraph_count": sum(1 for p in paragraphs if p["paragraph_no"]),
+                "unresolved_paragraphs": n_unresolved,
+                #: ★True 면 `제N항` 만으로 이 조항 안의 위치를 특정할 수 없다.
+                "paragraph_no_ambiguous": cite_ambiguous,
                 # 같은 페이지에 있던 표. ★어느 조항 것인지 추정하지 않는다.
                 "tables_on_pages": {
                     str(p): len(tables_of.get(p, [])) for p in range(page, end_page + 1)
@@ -564,6 +788,18 @@ def build(page_doc: dict) -> dict:
             "toc_pages_excluded": len(toc_pages),
             "unique_clause_hashes": len(dup),
             "duplicate_clauses": sum(v - 1 for v in dup.values() if v > 1),
+            # ── 9단계 ──
+            #: 번호가 붙은 항의 총수. `제N조 제M항` 인용의 분모다.
+            "paragraphs": sum(c["paragraph_count"] for c in clauses),
+            #: 항 아래 호(號)의 총수.
+            "items": sum(len(p["items"]) for c in clauses for p in c["paragraphs"]),
+            #: ★번호를 못 읽은 항. 지우지 않고 센다(미매핑 보조 PUA).
+            #:   이 수가 크면 그 문서의 "제N항" 인용을 믿으면 안 된다.
+            "unresolved_paragraphs": doc_unresolved,
+            #: ★`제N항` 인용이 유일하지 않은 조항 수. 판정이 근거를 댈 때 걸린다.
+            "ambiguous_paragraph_citations": doc_ambiguous_cite,
+            #: 인용 법령 원문으로 잡힌 조항 수(약관 조항이 아니다).
+            "statute_clauses": sum(1 for c in clauses if c["statute"]),
         },
         "sections": sorted(set(section_of_page.values())),
         "clauses": clauses,
@@ -606,7 +842,12 @@ def _fallback(page_doc: dict, pages: list[dict], toc_pages: set[int],
                 "locator": {"page_from": pg["page"], "page_to": pg["page"], "char_offset": 0},
                 "text": body,
                 "char_length": len(body),
+                #: ★조 머리를 못 찾은 문서다. 조가 없으니 **항도 세지 않는다.**
+                #:   빈 배열을 두는 건 "찾아봤는데 없다"는 뜻이 아니라
+                #:   "이 산출물엔 항이라는 개념이 없다"는 뜻이다.
+                "paragraphs": [],
                 "paragraph_count": 0,
+                "unresolved_paragraphs": 0,
                 "tables_on_pages": (
                     {str(pg["page"]): len(pg.get("tables", []))} if pg.get("tables") else {}
                 ),

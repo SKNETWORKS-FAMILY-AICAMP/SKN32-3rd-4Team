@@ -143,11 +143,31 @@ p.73  보험료 자동납입 특별약관/1.   "특별약관의 체결 및 효�
 | `app` | 10 + 뷰1 | `subject` · `policy_holding` · `case` · `case_diagnosis` · `assessment` · `assessment_clause_citation` · `claim` · `outcome` · `evidence` · **`evidence_verification`** + `cohort_stats`(VIEW) |
 | `ops` | 5 | `agent_client` · `interaction_log` · `consent` · `admin_user` · `audit_log` |
 
+### ★규모 실측 — 적재하면 몇 행인가 (v4 전량 1,367문서)
+
+| 테이블 | 예상 행수 | 근거 |
+|---|---:|---|
+| `insurer` | **13** | ★12개사인데 13으로 세진다(아래) |
+| `confirmed_policy_document` | 1,703 | 고유 sha256. 매니페스트 행은 2,121 (**418행이 중복**) |
+| `document_extraction` | 1,367 | s4 산출물 |
+| `product` | ~1,179 | (보험사, 상품명) distinct |
+| `policy_version` | ≥1,703 | 1파일:N버전이 있다(아래) |
+| `policy_clause` | **129,086** | `page_fallback` 439 별도 |
+| `clause_content` | **46,022** | 중복률 64.3% |
+| `clause_chunk` | **122,512** | 800자 청크 기준. ★occurrence 단위였다면 **343,630** (2.8배) |
+| `clause_code_rule` | **74,503** | canonical 단위 |
+| `clause_reference` | **185,061** | 조 머리 제외 |
+| `kcd_version` / `kcd_code` | **0** | ★**적재원이 저장소에 없다**(§4-마지막) |
+| `app.*` / `ops.*` | **0** | `insurance_real` 은 아직 비어 있다 |
+
+> ★`clause_content` 분리의 값이 여기서 보인다 — 임베딩 대상이 **343,630 → 122,512** 로 줄고,
+> KCD 파싱이 129,086번이 아니라 46,022번만 돈다.
+
 ### 이전 판(22개)에서 달라진 것
 
 | 변경 | 근거 |
 |---|---|
-| `insurer` 부활 | 같은 회사가 이미 slug(`nhlife`)와 표시명(`NH농협생명`)으로 동시에 존재하고, 크롤러·매니페스트·산출물이 갈라 쓴다. 문자열 하나가 아니다 |
+| `insurer` 부활 | ★**가설이 아니라 실측이다.** 매니페스트 `insurer` distinct가 **13**인데 그중 하나가 <code>samsunglife</code>(slug) 4행이고 `삼성생명`(표시명) 217행과 **별개로 세어진다**. 같은 회사가 이미 두 정체성으로 존재한다 |
 | **`document_extraction` 신설** | 추출기 버전이 바뀌면 조항이 통째로 달라진다. v3→v4가 그랬다 |
 | **`clause_content` 신설** | 64.3% 중복. 임베딩·KCD 범위를 129,086번이 아니라 46,022번만 계산한다 |
 | **`clause_code_rule` 신설** | 약관이 KCD 코드를 직접 쓴다(§5). 담을 자리가 없었다 |
@@ -172,10 +192,22 @@ erDiagram
   KCD_VERSION         ||--o{ KCD_CODE : "수록"
 ```
 
-### `core.insurer` — 12행
+### `core.insurer` — 12행 (매니페스트는 13으로 센다)
 `id uuid PK · slug text UNIQUE · legal_name · display_name · kind(general/life) · active bool`
 
 ★`kind` 로 삼성화재(손보)와 삼성생명(생보)이 같은 코드가 되지 않게 한다.
+
+실측 — 매니페스트 2,121행의 `insurer` 값:
+
+```
+462 DB손해보험   406 삼성화재   337 현대해상   228 흥국화재   217 삼성생명
+158 메리츠화재   120 KB손해보험  94 롯데손해보험  52 NH농협생명
+ 18 흥국생명     13 동양생명    12 NH농협손해보험
+  4 samsunglife   ← ★slug 가 표시명과 섞여 별개 회사로 세어진다
+```
+
+**이 4행이 `insurer` 테이블이 필요한 이유의 전부다.** 문자열로 두면 조인이 조용히 갈라진다.
+적재 전에 `samsunglife → 삼성생명` 정규화가 선행돼야 한다.
 
 ### ★`core.confirmed_policy_document` — 확정된 문서만 들어온다
 
@@ -225,21 +257,31 @@ unmapped_glyphs 187문서 · 23종 · 5,749회
 > **187문서에서 "제N항"을 특정할 수 없다.** 이걸 안 남기면 인용 정밀도의 한계를 알 수 없다.
 > ⚠ 현재 `to_clauses.py` 는 이 값을 다음 단계로 **전달하지 않는다**(P0 수정 대상).
 
-### `core.product`
-`id uuid PK · insurer_id FK · product_code text UNIQUE · name · line(medical_indemnity 등)`
+### `core.product` — 약 1,179행
+`id uuid PK · insurer_id FK · product_code text UNIQUE · name · line`
 
 ★불변 대리키를 PK로 쓴다. 업무 코드를 PK로 쓰지 않는다.
 ★**`product_code` 안에 세대를 박지 않는다** — 코드 형식이 값을 강제하게 된다.
+
+**`line` 의 실제 값** (매니페스트 2,121행 실측):
+
+```
+standard 1,413 · simplified_issue 286 · senior 187 · unknown 184 · travel 51
+```
+
+⚠ 이전 판의 `medical_indemnity` 는 **데이터에 없는 값이다.** enum을 위 5개로 맞춘다.
+★`unknown` 184건이 있으므로 **`unknown` 을 enum 멤버로 둔다.** 지어내서 채우지 않는다.
+(`travel` 51건은 격리 대상이지만 값 자체는 존재한다.)
 
 ### ★`core.policy_version` — 이 모델의 중심
 
 | 컬럼 | 비고 |
 |---|---|
 | id uuid PK | |
-| **confirmed_document_id** uuid **NOT NULL** FK | ★확정 문서 없이는 행을 만들 수 없다. **UNIQUE 를 걸지 않는다** — 한 문서를 여러 버전이 공유한다 |
+| **confirmed_document_id** uuid **NOT NULL** FK | ★확정 문서 없이는 행을 만들 수 없다. **UNIQUE 를 걸지 않는다** (아래 실측) |
 | product_id uuid FK | |
 | version_label | UNIQUE(product_id, version_label) |
-| variant | `standard` / `contract_conversion` / `conversion_resume` / `child_conversion` |
+| variant | `standard` / `contract_conversion` / `conversion_resume` / `child_conversion` — ⚠ **출처 없음**(아래) |
 | **valid_from / valid_to** | ★적용 구간. 사고일·가입일을 여기 맞춘다 |
 | sales_from / sales_to | 판매 기간 |
 | **date_confidence** enum NOT NULL | `exact` / `month` / `unknown` |
@@ -249,6 +291,21 @@ unmapped_glyphs 187문서 · 23종 · 5,749회
 ★**`generation` 을 NULL 허용으로 두는 것이 이 표에서 가장 중요하다.**
 모르는 세대를 숫자로 채우면 그 오류가 판정까지 간다.
 판정에서 참조할 수 있는 것은 `date_confidence <> 'unknown'` 인 버전뿐이다.
+
+**★`confirmed_document_id` 에 UNIQUE 를 걸면 안 되는 실측 근거**
+
+```
+1 파일 : N 상품        156건  (최대 4상품)
+1 파일 : N 판매구간    102건
+```
+
+한 PDF가 `[계약전환용]`·`[전환·재개용]`·`[자녀보험전환용]` 처럼 복수 변형을 담거나,
+같은 약관이 여러 상품에 붙는다. UNIQUE 를 걸면 **156건이 적재 자체가 안 된다.**
+
+> ⚠ **`variant` 는 채울 출처가 없다.** 매니페스트 필드는
+> `doc_type` · `identification` · `filename_kind_hint` 뿐이고 `variant` 가 없다.
+> 표지 문자열에서 파생해야 하는데 **그 규칙이 아직 없다.** NULL 허용으로 두고
+> 파생 규칙이 생기면 `variant_source` 와 함께 채운다. 지금 채우면 지어내는 것이다.
 
 ### ★`core.clause_content` — 내용은 한 번만
 
@@ -278,30 +335,85 @@ unmapped_glyphs 187문서 · 23종 · 5,749회
 ★**`kind` 는 v4가 채우지 못한다.** 조항 분류 필드가 산출물에 없다.
 `unclassified` 로 넣고 **버전 있는 후처리**로 채운다. 없는 분류를 지어내지 않는다.
 
-### `core.clause_chunk` — 검색 전용
+### `core.clause_chunk` — 검색 전용 · 약 122,512행
 `id · content_hash FK · policy_version_id(비정규화) · chunk_index · text · embedding vector(N) · token_count · chunk_type`
+
+실측: canonical 조항 46,022개 · 총 **78,066,680자** · 길이 중앙 779자 · p95 5,832자 · 최대 119,104자.
+
+| 청크 크기 | canonical 기준 | occurrence 기준이었다면 |
+|---|---:|---:|
+| 800자 | **122,512** | 343,630 (**2.8배**) |
+| 1,200자 | 91,610 | 256,954 |
 
 - `chunk_type='page_fallback'`(439청크/10문서)은 **검색엔 쓰되 판정 근거로는 쓰지 않는다.**
   → 문장으로 두지 않고 **`assessment_clause_citation` 이 `citeable=true` 인 조항만 가리키게** 강제한다.
 - `embedding` 차원은 임베딩 모델 확정 후 고정한다(미확정).
+- ★길이 중앙이 779자다. **조항 대부분은 청크 1개**이고, 소수의 긴 조항이 청크 수를 만든다.
 
-### ★`core.clause_code_rule` — 약관에서 뽑은 KCD 범위
+### ★`core.clause_code_rule` — 약관에서 뽑은 KCD 범위 · 74,503행
 `id · content_hash FK · code_letter · code_lo/code_lo_sub · code_hi/code_hi_sub · kind(exclude/exception/mention) · quote · source_span · extractor_version · confidence`
+
+**v4 전량 실측** (`app/core/domain/kcd_ranges.scan_clause`, canonical 46,022 조항):
+
+```
+clause_code_rule 행           74,503
+코드를 가진 canonical 조항     3,257 / 46,022  (7.1%)
+★코드를 가진 문서              1,187 / 1,367  (86.8%)
+kind   exclude 38,922 · mention 29,289 · exception 6,292
+```
+
+- ★**86.8%** — 이전 브리핑의 `표본 300문서 중 80%` 를 **전량 재측정으로 대체**한다. 더 높다.
+- ★**`mention` 이 29,289건(39%)** 이다. 문맥 창 안에 면책 문구도 예외 문구도 없어
+  **성격을 단정하지 못한 것**이다. `mention` 은 **판정 근거로 쓰지 않는다** — 코드가 나왔다는
+  사실만 남긴다. 이걸 `exclude` 로 뭉개면 "보장 안 된다"고 잘못 말하게 된다.
+- 조항의 7.1%만 코드를 가지므로 **부분 인덱스**가 맞다:
+  `CREATE INDEX ON clause_code_rule (code_letter, code_lo, code_hi) WHERE kind <> 'mention';`
 
 ★**`kcd_code` 와 다르다.** `kcd_code` 는 국가 표준 분류표고, 이건 **우리가 약관에서 추출한 파생물**이다.
 `extractor_version` 이 붙어야 규칙이 바뀌었을 때 과거 판정이 재현된다.
-구현: `app/core/domain/kcd_ranges.py`
 
-### `core.clause_reference` — 준용
+### `core.clause_reference` — 준용 · 185,061행
 `id · src_clause_id FK · raw_text · target_clause_id FK NULL · resolution_status · resolver_version`
+
+**v4 전량 실측** (조 머리 제외, occurrence 129,086 기준):
+
+| 구분 | 건수 | 비율 |
+|---|---:|---:|
+| 같은 부에서 **유일하게 해소** | 69,512 | 37.6% |
+| ★**번호가 여럿 — 모호** | **97,273** | **52.6%** |
+| 문서 안에 대상 없음(외부) | 18,276 | 9.9% |
+
+문서당 중앙 132건 · 최대 499건 · 참조 0건 문서 150개.
+
+<br>
+
+> ★**절반 이상이 대상을 특정할 수 없다.** 본문에 `"보통약관"`·`"특별약관"` 같은 수식어가 붙은 것은
+> **4,372건(2.4%)뿐**이고, 나머지 97.6%는 그냥 `"제9조"` 라고만 쓴다.
+> 같은 문서에 `제9조` 가 여러 부에 있으면 **본문만으로는 어느 것인지 알 수 없다.**
+
+**설계 귀결**
+- `target_clause_id` 는 **NULL 이 다수**다. NOT NULL 로 두면 절반 이상을 못 넣는다.
+- `resolution_status` enum: `resolved` / **`ambiguous`** / `external` / `unresolved` — ★`ambiguous` 가 최대 구간이다.
+- ★§8의 재귀 CTE는 **37.6%만 걸을 수 있다.** "준용을 따라간다"를 기능으로 약속할 때
+  이 분모를 함께 말한다. 모호한 것은 **따라가지 않고 기권**한다.
+- ⚠ 이전 판의 `72,099개 · 2/3이 문서 밖` 은 **v3·표본 400문서**이고 측정 정의도 달랐다.
+  v4 전량 기준으로 문서 밖은 **9.9%** 다.
 
 ★**미해결도 남긴다.** 조용히 버리면 "준용을 몇 개 못 따라갔나"를 셀 수 없다.
 
-### `core.kcd_version` / `core.kcd_code`
+### `core.kcd_version` / `core.kcd_code` — ★적재원이 없다
 `kcd_version`: `label`(제8차 등) · `effective_from/to`
 `kcd_code`: `kcd_version_id FK · code · name_ko` — ★**UNIQUE(kcd_version_id, code)**
 
 처방전에 `J20.9` 만 적혀 있어도 **어느 차수의 J20.9인지**가 정해져야 약관과 맞출 수 있다.
+
+> ⚠ **저장소에 KCD 분류표 데이터가 한 건도 없다.** `data/` · `config/` 어디에도 없다.
+> 두 테이블은 지금 **적재원이 없는 테이블**이고, `app.case_diagnosis.kcd_code_id FK` 도
+> 따라서 채울 수 없다. **P0 선행 작업으로 올린다** — 통계청 KCD 표를 받아 차수와 함께 넣는다.
+>
+> 다행히 판정 자체는 막히지 않는다. 면책 판정은 `clause_code_rule`(약관에서 뽑은 범위)로 하고,
+> `kcd_code` 는 **코드명 표시와 입력 검증**에 쓰인다. 없으면 사용자가 친 코드가
+> 실재하는지 확인할 수 없다는 뜻이다.
 
 ---
 
@@ -324,8 +436,10 @@ unmapped_glyphs 187문서 · 23종 · 5,749회
 | `N39.0` | 목록 없음 | N39.3만 면책이다. 세분류가 다르면 안 든다 |
 | `S72` 대퇴골 골절 | 목록 없음 | **보장된다는 뜻이 아니다** |
 
-> ⚠ **`표본 300문서 중 239개(80%)에 코드가 있다`는 v3·표본 기준이다.**
-> v4 전량으로 재측정하지 않았다. 용량·우선순위 결정에 이 값을 쓰지 않는다.
+> ★**v4 전량 재측정 완료 — 1,367문서 중 1,187(86.8%)에 코드가 있다.**
+> 이전의 `표본 300문서 중 239개(80%)` 를 대체한다. 표본값보다 높았다.
+> 다만 추출된 74,503개 범위 중 **29,289개(39%)는 `mention`** 이다 — 면책인지 예외인지
+> 문맥으로 단정할 수 없었다는 뜻이고, **판정 근거로 쓰지 않는다.**
 
 ---
 
@@ -466,10 +580,15 @@ SELECT * FROM walk;
 
 `policy_version_id` 로 묶지 않으면 2019년 약관을 보다가 2024년 조항으로 넘어간다.
 
-**왜 별도 그래프DB를 안 쓰나**: 준용 엣지가 약 30만개다. Postgres 재귀 CTE로 충분하고,
+**왜 별도 그래프DB를 안 쓰나**: 준용 엣지가 **185,061개**다. Postgres 재귀 CTE로 충분하고,
 `pgvector` 와 갈라지면 "유사 조항 + 그 조항이 준용하는 조항"을 **한 번에 조인할 수 없다.**
 
-> ⚠ `상호참조 72,099개 · 2/3이 문서 밖` 은 **v3·표본 400문서** 기준이다. v4 재측정 안 했다.
+> ★**이 쿼리는 엣지의 37.6%만 걸을 수 있다.**
+> 52.6%(97,273건)는 같은 문서에 같은 조 번호가 여럿이라 대상을 특정할 수 없고,
+> 9.9%는 문서 밖을 가리킨다. `resolution_status='resolved'` 인 것만 순회하고
+> **모호한 것은 따라가지 않고 기권한다.** "준용을 따라간다"를 말할 때 이 분모를 함께 말한다.
+>
+> ⚠ 이전 판의 `72,099개 · 2/3이 문서 밖` 은 v3·표본 400문서이고 측정 정의도 달랐다.
 
 ---
 
@@ -503,12 +622,17 @@ SELECT * FROM walk;
 | section 탐지 입도 | 특약보다 굵다. 원인은 특정했으나 안 고쳤다 |
 | 항 번호 `①②③` | 187문서에서 보조 PUA로 깨져 **"제N항"을 특정할 수 없다** |
 | 표 의미 부착 | 셀만 뽑았다. **보장 한도·자기부담금이 표에 있다** |
+| **준용 52.6%가 모호** | 본문에 수식어가 붙은 건 2.4%뿐. 따라갈 수 있는 건 37.6% |
+| **KCD 분류표 데이터 없음** | `kcd_version`·`kcd_code` 적재원 부재. `case_diagnosis.kcd_code_id` 도 못 채운다 |
+| **`clause_code_rule` 의 39%가 `mention`** | 면책인지 예외인지 단정 못 함. 판정 근거로 안 쓴다 |
+| **`policy_version.variant` 출처 없음** | 매니페스트에 필드가 없다. 파생 규칙 미정 |
+| `insurer` 정규화 | `samsunglife` 4행이 `삼성생명`과 별개로 세어진다. 적재 전 정규화 필요 |
 | 준용 해소 | 아직 안 따라간다 |
 | 임베딩 검색 | 없다. 낱말 포함 검색만 |
 | 질병명→코드 | 없다. 코드 입력만 받는다 |
 | `clause_chunk.embedding` 차원 | 모델 미확정 |
 | 층화 표본 검수 | 안 했다(코덱스 권고 30~50건) |
-| v3 표본 수치 | `72,099 상호참조` · `KCD 80%` — 재측정 안 함. **출처 병기해 남긴다** |
+| v3 표본 수치 | `72,099 상호참조` · `KCD 80%` → **둘 다 v4 전량으로 재측정 완료**(185,061 · 86.8%) |
 
 ---
 
@@ -518,7 +642,8 @@ SELECT * FROM walk;
 |---|---|
 | **P0-a** | §9 코드 수정 + 회귀 테스트 |
 | **P0-b** | DB 2개 + 롤 분리 · `core.*` 12개 · `ops.admin_user`/`audit_log`/`consent` |
-| **P0-c** | 세대 규칙셋 → 매니페스트 확장 → **사람 확정** → 코퍼스 적재 |
+| **P0-c** | 세대 규칙셋 → 매니페스트 확장 → **사람 확정** → 코퍼스 적재. `insurer` 정규화(`samsunglife`) 선행 |
+| **P0-d** | ★**KCD 분류표 확보·적재** — 지금 저장소에 없다. 없으면 코드 입력 검증도 코드명 표시도 못 한다 |
 | ★**P1 수직슬라이스** | `case`·`claim`·`outcome`·`evidence`·**`evidence_verification`**·`cohort_stats` |
 | **P2** | `subject`·`policy_holding`·`assessment`·`assessment_clause_citation`·`case_diagnosis` |
 | **P3** | `agent_client`·`interaction_log` |
