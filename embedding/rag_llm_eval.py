@@ -49,11 +49,13 @@ def make_prompt(q, chunks):
     return f"[근거]\n{ev}\n\n[질문]\n{q}"
 
 
-def auto_check(qtype, answer, chunks):
-    """자동 점검: 출처표기 / 거부표현 / (답없음 문항의) 환각 여부"""
+def auto_check(qtype, answer, chunks, trap=False):
+    """자동 점검: 출처표기 / 거부표현 / (답없음·함정 문항의) 환각 여부"""
     has_cite = bool(re.search(r"출처", answer))
-    said_no = "확인할 수 없" in answer or "약관에 없" in answer
-    if qtype == "답없음":
+    said_no = any(p in answer for p in
+                  ["확인할 수 없", "약관에 없", "명시되지 않", "명시되어 있지 않",
+                   "포함되지 않", "확인되지 않", "찾을 수 없"])
+    if trap or qtype == "답없음":
         return {"pass": said_no, "note": "거부함" if said_no else "환각 의심(답을 지어냄)"}
     ok = has_cite and not said_no
     note = []
@@ -86,7 +88,7 @@ def main():
                                HumanMessage(content=make_prompt(q["query"], chunks))])
             sec = time.time() - t0
             ans = resp.content if isinstance(resp.content, str) else str(resp.content)
-            chk = auto_check(q["type"], ans, chunks)
+            chk = auto_check(q["type"], ans, chunks, trap=q.get("trap", False))
             mark = "O" if chk["pass"] else "X"
             print(f"  [{mark}] {q['id']} {q['type']:<4} ({coll_used}, {sec:.1f}s) {chk['note']}")
             rows.append({"model": name, "qid": q["id"], "type": q["type"],

@@ -57,8 +57,8 @@
    "expected_answer": "의사가 치료 필요 인정, 자택 치료 곤란으로 병원 등에 입실... 정의 + 출처"},
   {"id": "L28", "type": "용어", "query": "통원이란?",
    "expected_answer": "입원하지 않고 병원 방문해 의사 관리 하에 치료... 정의 + 출처"},
-  {"id": "L29", "type": "용어", "query": "보험나이란?",
+  {"id": "L29", "type": "용어", "trap": true, "query": "보험나이란?",
    "expected_answer": "함정 — terms에 없고 '보험기간'이 검색됨. 다른 개념이므로 확인 불가 거부가 정답"},
-  {"id": "L30", "type": "용어", "query": "부담보란?",
+  {"id": "L30", "type": "용어", "trap": true, "query": "부담보란?",
    "expected_answer": "함정 — terms에 없고 무관 용어가 검색됨. 확인 불가 거부가 정답"}
 ]
