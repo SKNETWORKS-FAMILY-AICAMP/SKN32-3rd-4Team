@@ -75,3 +75,10 @@ data/eval/embed_bench.json
 # ★압축을 풀어 저장소 안에 두지 마라. 검색·IDE·AI 가 구버전을 현행 계약으로 읽는다.
 /backups/handoff/*.zip
 /backups/handoff/*.manifest.txt
+
+# ★약관 원문이 든 산출물은 커밋하지 않는다(CLAUDE.md §2 — 저작물).
+#   `data/exports/s5_clauses.parquet` 은 조항 211,131행 전체와 `text` 열을
+#   담고 있어 **팀 저장소에 올라갔다.** git add -A 로 쓸어 담은 실수다.
+#   같은 폴더의 나머지 산출물은 메타데이터만이라 남겨 둔다(전수 확인함).
+data/exports/*_clauses.parquet
+data/exports/**/*_clauses.parquet
