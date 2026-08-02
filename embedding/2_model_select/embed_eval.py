@@ -57,13 +57,16 @@ def load_jina_v5():
                             trust_remote_code=True)
 
     def embed(texts):
-        task = "retrieval.query" if len(texts) == 1 else "retrieval.passage"
+        is_query = len(texts) == 1
+        kw = {"task": "retrieval", "batch_size": 32,
+              "show_progress_bar": not is_query}
+        if is_query:
+            kw["prompt_name"] = "query"     # 문서는 기본 prompt('document') 사용
         try:
-            return m.encode(texts, task=task, batch_size=32,
-                            show_progress_bar=len(texts) > 1).tolist()
-        except TypeError:      # task 인자 미지원 버전 대비
+            return m.encode(texts, **kw).tolist()
+        except TypeError:                    # 인자 미지원 버전 대비
             return m.encode(texts, batch_size=32,
-                            show_progress_bar=len(texts) > 1).tolist()
+                            show_progress_bar=not is_query).tolist()
     return embed
 
 
