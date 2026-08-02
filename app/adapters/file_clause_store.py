@@ -42,30 +42,62 @@ _STRUCTURED = _ROOT / "data" / "structured"
 _NON_CLAUSE = {"page_fallback"}
 
 
-def _latest_version_dir() -> str:
-    """가장 최근 추출기 버전 폴더 이름(`s3_pymupdf-1.28.0`).
+#: ★판정에 쓸 추출 버전. **설정으로 못박는다.**
+#:
+#:   이전에는 `가장 큰 sN 을 자동 선택`했다. 그게 위험한 이유:
+#:
+#:     · 전처리를 새로 돌리는 **도중에** 판정 결과가 바뀐다. s5 가 200건만
+#:       만들어진 상태에서 어떤 문서는 s5, 어떤 문서는 없어서 실패한다
+#:     · **새 버전이 더 낫다는 보장이 없다.** 실측으로 v5 는 본문 24,511쪽을
+#:       되찾았지만 `parse_status=ok` 가 1,240 → 1,108 로 줄었다.
+#:       "최신"과 "쓸 만함"은 다른 말이다
+#:     · 같은 질문에 다른 답이 나오는데 **아무 기록도 남지 않는다**
+#:
+#:   ERD 설계도 같은 결론이다 — *"가장 큰 sN 폴더를 자동 선택하지 않는다.
+#:   문서별로 `accepted` 인 extraction 하나를 지정한다."*
+#:   DB 적재 전까지는 **전역 고정값**으로 대신한다.
+_ACCEPTED_SCHEMA_FILE = _ROOT / "config" / "accepted_extraction.json"
 
-    ★버전을 고정하지 않고 **최신을 고른다.** 산출 경로에 버전이 박혀 있어
-      옛 버전이 남아 있는데, 판정은 최신 것으로 해야 한다.
+
+def _accepted_tag() -> str:
+    """판정에 쓸 산출 폴더 이름(`s4_pymupdf-1.28.0`).
+
+    ★자동으로 고르지 않는다. 설정에 적힌 것만 쓴다.
+      설정이 없으면 **실패한다** — 아무거나 골라 쓰느니 멈추는 편이 낫다.
     """
-    dirs = {p.name for p in _STRUCTURED.glob("*/s*_*") if p.is_dir()}
-    if not dirs:
+    if not _ACCEPTED_SCHEMA_FILE.exists():
         raise InfraError(
-            f"조항 산출물이 없습니다: {_STRUCTURED}\n"
-            "`python -m scripts.extract.run_all` 을 먼저 돌리세요."
+            f"판정에 쓸 추출 버전이 지정되지 않았습니다: {_ACCEPTED_SCHEMA_FILE}\n"
+            '예: {"tag": "s4_pymupdf-1.28.0", "reason": "…", "accepted_at": "…"}\n'
+            "★'가장 최신'을 자동으로 고르지 않습니다 — 최신이 더 낫다는 보장이 없습니다."
         )
-    #: `s3_...` > `s2_...` — 스키마 번호로 정렬한다(문자열 정렬이면 s10 이 s2 앞에 온다).
+    cfg = json.loads(_ACCEPTED_SCHEMA_FILE.read_text(encoding="utf-8"))
+    tag = (cfg.get("tag") or "").strip()
+    if not tag:
+        raise InfraError(f"{_ACCEPTED_SCHEMA_FILE} 에 `tag` 가 비어 있습니다.")
+    if not list(_STRUCTURED.glob(f"*/{tag}")):
+        raise InfraError(
+            f"지정된 추출 버전의 산출물이 없습니다: {tag}\n"
+            "`python -m scripts.extract.run_all` 을 돌리거나 설정을 고치세요."
+        )
+    return tag
+
+
+def available_tags() -> list[str]:
+    """디스크에 있는 산출 버전들. 무엇을 고를 수 있는지 보여 줄 때 쓴다."""
+    dirs = {p.name for p in _STRUCTURED.glob("*/s*_*") if p.is_dir()}
+
     def key(name: str) -> tuple[int, str]:
         m = re.match(r"^s(\d+)_(.*)$", name)
         return (int(m.group(1)), m.group(2)) if m else (0, name)
 
-    return sorted(dirs, key=key)[-1]
+    return sorted(dirs, key=key)
 
 
 @lru_cache(maxsize=256)
 def _load_doc(sha256: str) -> dict:
     """조항 JSON 하나. sha 로 찾는다."""
-    tag = _latest_version_dir()
+    tag = _accepted_tag()
     hits = list(_STRUCTURED.glob(f"*/{tag}/{sha256[:12]}.clauses.json"))
     if not hits:
         raise InfraError(
