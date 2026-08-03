@@ -134,7 +134,7 @@ MCP 클라이언트 버전도 같이 두면 "에이전트가 도구로 쓴다"�
 
 | 산출물 | 형태 |
 |---|---|
-| `app/workflow/precheck_graph.py` | LangGraph 파이프라인 — ★**이미 존재한다.** `app/insurance/` 에 다시 만들지 않는다(`11_AI_구조_지도.md`) |
+| `app/workflow/precheck_graph.py` | LangGraph 파이프라인 — ★**이미 존재한다.** 새 위치에 다시 만들지 말 것(`11_AI_구조_지도.md`) |
 | `app/mcp_server/` | MCP 서버(도구 3개 + 리소스 2개) |
 | `app/auth/agent_client.py` | 키·scope·레이트리밋 |
 | `scripts/demo/agent_client.py` | 데모 에이전트 |

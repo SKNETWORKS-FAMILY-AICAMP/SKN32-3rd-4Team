@@ -42,6 +42,21 @@
   숫자는 전부 <b style="display:inline">2026-08-02 실측</b>이며, 근거 문서를 그림마다 달았다.
 </div>
 
+<div class="box w">
+  <b>★이 문서는 <u>설명용 파생물</u>이다 — 계약이 아니다</b>
+  같은 사실이 두 곳에 있으면 반드시 갈라진다. 그래서 <b style="display:inline">어느 쪽이 정본인지 먼저 못박는다.</b>
+  <table style="margin:.45rem 0 .4rem">
+  <tr><th>사실</th><th>정본</th><th>이 문서</th></tr>
+  <tr><td><code>verdict</code> 값·화면 문구</td><td><code>08_계약_프론트.md</code></td><td>그림으로 다시 보여줄 뿐</td></tr>
+  <tr><td>테이블·컬럼</td><td><code>02_ERD_및_스키마.md</code></td><td>〃</td></tr>
+  <tr><td>검증 등급·확장 경로</td><td><code>03_에이전트_데이터_축적_설계.md</code></td><td>〃</td></tr>
+  <tr><td>모델·VRAM</td><td><code>2026-08-02_1500_SOTA_모델_조사_코덱스합의.md</code></td><td>〃</td></tr>
+  </table>
+  <b style="display:inline">충돌하면 정본이 이긴다.</b> 그리고 갈라지는 것을 사람 규율에 맡기지 않는다 —
+  <code>tests/test_handoff_consistency.py</code> 가 <code>verdict</code> 값이 코드·마크다운·HTML 세 곳에서
+  일치하는지 매번 검사한다. 그림을 고칠 때 값이 어긋나면 <b style="display:inline">테스트가 먼저 걸린다.</b>
+</div>
+
 <h2>1. 전체 아키텍처 — 두 표면, 하나의 코어</h2>
 
 <div class="ld-diagram" role="img" aria-label="사람은 웹 화면으로 에이전트는 REST와 MCP로 들어오지만 둘 다 같은 precheck 유스케이스를 부르고, 그 유스케이스는 포트를 통해서만 약관 저장소와 코호트 저장소에 닿는다는 구조도">
