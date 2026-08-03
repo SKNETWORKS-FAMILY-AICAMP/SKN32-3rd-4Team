@@ -13,9 +13,16 @@ graph/precheck_graph.py
                                                               ↓
                                                    verify_citations ★재시도 지점
                                                      ├ 통과          → 완료
-                                                     ├ 인용 오류      → 설명문만 1회 수정
-                                                     ├ 근거 부족      → 표적 검색 1회
+                                                     ├ 실패(기본)     → 같은 근거로 설명만 1회 재작성
+                                                     │                 (retarget 주입 시엔 표적 검색 1회로 대체 가능)
                                                      └ 재시도 초과    → 기권(CITATION_UNVERIFIED)
+
+    기본 재시도가 "설명만 재작성"인 이유: retrieve에서 이미 세대(generation)
+    필터를 통과한 근거만 st.clauses에 담겨 있다. 실패의 대부분은 근거가
+    부족해서가 아니라 explain()이 인용 표기(손잡이)를 놓친 것이므로, 여기서
+    근거를 다시 검색하면 세대가 다른 조항이 섞여 들어올 위험만 생긴다.
+    retarget을 주입하면(build()는 기본적으로 안 함) 그쪽 함수가 세대 제약을
+    책임지는 조건 하에 표적 검색 경로를 대신 쓸 수 있다.
 
     resolve_policy가 1:N으로 확정 못 하면(candidates 있음) 즉시 기권하고
     ambiguous_product_line + candidates[]를 반환한다 (재시도 대상 아님 --
@@ -30,8 +37,6 @@ graph/precheck_graph.py
 
 from __future__ import annotations
 
-import hashlib
-import re
 from dataclasses import dataclass, field
 from typing import Callable
 
@@ -46,6 +51,8 @@ from graph.precheck_domain import (
     Verdict,
 )
 from graph.extractors import resolve_generation_from_date
+from graph.privacy import hash_code
+from graph import citation_guard
 
 #: 재시도 상한. 계약 §1 -- 2회를 넘지 않는다.
 MAX_RETRY = 2
@@ -75,35 +82,66 @@ def _aggregate_verdict(per_code: tuple[PerCodeVerdict, ...]) -> Verdict:
     return Verdict.NEEDS_EXPERT
 
 
-def _hash_code(code: str) -> str:
-    """질병기호를 상태에 담기 전에 해시한다. 원문은 입력 객체 안에만 둔다."""
-    return hashlib.sha256(code.strip().upper().encode("utf-8")).hexdigest()[:16]
+def citations_to_evidence(clauses: tuple[Citation, ...]) -> list[citation_guard.EvidenceClause]:
+    """Citation을 citation_guard.EvidenceClause로 변환. qualified_no가 없으면 article_no로 대체."""
+    return [
+        citation_guard.EvidenceClause(
+            qualified_no=c.qualified_no or c.article_no,
+            text=c.quote,
+            clause_id=c.clause_id,
+        )
+        for c in clauses
+    ]
 
 
-_ARTICLE_PATTERN = re.compile(r"제\d+조(?:의\d+)?")
+def parse_explain_output(raw: str) -> tuple[str, tuple[str, ...]]:
+    """
+    LLM의 "답변: .../인용: E001, E002" 두 줄 출력을 (메시지, 인용 손잡이들)로 분리한다.
+    "인용:" 줄이 없으면 인용 없음으로 처리 -- 형식을 안 지켰다고 봐준 게 아니라
+    citation_guard.verify()가 no_citations로 잡아서 재시도/기권하게 만든다.
+    """
+    message = raw
+    cited: tuple[str, ...] = ()
+    lines = raw.splitlines()
+    body_lines: list[str] = []
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("인용:") or stripped.lower().startswith("citations:"):
+            handles_part = stripped.split(":", 1)[1]
+            cited = tuple(h.strip() for h in handles_part.split(",") if h.strip())
+        elif stripped.startswith("답변:"):
+            body_lines.append(stripped.split(":", 1)[1].strip())
+        else:
+            body_lines.append(line)
+    message = "\n".join(l for l in body_lines if l.strip()) or raw
+    return message, cited
 
 
 def verify_citations_in_message(
-    message: str, clauses: tuple[Citation, ...]
+    message: str, cited_handles: tuple[str, ...], clauses: tuple[Citation, ...]
 ) -> tuple[bool, ReasonCode | None, str]:
     """
-    설명문(message)에서 인용된 조항번호가 전부 clauses(실제 검색 근거) 안에
-    있는지 확인한다. clauses에 없는 조항번호를 인용했으면(할루시네이션) 실패.
+    citation_guard.verify()로 인용을 검증한다. explain()이 손잡이(E001 등)로
+    선언한 cited_handles가 실제 clauses(검색 근거) 안에 있는지, 본문에서 선언
+    없이 조항을 언급하진 않았는지 확인한다.
+
+    quotes는 안 넘긴다 -- explain() 프롬프트가 LLM한테 "실제 인용한 문장"을
+    따로 뽑아내라고 요구하지 않아서, 넘길 진짜 인용문이 없다. 조항 원문을
+    quotes로 자기 자신과 비교하면 항상 통과하는 눈속임이 된다(실측 확인됨).
+    quote 일치까지 검증하려면 explain()이 LLM한테 인용문 자체를 뽑아내게
+    프롬프트를 확장해야 한다.
     """
     if not clauses:
         return True, None, ""
-    valid_article_nos = {c.article_no for c in clauses if c.article_no}
-    cited = set(_ARTICLE_PATTERN.findall(message))
-    if not cited:
-        return False, ReasonCode.CITATION_UNVERIFIED, "설명문이 조항을 인용하지 않았습니다"
-    hallucinated = cited - valid_article_nos
-    if hallucinated:
-        return (
-            False,
-            ReasonCode.CITATION_UNVERIFIED,
-            f"검색되지 않은 조항을 인용했습니다: {', '.join(sorted(hallucinated))}",
-        )
-    return True, None, ""
+    evidence = citation_guard.make_handles(citations_to_evidence(clauses))
+    result = citation_guard.verify(
+        cited_clauses=list(cited_handles),
+        evidence=evidence,
+        answer_text=message,
+    )
+    if result.ok:
+        return True, None, ""
+    return False, ReasonCode.CITATION_UNVERIFIED, result.reason
 
 
 @dataclass
@@ -116,6 +154,7 @@ class GraphState:
 
     generation: str | None = None
     clauses: tuple = ()
+    per_code: tuple[PerCodeVerdict, ...] = ()
     outcome: PrecheckOutcome | None = None
 
     trail: list[str] = field(default_factory=list)
@@ -140,8 +179,13 @@ class PrecheckGraph:
         gate_document: Callable[[str | None], bool],
         retrieve: Callable[[PrecheckInput, str | None], tuple[Citation, ...]],
         assess: Callable[[PrecheckInput, tuple[Citation, ...]], tuple[PerCodeVerdict, ...]],
-        explain: Callable[[PrecheckInput, tuple[PerCodeVerdict, ...], tuple[Citation, ...]], str],
-        verify: Callable[[str, tuple[Citation, ...]], tuple[bool, ReasonCode | None, str]],
+        explain: Callable[
+            [PrecheckInput, tuple[PerCodeVerdict, ...], tuple[Citation, ...]],
+            tuple[str, tuple[str, ...]],
+        ],
+        verify: Callable[
+            [str, tuple[str, ...], tuple[Citation, ...]], tuple[bool, ReasonCode | None, str]
+        ],
         retarget: Callable[[PrecheckInput, tuple[Citation, ...]], tuple[Citation, ...]] | None = None,
     ):
         self._resolve_policy = resolve_policy
@@ -156,13 +200,21 @@ class PrecheckGraph:
 
     def normalize(self, st: GraphState, body: PrecheckInput) -> GraphState:
         st.visit("normalize")
-        st.kcd_hashes = tuple(_hash_code(c) for c in body.kcd_codes)
+        st.kcd_hashes = tuple(hash_code(c) for c in body.kcd_codes)
         st.insurer = body.insurer
         st.enrolled_on = body.enrolled_on
         return st
 
-    def run_rules(self, st: GraphState, body: PrecheckInput) -> GraphState:
-        """resolve_policy → gate_document → retrieve → assess → explain."""
+    # 아래 5개는 계약(06_계약_Agent.md §1) 다이어그램이 각각 독립된 단계·분기
+    # 지점으로 그리는 것들이다. 예전엔 run_rules() 하나에 다 뭉쳐서, LangGraph
+    # 실행기(build_langgraph)를 봐도 어느 세부단계에서 실패했는지 그래프
+    # 구조만으로는 안 보였다 -- 이제 각 단계가 자기 노드를 갖고, st.trail에도
+    # 실제로 거친 단계만 남는다(예: retrieve 실패하면 assess/explain은 trail에
+    # 안 남음).
+
+    def resolve_policy_step(self, st: GraphState, body: PrecheckInput) -> GraphState:
+        if st.done:
+            return st
         st.visit("resolve_policy")
         resolution = self._resolve_policy(body)
         if resolution.generation is None:
@@ -178,35 +230,49 @@ class PrecheckGraph:
             )
             st.outcome = self._abstain_with(reason, msg, candidates=resolution.candidates)
             st.done = True
-            return st
-        st.generation = resolution.generation
+        else:
+            st.generation = resolution.generation
+        return st
 
+    def gate_document_step(self, st: GraphState, body: PrecheckInput) -> GraphState:
+        if st.done:
+            return st
         st.visit("gate_document")
         if not self._gate_document(st.generation):
             st.outcome = self._abstain_with(
                 ReasonCode.DOCUMENT_NOT_RELIABLE, "약관 문서 상태를 신뢰할 수 없습니다."
             )
             st.done = True
-            return st
+        return st
 
+    def retrieve_step(self, st: GraphState, body: PrecheckInput) -> GraphState:
+        if st.done:
+            return st
         st.visit("retrieve")
         st.clauses = self._retrieve(body, st.generation)
         if not st.clauses:
             st.outcome = self._abstain_with(ReasonCode.NO_EVIDENCE, "관련 약관 근거를 찾지 못했습니다.")
             st.done = True
+        return st
+
+    def assess_step(self, st: GraphState, body: PrecheckInput) -> GraphState:
+        if st.done:
             return st
-
         st.visit("assess")
-        per_code = self._assess(body, st.clauses)
+        st.per_code = self._assess(body, st.clauses)
+        return st
 
+    def explain_step(self, st: GraphState, body: PrecheckInput) -> GraphState:
+        if st.done:
+            return st
         st.visit("explain")
-        message = self._explain(body, per_code, st.clauses)
-
+        message, cited_handles = self._explain(body, st.per_code, st.clauses)
         st.outcome = PrecheckOutcome(
-            verdict=_aggregate_verdict(per_code),
+            verdict=_aggregate_verdict(st.per_code),
             citations=st.clauses,
-            per_code=per_code,
+            per_code=st.per_code,
             message=message,
+            cited_handles=cited_handles,
             applied_generation=st.generation,
         )
         return st
@@ -216,7 +282,7 @@ class PrecheckGraph:
         st.visit("verify_citations")
         assert st.outcome is not None
 
-        ok, code, msg = self._verify(st.outcome.message, st.outcome.citations)
+        ok, code, msg = self._verify(st.outcome.message, st.outcome.cited_handles, st.outcome.citations)
         if ok:
             st.done = True
             return st
@@ -234,22 +300,20 @@ class PrecheckGraph:
 
         if self._retarget is not None:
             # 표적 검색 1회. 여기서도 verdict는 안 바꾸고 근거만 다시 모은다.
+            # retarget을 주입하는 쪽이 세대 등 제약을 지키는 검색 함수를 책임진다.
             new_clauses = self._retarget(body, st.outcome.citations)
             if new_clauses:
                 st.clauses = new_clauses
-                per_code = self._assess(body, st.clauses)
-                message = self._explain(body, per_code, st.clauses)
-                st.outcome = PrecheckOutcome(
-                    verdict=_aggregate_verdict(per_code),
-                    citations=st.clauses,
-                    per_code=per_code,
-                    message=message,
-                    applied_generation=st.generation,
-                )
-            return st
+                self.assess_step(st, body)
+                self.explain_step(st, body)
+                return st
 
-        st.outcome = self._abstain_with(ReasonCode.CITATION_UNVERIFIED, msg)
-        st.done = True
+        # retarget이 없거나(build()의 기본 경로) 새 근거를 못 찾았으면, 세대
+        # 필터를 통과한 st.clauses는 그대로 두고 설명만 다시 쓰게 한다.
+        # 인용검증 실패는 대부분 근거 부족이 아니라 explain()이 인용 표기를
+        # 놓친 것이라, 여기서 조항을 다시 검색하면 세대가 다른 조항이 섞여
+        # 들어올 위험만 생긴다.
+        self.explain_step(st, body)
         return st
 
     @staticmethod
@@ -272,7 +336,11 @@ class PrecheckGraph:
         """순차 실행기. LangGraph가 없어도 같은 흐름을 돈다."""
         st = GraphState()
         self.normalize(st, body)
-        self.run_rules(st, body)
+        self.resolve_policy_step(st, body)
+        self.gate_document_step(st, body)
+        self.retrieve_step(st, body)
+        self.assess_step(st, body)
+        self.explain_step(st, body)
 
         guard = 0
         while not st.done:
@@ -286,29 +354,51 @@ class PrecheckGraph:
         return st.outcome, st
 
     def build_langgraph(self):
-        """같은 노드·분기를 LangGraph StateGraph로 세운다. invoke()와 흐름이 같아야 한다."""
+        """
+        계약 다이어그램과 같은 모양으로 노드를 세운다 -- 5단계(resolve_policy·
+        gate_document·retrieve·assess·explain)를 각각 별도 노드로 두고, 각
+        노드 뒤에서 st.done이면 바로 END로, 아니면 다음 단계로 가는 조건부
+        엣지를 건다. invoke()와 실행 흐름(어느 단계에서 멈추는지)이 같아야
+        하고, 그건 tests/test_precheck_graph.py가 두 실행기 결과를 대조해서
+        강제한다.
+        """
         from langgraph.graph import END, StateGraph
 
         g = StateGraph(dict)
 
-        def _norm(s: dict) -> dict:
-            self.normalize(s["st"], s["body"])
-            return s
+        def _wrap(step):
+            def node(s: dict) -> dict:
+                step(s["st"], s["body"])
+                return s
 
-        def _rules(s: dict) -> dict:
-            self.run_rules(s["st"], s["body"])
-            return s
+            return node
 
-        def _verify(s: dict) -> dict:
-            self.verify_citations(s["st"], s["body"])
-            return s
+        def _next_or_end(next_node: str):
+            def route(s: dict) -> str:
+                return END if s["st"].done else next_node
 
-        g.add_node("normalize", _norm)
-        g.add_node("rules", _rules)
-        g.add_node("verify_citations", _verify)
+            return route
+
+        g.add_node("normalize", _wrap(self.normalize))
+        g.add_node("resolve_policy", _wrap(self.resolve_policy_step))
+        g.add_node("gate_document", _wrap(self.gate_document_step))
+        g.add_node("retrieve", _wrap(self.retrieve_step))
+        g.add_node("assess", _wrap(self.assess_step))
+        g.add_node("explain", _wrap(self.explain_step))
+        g.add_node("verify_citations", _wrap(self.verify_citations))
+
         g.set_entry_point("normalize")
-        g.add_edge("normalize", "rules")
-        g.add_edge("rules", "verify_citations")
+        g.add_edge("normalize", "resolve_policy")
+        g.add_conditional_edges(
+            "resolve_policy", _next_or_end("gate_document"), {"gate_document": "gate_document", END: END}
+        )
+        g.add_conditional_edges(
+            "gate_document", _next_or_end("retrieve"), {"retrieve": "retrieve", END: END}
+        )
+        g.add_conditional_edges("retrieve", _next_or_end("assess"), {"assess": "assess", END: END})
+        # assess/explain은 그 자체로 기권 분기가 없다(근거는 retrieve에서 이미 확인됨).
+        g.add_edge("assess", "explain")
+        g.add_edge("explain", "verify_citations")
         g.add_conditional_edges(
             "verify_citations",
             lambda s: END if s["st"].done else "verify_citations",
@@ -373,19 +463,28 @@ def build() -> PrecheckGraph:
 
     def _explain(
         body: PrecheckInput, per_code: tuple[PerCodeVerdict, ...], clauses: tuple[Citation, ...]
-    ) -> str:
-        clauses_text = "\n".join(f"- {c.article_no}: {c.quote}" for c in clauses)
+    ) -> tuple[str, tuple[str, ...]]:
+        # 조항마다 요청 단위 손잡이(E001 등)를 붙여서, LLM이 조항번호를 정확히
+        # 못 써도(부 이름 누락 등) 손잡이로만 인용하면 확실하게 대조할 수 있게 한다.
+        evidence = citation_guard.make_handles(citations_to_evidence(clauses))
+        evidence_text = "\n".join(f"{e.handle}: {e.qualified_no} - {e.text}" for e in evidence)
         verdicts_text = "\n".join(f"- {pc.code}: {pc.verdict.value}" for pc in per_code)
         prompt = (
-            "아래 약관 조항만 근거로, 사용자 질문에 답하는 설명 문장을 쓰세요.\n"
-            "조항 번호를 반드시 인용하고, 조항에 없는 내용은 추측하지 마세요.\n"
+            "아래 [근거]는 각각 손잡이(E001 등)가 붙어 있습니다. "
+            "인용할 때는 반드시 그 손잡이를 [E001]처럼 표기하세요. 조항에 없는 내용은 추측하지 마세요.\n"
             f"판정결과(이미 확정됨, 바꾸지 마세요):\n{verdicts_text}\n\n"
-            f"질문: {body.query}\n\n관련 조항:\n{clauses_text}\n"
+            f"질문: {body.query}\n\n[근거]\n{evidence_text}\n\n"
+            "다음 두 줄 형식으로만 답하세요 (다른 말 붙이지 마세요):\n"
+            "답변: <설명 문장, 인용은 [E001]처럼 표기>\n"
+            "인용: <사용한 손잡이를 콤마로, 예: E001, E002>"
         )
-        return _get_llm().invoke(prompt).content
+        raw = _get_llm().invoke(prompt).content
+        return parse_explain_output(raw)
 
-    def _verify(message: str, clauses: tuple[Citation, ...]) -> tuple[bool, ReasonCode | None, str]:
-        return verify_citations_in_message(message, clauses)
+    def _verify(
+        message: str, cited_handles: tuple[str, ...], clauses: tuple[Citation, ...]
+    ) -> tuple[bool, ReasonCode | None, str]:
+        return verify_citations_in_message(message, cited_handles, clauses)
 
     return PrecheckGraph(
         resolve_policy=_resolve_policy,
@@ -397,4 +496,13 @@ def build() -> PrecheckGraph:
     )
 
 
-__all__ = ["GraphState", "PrecheckGraph", "MAX_RETRY", "NODES", "build", "verify_citations_in_message"]
+__all__ = [
+    "GraphState",
+    "PrecheckGraph",
+    "MAX_RETRY",
+    "NODES",
+    "build",
+    "verify_citations_in_message",
+    "citations_to_evidence",
+    "parse_explain_output",
+]

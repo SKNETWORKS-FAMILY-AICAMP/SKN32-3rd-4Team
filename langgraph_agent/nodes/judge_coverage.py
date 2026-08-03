@@ -9,6 +9,12 @@ nodes/judge_coverage.py
     citations 없이는 답을 만들지 않는다 -- 근거가 하나도 없으면 이 노드가
     아니라 knowledge_gap 노드로 이미 라우팅됐어야 정상.
 
+    ★이 그래프(router→mcp_caller→judge_coverage)는 5개 기능을 다 다루는
+    초기 프로토타입이다. 계약(05_계약_AI2_판정.md) 기준으로는 "판정은
+    규칙엔진이 정하고 LLM은 설명만 쓴다"가 원칙인데, 여기선 LLM이 판정까지
+    자유 텍스트로 직접 쓴다. 규칙엔진 분리 + 인용검증(citation_guard)까지
+    갖춘 계약 준수 버전은 graph/precheck_graph.py에 있다.
+
 주의:
     intent가 policy_rag가 아닐 수도 있다 (예: 순수 용어설명 질문). 그래서
     프롬프트에 "약관 조항"만이 아니라 mcp_caller가 채운 4가지 정보를 전부
@@ -32,8 +38,9 @@ def _get_llm() -> ChatOpenAI:
 
 
 JUDGE_PROMPT_TEMPLATE = """\
-아래 "제공된 정보"만 근거로 사용자 질문에 답해주세요.
-제공된 정보에 없는 내용은 추측하지 말고 "확인 불가"라고 답하세요.
+"관련 약관 조항"만 보장 여부 판정의 근거입니다. 청구승인 통계·유사 청구 사례·
+용어 설명은 참고 정보일 뿐 판정 근거가 아닙니다 -- 이걸로 보장 여부를 단정하지
+마세요. 제공된 정보에 없는 내용은 추측하지 말고 "확인 불가"라고 답하세요.
 약관 조항을 인용할 때는 반드시 조항 번호를 함께 쓰세요.
 
 질병코드 후보가 여러 개(candidates)로 주어지면, 그중 하나를 임의로 골라
@@ -43,10 +50,12 @@ JUDGE_PROMPT_TEMPLATE = """\
 질병정보: {disease_name} ({disease_code})
 질병코드 후보(미확정): {disease_candidates}
 
-[제공된 정보]
+[판정 근거]
 
 관련 약관 조항:
 {clauses}
+
+[참고 정보 -- 판정 근거 아님]
 
 청구승인 통계:
 {stats}
@@ -110,5 +119,14 @@ def judge_coverage_node(state: InsuranceState) -> InsuranceState:
     )
 
     answer = _get_llm().invoke(prompt).content
+
+    # 일부 intent가 실패했지만 다른 게 성공해서 여기까지 온 경우(needs_fallback=False
+    # 인데 error는 남아있는 상태) -- 이 error를 LLM 프롬프트에 안 넣고 조용히
+    # 버리면 사용자는 일부 정보가 누락된 걸 전혀 알 수 없다. 08_계약_프론트.md의
+    # "경고는 조용히 숨기지 않는다" 원칙과 같은 이유로, LLM 문장에 맡기지 않고
+    # 결정론적으로 답변 뒤에 덧붙인다.
+    error = state.get("error")
+    if error:
+        answer = f"{answer}\n\n⚠ 일부 정보를 가져오지 못했습니다: {error}"
 
     return {**state, "final_answer": answer}

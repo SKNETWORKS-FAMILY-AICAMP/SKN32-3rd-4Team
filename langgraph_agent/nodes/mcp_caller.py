@@ -25,6 +25,7 @@ from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeoutError
 
 from graph.state import InsuranceState
+from graph.privacy import hash_code
 from config import MCP_TIMEOUT_SECONDS
 
 from mcp_tools.policy_rag_server import search_policy_clause
@@ -40,14 +41,29 @@ _TRANSIENT_EXCEPTIONS = (TimeoutError, ConnectionError, OSError)
 # 방금 찾은 disease_code를 뒤 intent들이 이어 받아 쓸 수 있다.
 _INTENT_ORDER = ["disease_lookup", "policy_rag", "claim_stats", "similar_case", "glossary"]
 
-_executor = ThreadPoolExecutor(max_workers=4)
-
 
 def _call_with_timeout(func, *args, **kwargs):
-    future = _executor.submit(func, *args, **kwargs)
+    """
+    호출마다 새 1-worker executor를 쓴다 (공유 풀을 쓰지 않는다).
+
+    ★예전엔 모듈 전역에 max_workers=4짜리 공유 풀을 두고 거기서 꺼내 썼는데,
+      타임아웃이 나도 실제 스레드는 안 멈춘다(파이썬은 스레드를 강제 종료할
+      방법이 없음). 외부 API가 4번만 연속으로 응답 없이 멈추면 스레드 4개가
+      전부 좀비 상태로 잠기고, 그 뒤로는 이 프로세스의 모든 사용자·모든 요청이
+      빈 스레드를 못 구해 매번 타임아웃만 나는 상태가 된다(서버는 안 죽고
+      계속 느려터진 채로 사실상 먹통).
+      호출마다 독립된 executor를 쓰면, 스레드 하나가 영영 안 멈춰도 "그 호출
+      전용"으로 격리돼 있어서 다른 호출들을 막지 않는다. shutdown(wait=False)로
+      멈추지 않는 스레드를 기다리지 않고 바로 손을 뗀다.
+    """
+    executor = ThreadPoolExecutor(max_workers=1)
+    future = executor.submit(func, *args, **kwargs)
     try:
-        return future.result(timeout=MCP_TIMEOUT_SECONDS)
+        result = future.result(timeout=MCP_TIMEOUT_SECONDS)
+        executor.shutdown(wait=False)
+        return result
     except FutureTimeoutError:
+        executor.shutdown(wait=False, cancel_futures=True)
         raise TimeoutError(
             f"MCP 호출 타임아웃 ({MCP_TIMEOUT_SECONDS}초 초과): {func.__name__}"
         )
@@ -104,8 +120,14 @@ def mcp_caller_node(state: InsuranceState) -> InsuranceState:
                 candidates = _call_tool(lookup_disease_code, query_term)
 
                 if len(candidates) == 1:
-                    updated_state["disease_code"] = candidates[0].get("code")
+                    code = candidates[0].get("code")
+                    updated_state["disease_code"] = code
                     updated_state["disease_name"] = candidates[0].get("name")
+                    # 질병기호는 민감정보 -- 로그/트레이스에는 평문 대신 이 해시를
+                    # 참조하게 한다. disease_code 자체는 실제 도구 호출(claim_stats
+                    # 등)에 필요해서 그대로 둔다 (그래프B의 GraphState와 같은 원리).
+                    if code:
+                        updated_state["disease_code_hash"] = hash_code(code)
                 elif len(candidates) > 1:
                     updated_state["disease_candidates"] = candidates
                 found_any_result = found_any_result or bool(candidates)
@@ -140,7 +162,15 @@ def mcp_caller_node(state: InsuranceState) -> InsuranceState:
         except Exception as e:
             errors.append(f"{intent}: {e}")
 
-    if not found_any_result:
+    # policy_rag가 요청됐으면 약관 조항이 반드시 있어야 한다 -- 보장판단의
+    # 유일한 근거이기 때문에, disease_lookup 등 다른 intent가 성공했다고 해서
+    # 대신할 수 없다. (한 intent만 성공해도 통과되던 버그 수정)
+    if "policy_rag" in intents:
+        has_required_evidence = bool(updated_state.get("matched_clauses"))
+    else:
+        has_required_evidence = found_any_result
+
+    if not has_required_evidence:
         updated_state["needs_fallback"] = True
         updated_state["error"] = (
             "; ".join(errors) if errors else "요청한 정보에 대한 근거를 찾지 못했습니다."

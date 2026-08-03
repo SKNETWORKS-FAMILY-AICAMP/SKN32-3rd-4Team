@@ -107,6 +107,21 @@ def test_disease_name_enriches_policy_rag_query(monkeypatch):
     assert "우울 에피소드" in captured_queries[0]
 
 
+def test_policy_rag_empty_falls_back_even_if_disease_lookup_succeeds(monkeypatch):
+    """"우울증 보장되나요?" 같은 질문 -- disease_lookup은 성공, policy_rag는 0건인 경우
+    policy_rag가 보장판단의 유일한 근거라서, 다른 intent 성공만으로 통과되면 안 된다."""
+    monkeypatch.setattr(
+        mcp_caller, "lookup_disease_code", lambda *a, **k: [{"code": "F32", "name": "우울 에피소드"}]
+    )
+    monkeypatch.setattr(mcp_caller, "search_policy_clause", lambda *a, **k: [])
+    state = _base_state(intent=["disease_lookup", "policy_rag"], user_query="우울증 보장되나요?")
+
+    result = mcp_caller.mcp_caller_node(state)
+
+    assert result["needs_fallback"] is True
+    assert result["matched_clauses"] == []
+
+
 def test_timeout_is_retried_then_succeeds(monkeypatch):
     calls = {"count": 0}
 

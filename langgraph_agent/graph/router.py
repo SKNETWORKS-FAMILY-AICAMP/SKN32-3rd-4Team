@@ -60,24 +60,25 @@ def classify_intent(user_query: str) -> list[Intent]:
     """
     사용자 질문을 LLM으로 분류해서 intent 리스트를 반환.
 
-    LLM 응답 파싱에 실패하거나 유효한 intent가 하나도 없으면
-    기본값으로 policy_rag를 반환한다 (라우팅 기본값이지 근거 없는 "답변"을
-    지어내는 것이 아니므로 무폴백 원칙 위반은 아니다).
+    LLM 응답 파싱에 실패하거나 유효한 intent가 하나도 없으면 빈 리스트를
+    반환한다 -- policy_rag(보장판정, 가장 위험한 경로)로 임의 확정하지 않는다.
+    intent가 비어있으면 mcp_caller가 아무 도구도 안 부르고 자연스럽게
+    needs_fallback=True로 knowledge_gap에 보내므로, 여기서 안전한 값을
+    억지로 고를 필요가 없다.
     """
     prompt = INTENT_CLASSIFICATION_PROMPT.format(query=user_query)
     response = _get_llm().invoke(prompt)
 
     try:
         parsed = json.loads(response.content)
+        # json.loads("null")은 예외가 아니라 None을 반환한다 -- 리스트가
+        # 아니면(None/dict/숫자 등) 여기서 걸러야 아래 반복문에서 안 터진다.
+        if not isinstance(parsed, list):
+            parsed = []
     except (json.JSONDecodeError, TypeError):
         parsed = []
 
-    intents: list[Intent] = [i for i in parsed if i in VALID_INTENTS]
-
-    if not intents:
-        intents.append("policy_rag")
-
-    return intents
+    return [i for i in parsed if i in VALID_INTENTS]
 
 
 def router_node(state: InsuranceState) -> InsuranceState:

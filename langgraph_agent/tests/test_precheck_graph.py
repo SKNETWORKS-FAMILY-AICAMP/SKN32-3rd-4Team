@@ -3,8 +3,8 @@ tests/test_precheck_graph.py
 
 역할:
     graph/precheck_graph.py의 PrecheckGraph 오케스트레이션(정상 흐름, 각
-    abstain 사유코드, 1:N 되묻기, per_code 판정, verify_citations 재시도/기권)을
-    검증한다.
+    abstain 사유코드, 1:N 되묻기, per_code 판정, citation_guard 기반 인용검증
+    재시도/기권)을 검증한다.
 """
 
 from graph.precheck_domain import (
@@ -16,10 +16,15 @@ from graph.precheck_domain import (
     ReasonCode,
     Verdict,
 )
-from graph.precheck_graph import MAX_RETRY, PrecheckGraph, verify_citations_in_message
+from graph.precheck_graph import (
+    MAX_RETRY,
+    PrecheckGraph,
+    parse_explain_output,
+    verify_citations_in_message,
+)
 
 
-def _clause(article_no="제9조", quote="..."):
+def _clause(article_no="제9조", quote="면책 조항 원문"):
     return Citation(article_no=article_no, article_title="면책조항", quote=quote)
 
 
@@ -33,8 +38,9 @@ def _make_graph(**overrides):
         gate_document=lambda generation: True,
         retrieve=lambda body, generation: (_clause(),),
         assess=lambda body, clauses: _per_code(),
-        explain=lambda body, per_code, clauses: f"{clauses[0].article_no}에 따르면...",
-        verify=lambda message, clauses: (True, None, ""),
+        # 첫 번째(유일한) 근거는 항상 E001 손잡이를 받는다(citation_guard.make_handles 순서 보장).
+        explain=lambda body, per_code, clauses: (f"{clauses[0].article_no}에 따르면...", ("E001",)),
+        verify=lambda message, cited_handles, clauses: (True, None, ""),
     )
     defaults.update(overrides)
     return PrecheckGraph(**defaults)
@@ -124,7 +130,7 @@ def test_multiple_kcd_codes_get_individual_verdicts():
 def test_citation_retry_then_success_via_retarget():
     calls = {"verify": 0}
 
-    def verify(message, clauses):
+    def verify(message, cited_handles, clauses):
         calls["verify"] += 1
         if calls["verify"] == 1:
             return False, ReasonCode.CITATION_UNVERIFIED, "인용 오류"
@@ -142,7 +148,7 @@ def test_citation_retry_then_success_via_retarget():
 
 def test_citation_retry_exhausted_abstains():
     graph = _make_graph(
-        verify=lambda message, clauses: (False, ReasonCode.CITATION_UNVERIFIED, "계속 오류"),
+        verify=lambda message, cited_handles, clauses: (False, ReasonCode.CITATION_UNVERIFIED, "계속 오류"),
         retarget=lambda body, clauses: (_clause(),),
     )
     outcome, state = graph.invoke(_body())
@@ -155,7 +161,7 @@ def test_citation_retry_exhausted_abstains():
 def test_same_reason_does_not_retry_twice():
     """같은 사유로 두 번 돌지 않는다 -- retarget이 매번 같은 근거를 주는 상황."""
     graph = _make_graph(
-        verify=lambda message, clauses: (False, ReasonCode.CITATION_UNVERIFIED, "동일 오류"),
+        verify=lambda message, cited_handles, clauses: (False, ReasonCode.CITATION_UNVERIFIED, "동일 오류"),
         retarget=lambda body, clauses: clauses,  # 근거가 안 바뀜
     )
     outcome, state = graph.invoke(_body())
@@ -164,18 +170,61 @@ def test_same_reason_does_not_retry_twice():
     assert state.retries <= 1  # 같은 사유 반복이라 1번 만에 기권해야 함
 
 
-def test_verify_citations_catches_hallucinated_article():
-    """실제 검색된 건 제9조뿐인데 설명문이 제15조도 인용하면 실패해야 한다."""
+def test_citation_retry_without_retarget_reexplains_with_same_clauses():
+    """retarget 없이(build()의 기본 경로) 검증 실패 시, 조항을 다시 검색하지
+    않고 같은(세대 필터 통과한) clauses로 explain()만 다시 부른다."""
+    seen_clauses = []
+    calls = {"verify": 0}
+
+    def explain(body, per_code, clauses):
+        seen_clauses.append(clauses)
+        return (f"{clauses[0].article_no}에 따르면...", ("E001",))
+
+    def verify(message, cited_handles, clauses):
+        calls["verify"] += 1
+        if calls["verify"] == 1:
+            return False, ReasonCode.CITATION_UNVERIFIED, "인용 표기 누락"
+        return True, None, ""
+
+    graph = _make_graph(explain=explain, verify=verify)
+    outcome, state = graph.invoke(_body())
+
+    assert outcome.abstained is False
+    assert state.retries == 1
+    # explain이 두 번 불렸고(최초 + 재시도), 두 번 다 같은 근거(제9조)로 불렸다.
+    assert len(seen_clauses) == 2
+    assert seen_clauses[0][0].article_no == seen_clauses[1][0].article_no == "제9조"
+
+
+def test_citation_retry_without_retarget_exhausted_abstains():
+    graph = _make_graph(
+        verify=lambda message, cited_handles, clauses: (False, ReasonCode.CITATION_UNVERIFIED, "계속 오류"),
+    )
+    outcome, state = graph.invoke(_body())
+
+    assert outcome.abstained is True
+    assert outcome.reason_code == ReasonCode.CITATION_UNVERIFIED
+    assert state.retries <= MAX_RETRY
+
+
+# ── citation_guard 기반 인용검증 (verify_citations_in_message) ──────────────
+
+
+def test_verify_citations_catches_hallucinated_handle():
+    """진짜 근거는 E001 하나뿐인데 존재하지 않는 E999도 같이 인용하면 실패해야 한다."""
     clauses = (_clause(article_no="제9조"),)
-    ok, code, _ = verify_citations_in_message("제9조에 따르면... 그리고 제15조도 관련 있습니다", clauses)
+    ok, code, reason = verify_citations_in_message(
+        "제9조에 따르면 면책됩니다 [E001][E999]", ("E001", "E999"), clauses
+    )
 
     assert ok is False
     assert code == ReasonCode.CITATION_UNVERIFIED
+    assert "E999" in reason
 
 
 def test_verify_citations_passes_when_all_cited_are_valid():
-    clauses = (_clause(article_no="제9조"),)
-    ok, code, _ = verify_citations_in_message("제9조에 따르면 면책 대상입니다.", clauses)
+    clauses = (_clause(article_no="제9조", quote="면책 조항 원문"),)
+    ok, code, _ = verify_citations_in_message("면책 조항 원문에 따르면 대상입니다 [E001]", ("E001",), clauses)
 
     assert ok is True
     assert code is None
@@ -183,7 +232,62 @@ def test_verify_citations_passes_when_all_cited_are_valid():
 
 def test_verify_citations_fails_when_no_citation_present():
     clauses = (_clause(article_no="제9조"),)
-    ok, code, _ = verify_citations_in_message("보장되지 않는 것으로 보입니다.", clauses)
+    ok, code, _ = verify_citations_in_message("보장되지 않는 것으로 보입니다.", (), clauses)
 
     assert ok is False
     assert code == ReasonCode.CITATION_UNVERIFIED
+
+
+def test_verify_citations_fails_on_undeclared_mention():
+    """본문에 "제9조"를 언급했지만 인용(cited_handles)으로 선언하지 않으면 실패해야 한다
+    (citation_guard의 undeclared_mentions 체크 -- 인용검증 우회 방지)."""
+    clauses = (_clause(article_no="제9조", quote="면책 조항 원문"),)
+    ok, code, _ = verify_citations_in_message(
+        "제9조에 따르면 면책됩니다 [E001]", (), clauses  # 인용 선언은 비어있음
+    )
+
+    assert ok is False
+    assert code == ReasonCode.CITATION_UNVERIFIED
+
+
+def test_verify_citations_does_not_check_quote_content_yet():
+    """알려진 한계: quotes를 검증기에 안 넘기므로, 손잡이만 맞으면 답변 내용이
+    조항과 무관해도 통과한다 -- explain()이 LLM한테서 실제 인용문을 따로 뽑아
+    quotes로 넘기기 전까지는 이 검사가 없다는 걸 명시하는 회귀 방지 테스트."""
+    clauses = (_clause(article_no="제9조", quote="완전히 다른 원문 내용"),)
+    ok, _, _ = verify_citations_in_message("전혀 관련 없는 답변입니다 [E001]", ("E001",), clauses)
+
+    assert ok is True  # 지금은 통과함 -- quote 내용 대조는 아직 미구현
+
+
+def test_verify_citations_no_clauses_always_passes():
+    """근거가 아예 없는 상황(abstain 경로)에서는 검증할 것도 없다."""
+    ok, code, _ = verify_citations_in_message("아무 텍스트", (), ())
+
+    assert ok is True
+    assert code is None
+
+
+# ── explain 출력 파싱 ────────────────────────────────────────────────────
+
+
+def test_parse_explain_output_splits_message_and_citations():
+    raw = "답변: 제9조에 따르면 면책됩니다 [E001]\n인용: E001"
+    message, cited = parse_explain_output(raw)
+
+    assert "제9조" in message
+    assert "인용:" not in message
+    assert cited == ("E001",)
+
+
+def test_parse_explain_output_multiple_handles():
+    raw = "답변: 여러 조항에 근거합니다\n인용: E001, E002"
+    _, cited = parse_explain_output(raw)
+
+    assert cited == ("E001", "E002")
+
+
+def test_parse_explain_output_no_citation_line_means_no_citations():
+    message, cited = parse_explain_output("그냥 설명만 있는 문장")
+
+    assert cited == ()

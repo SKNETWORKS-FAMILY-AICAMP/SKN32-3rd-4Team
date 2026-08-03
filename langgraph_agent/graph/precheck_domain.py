@@ -22,10 +22,16 @@ class Verdict(Enum):
 
 
 class ReasonCode(Enum):
-    NOT_RESOLVED = "NOT_RESOLVED"
-    DOCUMENT_NOT_RELIABLE = "DOCUMENT_NOT_RELIABLE"
-    NO_EVIDENCE = "NO_EVIDENCE"
-    CITATION_UNVERIFIED = "CITATION_UNVERIFIED"
+    """
+    값은 전부 소문자 snake_case -- storyboard.html/08_계약_프론트.md에 나오는
+    실제 reason_code 예시(예: "no_evidence", "ambiguous_product_line")와 맞춘 것.
+    REST로 그대로 나가는 값이라 대소문자가 섞이면 클라이언트 매칭 로직이 깨진다.
+    """
+
+    NOT_RESOLVED = "not_resolved"
+    DOCUMENT_NOT_RELIABLE = "document_not_reliable"
+    NO_EVIDENCE = "no_evidence"
+    CITATION_UNVERIFIED = "citation_unverified"
     NO_VERSION_AT_DATE = "no_version_at_date"
     INSURER_NOT_SUPPORTED = "insurer_not_supported"
     AMBIGUOUS_PRODUCT_LINE = "ambiguous_product_line"
@@ -38,6 +44,12 @@ class Citation:
     quote: str
     generation: str | None = None
     source_file: str | None = None
+    #: 영속 식별자(문서해시+조항번호 등). 실데이터 연동 전까지는 비어있을 수 있음.
+    clause_id: str = ""
+    #: citation_guard 검증용 정규화 경로("보통약관/제9조" 등).
+    #: 비어있으면 article_no만으로 취급된다 -- 특약이 여러 개면 이 값을 채워야
+    #: 같은 번호(제9조)가 다른 문서를 가리키는 걸 구분할 수 있다.
+    qualified_no: str = ""
 
 
 @dataclass(frozen=True)
@@ -91,6 +103,9 @@ class PrecheckOutcome:
     per_code: tuple[PerCodeVerdict, ...] = ()
     candidates: tuple[ProductCandidate, ...] = ()
     message: str = ""
+    #: explain()이 message 안에서 실제로 인용했다고 선언한 손잡이(E001 등).
+    #: verify_citations이 citations와 대조하는 데 쓴다.
+    cited_handles: tuple[str, ...] = ()
     abstained: bool = False
     reason_code: ReasonCode | None = None
     applied_generation: str | None = None
