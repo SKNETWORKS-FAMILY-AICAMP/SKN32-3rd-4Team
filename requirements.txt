@@ -1,0 +1,13 @@
+# Agent 파트(사전판정 그래프 + MCP 서버) 담당 범위 의존성만 남긴 버전.
+# 원본(feature-frontend)의 requirements.txt는 얼굴인식·음성·커머스·pgvector 등
+# 다른 역할 의존성까지 포함한 훨씬 큰 목록이다 -- 여기서는 이 브랜치(feature-agent)의
+# app/ 서브셋(core/domain, core/usecases, core/ports, workflow, adapters 일부,
+# auth/agent_client, mcp_server)이 실제로 import하는 것만 검증된 버전으로 고정한다.
+# 나중에 정본과 합칠 때는 이 파일을 덮어쓰지 말고 두 목록을 대조해야 한다.
+
+fastapi==0.115.12
+httpx==0.28.1
+langgraph==0.6.11
+mcp[cli]==1.29.0
+openai==1.109.1
+pytest==8.3.5

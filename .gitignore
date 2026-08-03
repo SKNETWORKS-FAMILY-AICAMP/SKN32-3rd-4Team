@@ -3,6 +3,15 @@
 __pycache__/
 .venv
 
+# 에이전트 클라이언트 레지스트리 실제 파일 -- api_key_hash가 실제 운영 값이라
+# .env와 같은 이유로 커밋 대상 아님. 템플릿은 config/agent_clients.example.json
+config/agent_clients.json
+
 # 벡터DB/대용량 데이터 산출물 -- 재생성 가능, 커밋 대상 아님
 langgraph_agent/data/chroma_db/
 langgraph_agent/data/*.jsonl
+
+# 런타임에 쌓이는 산출물 -- 외부 에이전트 사례 보고, MCP 감사 로그.
+# 실행하면 로컬에 생기지만 재생성 가능하고 커밋 대상 아님(개인정보성 원문 포함 가능)
+data/external/
+data/audit/

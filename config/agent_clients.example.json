@@ -1,0 +1,17 @@
+{
+  "_주의": [
+    "이 파일은 예시(.example)다. 실제 등록은 config/agent_clients.json에 한다(gitignore 대상).",
+    "api_key_hash는 평문 키의 SHA-256이다 -- 평문 키는 여기 저장하지 않는다.",
+    "app.auth.agent_client.hash_api_key(raw_key)로 해시를 만들어 넣는다."
+  ],
+  "clients": [
+    {
+      "agent_client_id": "demo-agent-001",
+      "name": "데모 에이전트(예시)",
+      "api_key_hash": "REPLACE_WITH_SHA256_OF_YOUR_RAW_KEY",
+      "scopes": ["precheck:read", "terms:read", "observations:write"],
+      "rate_limit_rpm": 60,
+      "status": "active"
+    }
+  ]
+}
