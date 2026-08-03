@@ -136,6 +136,35 @@ class ClauseRow:
     content_hash: str
     usable: bool = True
     unusable_reason: str = ""
+    #: ── 공통 게이트(`app/core/domain/eligibility.py`)가 보는 값 ──
+    #:   ★`None` 은 "모른다"다. `True`/`False` 와 다르다 — 모르면 못 쓴다(§0).
+    citation_eligible: bool | None = None
+    chunk_type: str | None = None
+    is_statute: bool | None = None
+    parse_status: str | None = None
+    #: ★수록(occurrence) 순번. 조항 JSON 이 결정적으로 매긴 값이다.
+    ordinal: int | None = None
+    #: 조항인가 부록인가. 부록을 조 이름으로 인용하면 출처가 틀린다.
+    source_kind: str = "clause"
+    #: 어느 승인 릴리스에서 왔나. 인용 검증이 세대까지 맞춰 볼 수 있어야 한다.
+    release_id: str = ""
+
+    @property
+    def occurrence_id(self) -> str:
+        """**정확히 한 행**을 가리키는 식별자.
+
+        ★`clause_id` 로는 부족하다(코덱스 지적) — `sha12` 로 자르고
+          `page_from`·세대·조항/부록 구분이 없다. 인용 검증이
+          "정확히 한 행이 조회될 때만 통과"하려면 이만큼이 필요하다.
+
+        ★`ordinal` 이 없으면 **빈 문자열**이다. 지어내지 않는다 —
+          호출부가 "식별자가 없다"를 보고 기권해야 한다.
+        """
+        #: ★`release_id` 가 없으면 **빈 문자열**이다. `'?'` 로 채우면
+        #:   서로 다른 릴리스의 행이 **같은 식별자**를 갖는다(코덱스 지적).
+        if self.ordinal is None or not self.sha256 or not self.release_id:
+            return ""
+        return f"{self.release_id}:{self.sha256}:{self.source_kind}:{self.ordinal}"
 
     @property
     def clause_id(self) -> str:

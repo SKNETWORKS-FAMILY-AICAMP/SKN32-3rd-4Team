@@ -287,6 +287,15 @@ def _row(**kw):
         page_from=41,
         page_to=41,
         content_hash="0f0f0f0f" + "0" * 56,
+        #: ★★인용 검증이 **수록 식별자로 한 행을 특정**한다(2026-08-03 계약 변경).
+        #:   식별자가 없으면 기권하므로 픽스처도 채워야 한다 —
+        #:   전에는 없어도 통과했는데, 그게 곧 **아무 행이나 대조**할 수 있다는 뜻이었다.
+        ordinal=0,
+        release_id="test-release",
+        #: 공통 게이트(`app/core/domain/eligibility.py`)가 보는 값
+        citation_eligible=True,
+        is_statute=False,
+        parse_status="ok",
     )
     base.update(kw)
     return ClauseRow(**base)

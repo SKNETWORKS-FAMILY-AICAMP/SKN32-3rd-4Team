@@ -30,6 +30,17 @@ _QA_BACKENDS = {
 }
 
 
+def _build_configured_hybrid(top_k: int):
+    from app.core.config import get_settings
+
+    if get_settings().RAG_RERANK_ENABLED:
+        return build_hybrid_answer_question(top_k=top_k, rerank=True)
+    return build_hybrid_answer_question(top_k=top_k)
+
+
+_QA_BACKENDS["hybrid"] = _build_configured_hybrid
+
+
 class SearchRequest(BaseModel):
     query: str = Field(min_length=1)
     top_k: int = Field(default=3, ge=1, le=10)

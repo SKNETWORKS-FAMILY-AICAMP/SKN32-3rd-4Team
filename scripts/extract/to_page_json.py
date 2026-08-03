@@ -227,11 +227,23 @@ def extract(pdf: Path, meta: dict) -> dict:
                 if not t.get("records"):
                     continue
                 coord.append({
+                    #: ★★**표에 신원을 준다.** 같은 표가 조항과 부록에 **두 번**
+                    #:   붙을 수 있는데, 신원이 없으면 하류가 그걸 서로 다른 표로 센다.
+                    #:   실측: 정답 22레코드에 "실린 레코드 44" 가 그래서 나왔다(코덱스 지적).
+                    #:   `(쪽, 패널, 방식)` 이면 한 문서 안에서 유일하고 **결정적**이다.
+                    "table_id": f"p{i + 1}-{t.get('panel')}-{t.get('method')}",
                     "method": t.get("method"),
                     "panel": t.get("panel"),
                     "cols": t.get("cols"),
                     "rows": t.get("rows"),
                     "word_coverage": t.get("word_coverage"),
+                    #: ★★**판별 신호를 반드시 함께 싣는다.**
+                    #:   처음에 이 세 키를 빠뜨려서, `table_signals` 를 만들어 놓고도
+                    #:   조항 층에서는 `is_table` 이 항상 `None` 이었다 —
+                    #:   신호가 **아무 일도 하지 않고 있었다.** 만든 것과 실린 것은 다르다.
+                    "signals": t.get("signals"),
+                    "is_table": t.get("is_table"),
+                    "reject_why": t.get("reject_why"),
                     "records": t["records"],
                 })
         except Exception as exc:  # noqa: BLE001

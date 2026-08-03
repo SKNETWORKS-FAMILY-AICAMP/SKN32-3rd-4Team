@@ -1,17 +1,36 @@
 {
+  "_주의": [
+    "★고객(8080)과 운영(8081)은 **다른 앱**이다. 하나로 합치지 말 것.",
+    "  `app/main.py` 가 role 에 따라 라우터를 다르게 싣는다 —",
+    "  고객 앱에는 `/api/admin/*` 이 아예 없고 `/static/admin.html` 도 404 다.",
+    "  무인증 노출·DoS 표면을 줄이려고 **일부러** 갈라 놓은 것이다.",
+    "",
+    "★2026-08-04 실측 — 여기에 `app.main:app` 을 8099 로 띄우는 항목을 하나 두었더니",
+    "  경로 37개(관리자 API 포함)가 한 프로세스에 올라와 그 분리가 무너졌다.",
+    "  편하다고 통합 앱을 띄우면 화면에서는 안 보여도 **API 는 열려 있다.**",
+    "",
+    "★포트는 고정이다(`autoPort: false`). `scripts/run_*_server.py` 와 README 가",
+    "  8080·8081 을 명시하고, 두 서버를 구분하는 것 자체가 목적이라",
+    "  자동 할당하면 '어느 쪽에 붙었는지' 를 알 수 없게 된다.",
+    "",
+    "관리자 대시보드는 **로그인이 필요하다** — 개정이 안 보이는 게 아니라 토큰이 없는 것이다.",
+    "  계정 승격: `python -m scripts.manage promote <사용자명>`"
+  ],
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "insurance",
+      "name": "customer",
       "runtimeExecutable": "python",
-      "runtimeArgs": [
-        "-m",
-        "uvicorn",
-        "app.main:app",
-        "--port",
-        "8099"
-      ],
-      "port": 8099
+      "runtimeArgs": ["-m", "scripts.run_customer_server"],
+      "port": 8080,
+      "autoPort": false
+    },
+    {
+      "name": "admin",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "scripts.run_admin_server"],
+      "port": 8081,
+      "autoPort": false
     }
   ]
 }

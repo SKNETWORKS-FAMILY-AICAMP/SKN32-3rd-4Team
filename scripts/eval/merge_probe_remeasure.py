@@ -15,7 +15,8 @@
 
     4bit 4건은 원래 RunPod(RTX 2000 Ada)에서 쟀는데 그 기계는 반납됐다.
     랩 박스(RTX 4070 SUPER)로 다시 재므로 **GPU 가 다르다.**
-    정밀도는 같으므로 옮기되, `probes_device` 로 드러나게 둔다.
+    정밀도는 같으므로 옮기되 **`probes_gpu` 로 드러나게** 둔다 —
+    `probes_device` 는 `cuda:0` 이라 어느 기계인지 안 나온다(코덱스 지적).
 
 쓰는 법:
     python -m scripts.eval.merge_probe_remeasure <내려받은_폴더>
@@ -71,9 +72,21 @@ def merge(src_dir: pathlib.Path, *, allow_mismatch: bool = False) -> int:
         old["probes_device"] = new.get("probes_device") or new.get("device")
         old["probes_dtype"] = got
         old["probes_dtype_matches_original"] = (got == want)
+        #: ★GPU 는 **거부하지 않되 알린다.** 4bit 원 측정 기계(RunPod)는 반납돼
+        #:   같은 조건으로 다시 잴 수 없다. 못 맞추는 조건을 거부하면 아무것도
+        #:   못 고치므로, 대신 **눈에 띄게 남긴다.** `cuda:0` 만으로는 안 드러난다.
+        #: ★★**`probes_gpu` 를 먼저 본다.** 바로 위 `got` 에서 `probes_dtype` 을
+        #:   먼저 보도록 고쳐 놓고, **여기서 같은 실수를 되풀이했다**(코덱스 지적).
+        #:   입력이 이미 한 번 병합된 파일이면 `gpu` 는 **원 측정 기계**를 가리킨다.
+        #:   그걸 그대로 쓰면 재측정 GPU 가 원본 GPU 로 되돌아가고,
+        #:   일치 판정까지 `true` 가 되어 **조건이 바뀐 사실이 사라진다.**
+        got_gpu = new.get("probes_gpu") or new.get("gpu", "")
+        old["probes_gpu"] = got_gpu
+        old["probes_gpu_matches_original"] = (got_gpu == old.get("gpu"))
         dst.write_text(json.dumps(old, ensure_ascii=False, indent=2), encoding="utf-8")
+        mark = "" if old["probes_gpu_matches_original"] else "  ★GPU 다름"
         print(f"  ✓ {old['model']:52} {before} → {old['proviso_blind_count']}"
-              f"  ({old['probes_device']} · {got})")
+              f"  ({old.get('probes_gpu') or old['probes_device']} · {got}){mark}")
         moved += 1
     print(f"\n합침 {moved} · 건너뜀 {skipped} · 대응없음 {missing}")
     #: ★아직 옛 공식인 것이 남아 있으면 **세어서 말한다.** 조용히 끝내지 않는다.
@@ -86,14 +99,24 @@ def merge(src_dir: pathlib.Path, *, allow_mismatch: bool = False) -> int:
             print(f"    {m}")
     else:
         print("★전부 재측정됐습니다.")
+    #: ★**건너뛴 것이 있으면 0 으로 끝내지 않는다.**
+    #:   성공 코드로 끝나면 스크립트를 부른 쪽이 "다 합쳤다"로 읽는다.
+    #:   화면에 이유를 찍어도 자동화는 화면을 안 본다(코덱스 지적).
+    if skipped or missing:
+        print(f"★{skipped + missing}건을 합치지 못했습니다 — 종료 코드 1.")
+        return 1
     return 0
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("src", help="GPU 박스에서 내려받은 결과 폴더")
+    #: ★탈출구를 둔다. 다만 **무엇을 하는지 정확히 적는다** —
+    #:   "권장하지 않음"만으로는 무슨 일이 일어나는지 모른다.
     ap.add_argument("--allow-dtype-mismatch", action="store_true",
-                    help="정밀도가 달라도 옮긴다(권장하지 않음)")
+                    help="★정밀도가 달라도 **덮어쓴다.** 표의 값이 무엇으로 잰 것인지 "
+                         "알 수 없게 되므로, 조건을 되살릴 수 없을 때만 쓰고 "
+                         "`probes_dtype_matches_original: false` 를 함께 보고하세요")
     a = ap.parse_args()
     return merge(pathlib.Path(a.src), allow_mismatch=a.allow_dtype_mismatch)
 

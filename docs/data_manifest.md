@@ -14,9 +14,9 @@
 - `products.csv` — 6 행, 321 bytes
 
 ## 생성물(복제 제외, 명시 명령으로 재생성 — Phase 2 REQ-OPS-01)
-- `data/mall.db` (seed_products로 생성)
+- `data/db/insurance.sqlite3` (애플리케이션의 기본 로컬 SQLite DB)
 - `data/vector_store/` (build_index로 생성)
 
 ## 라이선스·출처
-- 전부 프로젝트 자체 생성 합성 데이터(바로봄 가상 도메인). 외부 저작물 없음.
+- 전부 프로젝트 자체 생성 합성 데이터(커머스 실습 가상 도메인). 외부 저작물 없음.
 - 향후 외부 문서 수집 시 출처·수집시각·버전·라이선스를 본 매니페스트에 추가한다(REQ-RAG-02, 후속).

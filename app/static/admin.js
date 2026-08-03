@@ -4,29 +4,22 @@
   const REFRESH_INTERVAL_MS = 30_000;
 
   const state = {
-    orders: [],
+    agents: [],
+    reviewQueue: [],
+    cohort: null,
     events: [],
     knowledgeGaps: [],
     indexStatus: null,
     loading: false,
-    refreshTimer: null
+    refreshTimer: null,
+    streamAbort: null,
+    simulation: null,
+    simTimer: null,
+    mode: null,
+    realQueue: null
   };
 
   const elements = {};
-
-  const ORDER_STATUS_LABELS = {
-    pending: "대기",
-    paid: "결제 완료",
-    confirmed: "주문 확인",
-    processing: "처리 중",
-    shipped: "배송 중",
-    delivered: "배송 완료",
-    completed: "완료",
-    cancelled: "취소",
-    canceled: "취소",
-    refunded: "환불",
-    failed: "실패"
-  };
 
   document.addEventListener("DOMContentLoaded", initialize);
 
@@ -34,11 +27,14 @@
     cacheElements();
     bindEvents();
     bindLoginEvents();
+    bindSimulationEvents();
+    bindModeEvents();
     synchronizeAuthentication();
 
     if (hasToken()) {
       refreshDashboard();
       startAutoRefresh();
+      connectStream();
     }
   }
 
@@ -60,16 +56,58 @@
     elements.componentStatuses =
       document.getElementById("componentStatuses");
 
-    elements.orderCount = document.getElementById("orderCount");
+    elements.activeAgentCount = document.getElementById("activeAgentCount");
+    elements.totalAgentCount = document.getElementById("totalAgentCount");
+    elements.agentSummaryCard = document.getElementById("agentSummaryCard");
+    elements.pendingReviewCount = document.getElementById("pendingReviewCount");
+    elements.queueSummaryCard = document.getElementById("queueSummaryCard");
     elements.unresolvedGapCount =
       document.getElementById("unresolvedGapCount");
     elements.gapSummaryCard =
       document.getElementById("gapSummaryCard");
 
-    elements.ordersPanelCount =
-      document.getElementById("ordersPanelCount");
-    elements.ordersTableBody =
-      document.getElementById("ordersTableBody");
+    elements.cohortCode = document.getElementById("cohortCode");
+    elements.cohortRealN = document.getElementById("cohortRealN");
+    elements.cohortRealNote = document.getElementById("cohortRealNote");
+    elements.cohortRealCell = document.getElementById("cohortRealCell");
+    elements.cohortDemoN = document.getElementById("cohortDemoN");
+    elements.cohortDemoNote = document.getElementById("cohortDemoNote");
+    elements.cohortDemoCell = document.getElementById("cohortDemoCell");
+
+    elements.agentStream = document.getElementById("agentStream");
+    elements.streamState = document.getElementById("streamState");
+
+    elements.modeBadge = document.getElementById("modeBadge");
+    elements.modeAuto = document.getElementById("modeAuto");
+    elements.modeDesc = document.getElementById("modeDesc");
+    elements.modeUsable = document.getElementById("modeUsable");
+    elements.modeConfirmed = document.getElementById("modeConfirmed");
+    elements.modePending = document.getElementById("modePending");
+    elements.modeCollected = document.getElementById("modeCollected");
+    elements.modeNote = document.getElementById("modeNote");
+
+    elements.realQueue = document.getElementById("realQueue");
+    elements.realQueueCount = document.getElementById("realQueueCount");
+
+    elements.simStateBadge = document.getElementById("simStateBadge");
+    elements.simProgressWrap = document.getElementById("simProgressWrap");
+    elements.simBar = document.getElementById("simBar");
+    elements.simProgressText = document.getElementById("simProgressText");
+    elements.simAgents = document.getElementById("simAgents");
+    elements.simCases = document.getElementById("simCases");
+    elements.simDelay = document.getElementById("simDelay");
+    elements.simSeed = document.getElementById("simSeed");
+    elements.simCodes = document.getElementById("simCodes");
+    elements.simAutoVerify = document.getElementById("simAutoVerify");
+    elements.simStartBtn = document.getElementById("simStartBtn");
+    elements.simStopBtn = document.getElementById("simStopBtn");
+    elements.simResetBtn = document.getElementById("simResetBtn");
+    elements.simNote = document.getElementById("simNote");
+
+    elements.reviewQueue = document.getElementById("reviewQueue");
+    elements.queuePanelCount = document.getElementById("queuePanelCount");
+    elements.agentsTableBody = document.getElementById("agentsTableBody");
+    elements.agentsPanelCount = document.getElementById("agentsPanelCount");
 
     elements.eventsPanelCount =
       document.getElementById("eventsPanelCount");
@@ -183,6 +221,10 @@
 
     elements.dismissErrorButton.addEventListener("click", hideError);
 
+    if (elements.cohortCode) {
+      elements.cohortCode.addEventListener("change", () => refreshDashboard({ silent: true }));
+    }
+
     elements.gapStatusFilter.addEventListener(
       "change",
       renderKnowledgeGaps
@@ -243,8 +285,11 @@
     if (authenticated) {
       refreshDashboard();
       startAutoRefresh();
+      connectStream();
     } else {
       stopAutoRefresh();
+      stopSimPolling();
+      disconnectStream();
       showAuthenticationRequired();
     }
   }
@@ -288,18 +333,30 @@
       hideError();
     }
 
+    const code = (elements.cohortCode && elements.cohortCode.value.trim()) || "S72.0";
+
     const requests = await Promise.allSettled([
       fetchApi("/api/admin/index"),
-      fetchApi("/api/admin/orders"),
+      fetchApi("/api/admin/agents"),
       fetchApi("/api/admin/events"),
-      fetchApi("/api/admin/knowledge-gaps")
+      fetchApi("/api/admin/knowledge-gaps"),
+      fetchApi("/api/admin/demo/queue"),
+      fetchApi(`/api/admin/cohort-summary?code=${encodeURIComponent(code)}`),
+      fetchApi("/api/admin/demo/simulation"),
+      fetchApi("/api/admin/precheck-mode"),
+      fetchApi("/api/admin/verifications/queue")
     ]);
 
     const [
       indexResult,
-      ordersResult,
+      agentsResult,
       eventsResult,
-      gapsResult
+      gapsResult,
+      queueResult,
+      cohortResult,
+      simResult,
+      modeResult,
+      realQueueResult
     ] = requests;
 
     const failures = [];
@@ -314,14 +371,67 @@
       handlePossibleAuthenticationError(indexResult.reason);
     }
 
-    if (ordersResult.status === "fulfilled") {
-      state.orders = normalizeList(ordersResult.value, "orders");
-      renderOrders();
+    if (agentsResult.status === "fulfilled") {
+      const payload = normalizeObject(agentsResult.value);
+      state.agents = Array.isArray(payload.agents) ? payload.agents : [];
+      renderAgents();
     } else {
-      state.orders = [];
-      renderOrdersError();
-      failures.push("주문");
-      handlePossibleAuthenticationError(ordersResult.reason);
+      state.agents = [];
+      renderAgentsError();
+      failures.push("에이전트");
+      handlePossibleAuthenticationError(agentsResult.reason);
+    }
+
+    if (queueResult.status === "fulfilled") {
+      const payload = normalizeObject(queueResult.value);
+      state.reviewQueue = Array.isArray(payload.pending) ? payload.pending : [];
+      renderReviewQueue(payload.counts || {});
+    } else {
+      state.reviewQueue = [];
+      renderReviewQueueError();
+      failures.push("검수 큐");
+      handlePossibleAuthenticationError(queueResult.reason);
+    }
+
+    if (modeResult.status === "fulfilled") {
+      state.mode = normalizeObject(modeResult.value);
+      renderMode(state.mode);
+    } else {
+      renderMode(null);
+      failures.push("판정 모드");
+      handlePossibleAuthenticationError(modeResult.reason);
+    }
+
+    if (realQueueResult.status === "fulfilled") {
+      state.realQueue = normalizeObject(realQueueResult.value);
+      renderRealQueue(state.realQueue);
+    } else {
+      renderRealQueue(null);
+      failures.push("실제 검수 큐");
+      handlePossibleAuthenticationError(realQueueResult.reason);
+    }
+
+    if (simResult.status === "fulfilled") {
+      state.simulation = normalizeObject(simResult.value);
+      renderSimulation(state.simulation);
+      // 다른 창(또는 CLI)에서 시작한 실행도 화면이 따라잡게 한다.
+      if (state.simulation.running && !state.simTimer) {
+        startSimPolling();
+      }
+    } else {
+      renderSimulation(null);
+      failures.push("시뮬레이션 상태");
+      handlePossibleAuthenticationError(simResult.reason);
+    }
+
+    if (cohortResult.status === "fulfilled") {
+      state.cohort = normalizeObject(cohortResult.value);
+      renderCohort();
+    } else {
+      state.cohort = null;
+      renderCohortError();
+      failures.push("코호트");
+      handlePossibleAuthenticationError(cohortResult.reason);
     }
 
     if (eventsResult.status === "fulfilled") {
@@ -515,67 +625,6 @@
     card.classList.remove("is-success", "is-warning", "is-danger");
   }
 
-  function renderOrders() {
-    const orders = [...state.orders];
-
-    elements.orderCount.textContent =
-      formatInteger(orders.length);
-    elements.ordersPanelCount.textContent =
-      `${formatInteger(orders.length)}건`;
-
-    elements.ordersTableBody.replaceChildren();
-
-    if (orders.length === 0) {
-      elements.ordersTableBody.appendChild(
-        createTableMessage("표시할 주문이 없습니다.")
-      );
-      return;
-    }
-
-    const fragment = document.createDocumentFragment();
-
-    for (const order of orders) {
-      const row = document.createElement("tr");
-
-      row.appendChild(
-        createCell(
-          valueOrFallback(order.order_no),
-          "order-number"
-        )
-      );
-
-      row.appendChild(
-        createCell(valueOrFallback(order.user_id))
-      );
-
-      const statusCell = document.createElement("td");
-      statusCell.appendChild(createOrderStatusBadge(order.status));
-      row.appendChild(statusCell);
-
-      row.appendChild(
-        createCell(
-          formatInteger(toFiniteNumber(order.item_count, 0))
-        )
-      );
-
-      row.appendChild(
-        createCell(formatCurrency(order.total_amount))
-      );
-
-      fragment.appendChild(row);
-    }
-
-    elements.ordersTableBody.appendChild(fragment);
-  }
-
-  function renderOrdersError() {
-    elements.orderCount.textContent = "-";
-    elements.ordersPanelCount.textContent = "불러오기 실패";
-    elements.ordersTableBody.replaceChildren(
-      createTableMessage("주문 데이터를 불러오지 못했습니다.")
-    );
-  }
-
   function createCell(value, className = "") {
     const cell = document.createElement("td");
     cell.textContent = String(value);
@@ -587,30 +636,731 @@
     return cell;
   }
 
-  function createTableMessage(message) {
+  function createTableMessage(message, colSpan = 4) {
     const row = document.createElement("tr");
     row.className = "loading-row";
 
     const cell = document.createElement("td");
-    cell.colSpan = 5;
+    cell.colSpan = colSpan;
     cell.textContent = message;
 
     row.appendChild(cell);
     return row;
   }
 
-  function createOrderStatusBadge(status) {
-    const normalized = normalizeStatus(status);
+  /* ── 판정 모드 ───────────────────────────────────────────────────────
+   *
+   * ★시뮬레이션 제어와 **의도적으로 다르게** 보이게 한다. 저쪽은 합성 데이터를
+   *   만들 뿐이지만 이쪽은 고객이 받는 답을 바꾼다. 그래서 확인창을 띄운다.
+   */
+  function bindModeEvents() {
+    if (!elements.modeAuto) return;
+    elements.modeAuto.addEventListener("change", handleModeToggle);
+  }
+
+  async function handleModeToggle() {
+    const want = elements.modeAuto.checked;
+    const msg = want
+      ? "자동승인을 켭니다.\n\n사람의 최종 승인을 거치지 않은 약관으로도 판정하게 됩니다.\n" +
+        "판정 응답과 지원범위에 경고가 붙습니다.\n\n계속할까요?"
+      : "엄격 모드로 바꿉니다.\n\n사람 승인이 끝난 약관만 사용하므로 판정 가능 약관이\n" +
+        "크게 줄거나 0건이 될 수 있습니다.\n\n계속할까요?";
+
+    if (!window.confirm(msg)) {
+      elements.modeAuto.checked = !want;  // 되돌린다
+      return;
+    }
+
+    elements.modeAuto.disabled = true;
+    const result = await apiFetch("/api/admin/precheck-mode", {
+      method: "PUT",
+      headers: { ...authHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({ auto_approve: want })
+    });
+    elements.modeAuto.disabled = false;
+
+    if (!result || !result.ok) {
+      elements.modeAuto.checked = !want;
+      setModeNote(simErrorText(result), "error");
+      return;
+    }
+    state.mode = result.body;
+    renderMode(state.mode);
+    setModeNote(
+      `모드를 바꿨습니다 — 판정 가능 약관 ${result.body.usable_now}건.`,
+      result.body.usable_now > 0 ? "ok" : "error"
+    );
+  }
+
+  function renderMode(mode) {
+    if (!elements.modeBadge) return;
+    if (!mode) {
+      elements.modeBadge.className = "status-badge status-unknown";
+      elements.modeBadge.textContent = "확인 실패";
+      return;
+    }
+
+    const auto = Boolean(mode.auto_approve);
+    elements.modeAuto.checked = auto;
+    elements.modeBadge.className =
+      "status-badge " + (auto ? "status-pending" : "status-resolved");
+    elements.modeBadge.textContent = auto ? "자동승인" : "엄격";
+
+    elements.modeDesc.className = "mode-desc" + (auto ? "" : " is-strict");
+    elements.modeDesc.textContent = auto
+      ? mode.warning || mode.label
+      : mode.label;
+
+    const st = mode.stats || {};
+    elements.modeUsable.textContent = formatInteger(mode.usable_now ?? 0);
+    elements.modeConfirmed.textContent = formatInteger(st.confirmed ?? 0);
+    elements.modePending.textContent = formatInteger(st.human_signoff_pending ?? 0);
+    elements.modeCollected.textContent = formatInteger(st.collected ?? 0);
+  }
+
+  function setModeNote(text, tone) {
+    if (!elements.modeNote) return;
+    elements.modeNote.textContent = text || "";
+    elements.modeNote.className = "sim-note" + (tone ? ` is-${tone}` : "");
+  }
+
+  /* ── 실제 트랙 검수 큐 ────────────────────────────────────────────────
+   *
+   * ★합성 큐와 **다른 패널**이다. 한 목록에 섞어 놓고 배지로만 구분하면
+   *   승인 버튼을 잘못 누른다 — 그 실수는 "실제 통계"를 오염시킨다.
+   */
+  function renderRealQueue(payload) {
+    const pending = (payload && payload.pending) || [];
+    const counts = (payload && payload.counts) || {};
+    elements.realQueueCount.textContent =
+      `대기 ${formatInteger(counts.pending ?? pending.length)}건 · ` +
+      `승인 ${formatInteger(counts.attested ?? 0)}건`;
+
+    elements.realQueue.replaceChildren();
+    if (pending.length === 0) {
+      elements.realQueue.appendChild(
+        createEmptyState(
+          "검수 대기 중인 실제 제보가 없습니다.",
+          "고객·에이전트가 /v1/observations 로 보고하면 여기 쌓입니다."
+        )
+      );
+      return;
+    }
+
+    const fragment = document.createDocumentFragment();
+    for (const item of pending) {
+      fragment.appendChild(createRealQueueItem(item));
+    }
+    elements.realQueue.appendChild(fragment);
+  }
+
+  function createRealQueueItem(item) {
+    const li = document.createElement("li");
+    li.className = "queue-item";
+
+    const main = document.createElement("div");
+    main.className = "queue-main";
+
+    const title = document.createElement("p");
+    title.className = "queue-title";
+    title.textContent =
+      `${valueOrFallback(item.client_ref)} · ${valueOrFallback(item.insurer)} · ` +
+      `${(item.kcd_codes || []).join(", ") || "코드 없음"}`;
+
+    const meta = document.createElement("p");
+    meta.className = "queue-meta";
+    meta.textContent =
+      `결과 ${valueOrFallback(item.outcome)} · ${valueOrFallback(item.verification)} · ` +
+      `id ${valueOrFallback(item.submission_id)}`;
+
+    main.append(title, meta);
+
+    const button = document.createElement("button");
+    button.className = "verify-btn";
+    button.type = "button";
+    button.textContent = "교차검증 승인";
+    button.addEventListener("click", () => attestSubmission(item.submission_id, button));
+
+    li.append(main, button);
+    return li;
+  }
+
+  async function attestSubmission(submissionId, button) {
+    // ★근거를 받는다. 빈 승인은 나중에 설명할 수 없다(서버도 5자 미만은 거절한다).
+    const basis = window.prompt(
+      "무엇을 보고 이 제보를 납득했습니까?\n" +
+      "(예: 지급통지서 사본 대조 · 통화 확인 · 진료비 영수증 금액 일치)\n\n" +
+      "★이것은 발행처 확인이 아닙니다. admin_attested 등급으로 기록됩니다."
+    );
+    if (basis === null) return;
+
+    button.disabled = true;
+    button.textContent = "승인 중";
+    const result = await apiFetch("/api/admin/verifications", {
+      method: "POST",
+      headers: { ...authHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({ submission_id: submissionId, basis })
+    });
+
+    if (!result || !result.ok) {
+      showError(`교차검증 승인 실패: ${simErrorText(result)}`);
+      button.disabled = false;
+      button.textContent = "교차검증 승인";
+      return;
+    }
+    await refreshDashboard({ silent: true });
+  }
+
+  /* ── 시뮬레이션 제어 ─────────────────────────────────────────────────
+   *
+   * ★실행 중에는 **빠르게(1.5초)** 따로 폴링한다. 대시보드 전체 갱신(30초)에
+   *   맡기면 진행률이 멈춘 것처럼 보인다. 멈추면 이 타이머도 끈다 —
+   *   가만히 있는 화면이 서버를 계속 두드리지 않게.
+   */
+  const SIM_POLL_MS = 1_500;
+
+  function bindSimulationEvents() {
+    if (!elements.simStartBtn) return;
+    elements.simStartBtn.addEventListener("click", startSimulation);
+    elements.simStopBtn.addEventListener("click", stopSimulation);
+    elements.simResetBtn.addEventListener("click", resetDemoTrack);
+  }
+
+  function simParams() {
+    const codes = (elements.simCodes.value || "")
+      .split(",")
+      .map((c) => c.trim())
+      .filter(Boolean);
+
+    return {
+      agents: Number(elements.simAgents.value) || 1,
+      cases: Number(elements.simCases.value) || 1,
+      delay_ms: Number(elements.simDelay.value) || 0,
+      seed: Number(elements.simSeed.value) || 0,
+      auto_verify: elements.simAutoVerify.checked,
+      codes
+    };
+  }
+
+  async function startSimulation() {
+    setSimNote("", null);
+    elements.simStartBtn.disabled = true;
+    const result = await apiFetch("/api/admin/demo/simulation", {
+      method: "POST",
+      headers: { ...authHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify(simParams())
+    });
+
+    if (!result || !result.ok) {
+      // 409(이미 실행 중)·422(상한 초과)를 구분해서 그대로 보여준다 — 조용히 삼키지 않는다.
+      setSimNote(simErrorText(result), "error");
+      renderSimulation(state.simulation);
+      return;
+    }
+    state.simulation = result.body;
+    renderSimulation(state.simulation);
+    startSimPolling();
+  }
+
+  async function stopSimulation() {
+    elements.simStopBtn.disabled = true;
+    const result = await apiFetch("/api/admin/demo/simulation", {
+      method: "DELETE",
+      headers: authHeaders()
+    });
+    if (!result || !result.ok) {
+      setSimNote(simErrorText(result), "error");
+      return;
+    }
+    setSimNote("정지를 요청했습니다. 진행 중인 건을 마치고 멈춥니다.", "ok");
+    state.simulation = result.body;
+    renderSimulation(state.simulation);
+  }
+
+  async function resetDemoTrack() {
+    // 되돌릴 수 없는 삭제다 — 누르자마자 지우지 않는다.
+    if (!window.confirm(
+      "합성 트랙(제출·승격 이력)을 모두 삭제합니다.\n" +
+      "실제 트랙은 지워지지 않습니다.\n\n계속할까요?"
+    )) {
+      return;
+    }
+    elements.simResetBtn.disabled = true;
+    const result = await apiFetch("/api/admin/demo/reset", {
+      method: "POST",
+      headers: authHeaders()
+    });
+    elements.simResetBtn.disabled = false;
+
+    if (!result || !result.ok) {
+      setSimNote(simErrorText(result), "error");
+      return;
+    }
+    const removed = (result.body && result.body.removed) || [];
+    setSimNote(
+      removed.length
+        ? `합성 트랙을 비웠습니다: ${removed.join(", ")}`
+        : "지울 합성 데이터가 없었습니다.",
+      "ok"
+    );
+    state.simulation = null;
+    await refreshDashboard({ silent: true });
+  }
+
+  function simErrorText(result) {
+    const status = result ? result.status : 0;
+    const detail =
+      (result && result.body && (result.body.message || result.body.detail)) ||
+      `HTTP ${status}`;
+    return typeof detail === "string" ? detail : JSON.stringify(detail);
+  }
+
+  function renderSimulation(sim) {
+    if (!elements.simStateBadge) return;
+
+    if (!sim) {
+      elements.simStateBadge.className = "status-badge status-unknown";
+      elements.simStateBadge.textContent = "상태 불명";
+      elements.simStartBtn.disabled = false;
+      elements.simStopBtn.disabled = true;
+      elements.simProgressWrap.hidden = true;
+      return;
+    }
+
+    const running = Boolean(sim.running);
+    elements.simStartBtn.disabled = running;
+    elements.simStopBtn.disabled = !running;
+    elements.simResetBtn.disabled = running;  // 쓰는 도중 삭제 금지
+
+    elements.simStateBadge.className =
+      "status-badge " +
+      (running ? "status-running" : sim.stopped_by === "error" ? "status-error" : "status-stopped");
+    elements.simStateBadge.textContent = running
+      ? "실행 중"
+      : sim.stopped_by === "error"
+        ? "오류로 중단"
+        : sim.stopped_by === "user"
+          ? "사용자 정지"
+          : sim.stopped_by === "completed"
+            ? "완료"
+            : "정지됨";
+
+    const done = (sim.submitted || 0) + (sim.duplicated || 0) + (sim.failed || 0);
+    const planned = sim.planned || 0;
+    elements.simProgressWrap.hidden = planned === 0;
+
+    if (planned > 0) {
+      const pct = Math.min(100, Math.round((done / planned) * 100));
+      elements.simBar.style.width = `${pct}%`;
+      elements.simProgressText.textContent =
+        `${done}/${planned} (${pct}%) · 제출 ${sim.submitted} · 승격 ${sim.promoted} · ` +
+        `중복 ${sim.duplicated} · 실패 ${sim.failed}`;
+    }
+
+    // ★실패를 숫자로만 두지 않는다. 마지막 사유를 화면에 올린다.
+    if (sim.last_error) {
+      setSimNote(`마지막 오류: ${sim.last_error}`, "error");
+    }
+  }
+
+  function setSimNote(text, tone) {
+    if (!elements.simNote) return;
+    elements.simNote.textContent = text || "";
+    elements.simNote.className = "sim-note" + (tone ? ` is-${tone}` : "");
+  }
+
+  function startSimPolling() {
+    stopSimPolling();
+    state.simTimer = window.setInterval(async () => {
+      if (!hasToken()) {
+        stopSimPolling();
+        return;
+      }
+      const result = await apiFetch("/api/admin/demo/simulation", { headers: authHeaders() });
+      if (!result || !result.ok) {
+        stopSimPolling();
+        return;
+      }
+      const wasRunning = state.simulation && state.simulation.running;
+      state.simulation = result.body;
+      renderSimulation(state.simulation);
+
+      if (!result.body.running) {
+        stopSimPolling();
+        // 끝난 뒤 한 번 전체 갱신 — 코호트·검수 큐 숫자를 맞춘다.
+        refreshDashboard({ silent: true });
+      } else if (wasRunning) {
+        // 실행 중에도 코호트·큐가 자라는 것을 보여준다(중복 요청은 refreshDashboard가 막는다).
+        refreshDashboard({ silent: true });
+      }
+    }, SIM_POLL_MS);
+  }
+
+  function stopSimPolling() {
+    if (state.simTimer !== null && state.simTimer !== undefined) {
+      window.clearInterval(state.simTimer);
+      state.simTimer = null;
+    }
+  }
+
+  /* ── 코호트 두 트랙 ──────────────────────────────────────────────────
+   *
+   * ★두 값을 더하지 않는다. 화면에 합계 칸을 만들지 않는다 —
+   *   합치는 순간 합성이 실제로 샌다(계획서 §5-1).
+   */
+  function renderCohort() {
+    const tracks = (state.cohort && state.cohort.tracks) || {};
+    paintTrack(
+      tracks.verified_real,
+      elements.cohortRealN, elements.cohortRealNote, elements.cohortRealCell,
+      "검증된 실제 사례입니다. 0이면 0이라고 말합니다 — 지어내지 않습니다."
+    );
+    paintTrack(
+      tracks.synthetic,
+      elements.cohortDemoN, elements.cohortDemoNote, elements.cohortDemoCell,
+      "시연용 생성 데이터입니다. 실제 지급 통계가 아닙니다."
+    );
+  }
+
+  function paintTrack(track, nEl, noteEl, cellEl, suffix) {
+    if (!track) {
+      nEl.textContent = "-";
+      noteEl.textContent = "불러오지 못했습니다.";
+      return;
+    }
+
+    const previous = Number(nEl.dataset.n);
+    nEl.textContent = formatInteger(track.n);
+    nEl.dataset.n = String(track.n);
+
+    // n이 실제로 늘어난 순간만 강조한다 — 매 폴링마다 깜빡이면 신호가 죽는다.
+    if (Number.isFinite(previous) && track.n > previous) {
+      cellEl.classList.remove("cohort-bump");
+      void cellEl.offsetWidth;
+      cellEl.classList.add("cohort-bump");
+    }
+
+    const gate = track.min_sample_met
+      ? `최소표본 ${track.min_sample}건 충족`
+      : `최소표본 ${track.min_sample}건 미달 → 비율 비공개`;
+
+    const rate =
+      track.approval_rate === null || track.approval_rate === undefined
+        ? "비율 계산 안 함"
+        : `관측 비율 ${(track.approval_rate * 100).toFixed(1)}%` +
+          (Array.isArray(track.approval_ci)
+            ? ` (95% CI ${(track.approval_ci[0] * 100).toFixed(0)}~${(track.approval_ci[1] * 100).toFixed(0)}%)`
+            : "");
+
+    noteEl.textContent =
+      `지급 ${track.approved_n} · 부지급 ${track.denied_n} · ${gate} · ${rate}\n${suffix}`;
+  }
+
+  function renderCohortError() {
+    elements.cohortRealN.textContent = "-";
+    elements.cohortDemoN.textContent = "-";
+    elements.cohortRealNote.textContent = "코호트 집계를 불러오지 못했습니다.";
+    elements.cohortDemoNote.textContent = "코호트 집계를 불러오지 못했습니다.";
+  }
+
+  /* ── 검수 큐 ─────────────────────────────────────────────────────── */
+  function renderReviewQueue(counts) {
+    const pending = state.reviewQueue;
+
+    elements.queuePanelCount.textContent =
+      `대기 ${formatInteger(counts.pending ?? pending.length)}건 · ` +
+      `승격 ${formatInteger(counts.promoted ?? 0)}건`;
+    elements.pendingReviewCount.textContent =
+      formatInteger(counts.pending ?? pending.length);
+
+    clearCardState(elements.queueSummaryCard);
+    elements.queueSummaryCard.classList.add(
+      (counts.pending ?? pending.length) > 0 ? "is-warning" : "is-success"
+    );
+
+    elements.reviewQueue.replaceChildren();
+
+    if (pending.length === 0) {
+      elements.reviewQueue.appendChild(
+        createEmptyState(
+          "검수 대기 중인 합성 제출이 없습니다.",
+          "시뮬레이터를 실행하거나 /v1/demo/observations 로 제출하면 여기 쌓입니다."
+        )
+      );
+      return;
+    }
+
+    const fragment = document.createDocumentFragment();
+    for (const item of pending) {
+      fragment.appendChild(createQueueItem(item));
+    }
+    elements.reviewQueue.appendChild(fragment);
+  }
+
+  function createQueueItem(item) {
+    const li = document.createElement("li");
+    li.className = "queue-item";
+
+    const main = document.createElement("div");
+    main.className = "queue-main";
+
+    const title = document.createElement("p");
+    title.className = "queue-title";
+    title.textContent =
+      `${valueOrFallback(item.client_ref)} · ${valueOrFallback(item.insurer)} · ` +
+      `${(item.kcd_codes || []).join(", ") || "코드 없음"}`;
+
+    const meta = document.createElement("p");
+    meta.className = "queue-meta";
+    meta.textContent =
+      `결과 ${valueOrFallback(item.outcome)} · ${valueOrFallback(item.verification, "unverified")} · ` +
+      `id ${valueOrFallback(item.submission_id)}`;
+
+    main.append(title, meta);
+
+    const button = document.createElement("button");
+    button.className = "verify-btn";
+    button.type = "button";
+    button.textContent = "검수 승인";
+    button.addEventListener("click", () => verifySubmission(item.submission_id, button));
+
+    li.append(main, button);
+    return li;
+  }
+
+  async function verifySubmission(submissionId, button) {
+    button.disabled = true;
+    button.textContent = "승격 중";
+    try {
+      const result = await apiFetch("/api/admin/demo/verifications", {
+        method: "POST",
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ submission_id: submissionId })
+      });
+      if (!result || !result.ok) {
+        const detail = (result && result.body && result.body.detail) || `HTTP ${result && result.status}`;
+        showError(`승격 실패: ${detail}`);
+        button.disabled = false;
+        button.textContent = "검수 승인";
+        return;
+      }
+      // 승격 직후 바로 갱신해 n이 움직이는 것을 눈으로 보게 한다.
+      await refreshDashboard({ silent: true });
+    } catch (err) {
+      showError("승격 요청 실패: " + err.message);
+      button.disabled = false;
+      button.textContent = "검수 승인";
+    }
+  }
+
+  function renderReviewQueueError() {
+    elements.queuePanelCount.textContent = "불러오기 실패";
+    elements.pendingReviewCount.textContent = "-";
+    clearCardState(elements.queueSummaryCard);
+    elements.queueSummaryCard.classList.add("is-danger");
+    elements.reviewQueue.replaceChildren(
+      createEmptyState("검수 큐를 불러오지 못했습니다.", "인증 상태와 API 연결을 확인해주세요.")
+    );
+  }
+
+  /* ── 에이전트 목록 ───────────────────────────────────────────────── */
+  function renderAgents() {
+    const agents = state.agents;
+    const active = agents.filter((a) => a.active).length;
+
+    elements.activeAgentCount.textContent = formatInteger(active);
+    elements.totalAgentCount.textContent = formatInteger(agents.length);
+    elements.agentsPanelCount.textContent = `${formatInteger(agents.length)}대`;
+
+    clearCardState(elements.agentSummaryCard);
+    elements.agentSummaryCard.classList.add(active > 0 ? "is-success" : "is-warning");
+
+    elements.agentsTableBody.replaceChildren();
+
+    if (agents.length === 0) {
+      elements.agentsTableBody.appendChild(
+        createTableMessage("아직 요청한 에이전트가 없습니다.", 4)
+      );
+      return;
+    }
+
+    const fragment = document.createDocumentFragment();
+    for (const agent of agents) {
+      const row = document.createElement("tr");
+
+      const refCell = document.createElement("td");
+      refCell.className = "agent-ref";
+      const dot = document.createElement("span");
+      dot.className = `live-dot${agent.active ? " is-active" : ""}`;
+      refCell.append(dot, document.createTextNode(valueOrFallback(agent.client_ref)));
+      row.appendChild(refCell);
+
+      const trackCell = document.createElement("td");
+      trackCell.appendChild(createTrackBadge(agent.track));
+      row.appendChild(trackCell);
+
+      row.appendChild(createCell(formatInteger(agent.events), "num"));
+      row.appendChild(
+        createCell(agent.idle_s >= 0 ? `${agent.idle_s}s` : "-", "num")
+      );
+
+      fragment.appendChild(row);
+    }
+    elements.agentsTableBody.appendChild(fragment);
+  }
+
+  function renderAgentsError() {
+    elements.activeAgentCount.textContent = "-";
+    elements.totalAgentCount.textContent = "-";
+    elements.agentsPanelCount.textContent = "불러오기 실패";
+    clearCardState(elements.agentSummaryCard);
+    elements.agentSummaryCard.classList.add("is-danger");
+    elements.agentsTableBody.replaceChildren(
+      createTableMessage("에이전트 목록을 불러오지 못했습니다.", 4)
+    );
+  }
+
+  function createTrackBadge(track) {
     const badge = document.createElement("span");
-
-    badge.className =
-      `status-badge ${statusClassName(normalized)}`;
-
-    badge.textContent =
-      ORDER_STATUS_LABELS[normalized] ||
-      valueOrFallback(status, "알 수 없음");
-
+    if (track === "synthetic") {
+      badge.className = "track-badge track-synthetic";
+      badge.textContent = "합성";
+    } else if (track === "verified_real") {
+      badge.className = "track-badge track-real";
+      badge.textContent = "실제";
+    } else {
+      badge.className = "track-badge track-none";
+      badge.textContent = "-";
+    }
     return badge;
+  }
+
+  /* ── 실시간 스트림(SSE) ──────────────────────────────────────────────
+   *
+   * ★EventSource 는 헤더를 못 붙인다(토큰을 Authorization 으로 못 보낸다).
+   *   그래서 fetch + ReadableStream 으로 직접 읽는다. 토큰을 쿼리스트링에
+   *   실으면 서버 로그·리퍼러에 남는다 — 그렇게 하지 않는다.
+   */
+  function connectStream() {
+    if (state.streamAbort) {
+      return;
+    }
+    const controller = new AbortController();
+    state.streamAbort = controller;
+    setStreamState("연결 중…", false);
+
+    fetch("/api/admin/agents/stream", {
+      headers: authHeaders(),
+      signal: controller.signal
+    })
+      .then(async (resp) => {
+        if (!resp.ok || !resp.body) {
+          setStreamState(`연결 실패 (HTTP ${resp.status})`, false);
+          state.streamAbort = null;
+          return;
+        }
+        setStreamState("● 실시간 연결됨", true);
+
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        for (;;) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          // SSE 프레임 경계는 빈 줄이다.
+          let split;
+          while ((split = buffer.indexOf("\n\n")) !== -1) {
+            const frame = buffer.slice(0, split);
+            buffer = buffer.slice(split + 2);
+            handleStreamFrame(frame);
+          }
+        }
+        setStreamState("연결 끊김", false);
+        state.streamAbort = null;
+      })
+      .catch((err) => {
+        if (err.name !== "AbortError") {
+          setStreamState("연결 끊김", false);
+        }
+        state.streamAbort = null;
+      });
+  }
+
+  function disconnectStream() {
+    if (state.streamAbort) {
+      state.streamAbort.abort();
+      state.streamAbort = null;
+    }
+    setStreamState("연결 안 됨", false);
+  }
+
+  function handleStreamFrame(frame) {
+    const line = frame.split("\n").find((l) => l.startsWith("data:"));
+    if (!line) return;  // ": keep-alive" 주석 프레임
+    let payload;
+    try {
+      payload = JSON.parse(line.slice(5).trim());
+    } catch {
+      return;
+    }
+
+    if (payload.kind === "_snapshot") {
+      elements.agentStream.replaceChildren();
+      for (const item of (payload.items || []).slice().reverse()) {
+        prependStreamItem(item, false);
+      }
+      if (!(payload.items || []).length) {
+        elements.agentStream.appendChild(
+          createEmptyState("아직 상호작용이 없습니다.", "에이전트가 요청하면 여기에 실시간으로 표시됩니다.")
+        );
+      }
+      return;
+    }
+
+    const empty = elements.agentStream.querySelector(".empty-state");
+    if (empty) empty.remove();
+    prependStreamItem(payload, true);
+
+    // 승격 이벤트가 오면 코호트 숫자가 바뀌었다는 뜻 → 즉시 갱신.
+    if (payload.kind === "admin.verify") {
+      refreshDashboard({ silent: true });
+    }
+  }
+
+  function prependStreamItem(ev, isNew) {
+    const li = document.createElement("li");
+    li.className = `stream-item${isNew ? " is-new" : ""}`;
+
+    const time = document.createElement("span");
+    time.className = "stream-time";
+    const d = parseDate(ev.at);
+    time.textContent = d ? formatDateTime(d) : "-";
+
+    const kind = document.createElement("span");
+    kind.className = `stream-kind${ev.kind === "admin.verify" ? " is-verify" : ""}`;
+    kind.textContent = valueOrFallback(ev.kind);
+
+    const body = document.createElement("span");
+    body.className = "stream-body";
+    body.textContent =
+      `${valueOrFallback(ev.client_ref)} ${ev.track ? `[${ev.track}]` : ""} ` +
+      compactValue(ev.detail || {});
+
+    li.append(time, kind, body);
+    elements.agentStream.prepend(li);
+
+    // 화면이 무한히 자라지 않게 자른다(스트림은 관측용이지 저장소가 아니다).
+    while (elements.agentStream.children.length > 120) {
+      elements.agentStream.lastElementChild.remove();
+    }
+  }
+
+  function setStreamState(text, live) {
+    elements.streamState.textContent = text;
+    elements.streamState.classList.toggle("is-live", Boolean(live));
   }
 
   function renderEvents() {
@@ -1093,33 +1843,6 @@
     elements.errorMessage.textContent = "";
   }
 
-  function normalizeStatus(value) {
-    return String(value || "unknown")
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, "_");
-  }
-
-  function statusClassName(status) {
-    const supportedStatuses = new Set([
-      "pending",
-      "paid",
-      "confirmed",
-      "processing",
-      "shipped",
-      "delivered",
-      "completed",
-      "cancelled",
-      "canceled",
-      "failed",
-      "refunded"
-    ]);
-
-    return supportedStatuses.has(status)
-      ? `status-${status}`
-      : "status-unknown";
-  }
-
   function toBoolean(value) {
     if (typeof value === "boolean") {
       return value;
@@ -1143,20 +1866,6 @@
     return new Intl.NumberFormat("ko-KR", {
       maximumFractionDigits: 0
     }).format(toFiniteNumber(value));
-  }
-
-  function formatCurrency(value) {
-    const amount = Number(value);
-
-    if (!Number.isFinite(amount)) {
-      return "-";
-    }
-
-    return new Intl.NumberFormat("ko-KR", {
-      style: "currency",
-      currency: "KRW",
-      maximumFractionDigits: 0
-    }).format(amount);
   }
 
   function formatDateTime(date) {

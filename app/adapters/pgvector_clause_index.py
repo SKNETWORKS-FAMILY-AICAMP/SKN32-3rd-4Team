@@ -309,12 +309,36 @@ def index_state(conn) -> dict:
         cur.execute("SELECT count(*) FROM policy_clause_occurrence "
                     "WHERE index_generation = %s AND length(sha256) <> 64", (gen,))
         bad_sha = cur.fetchone()[0]
+        #: ★★**발생 수를 그대로 내보내면 검색 가능 범위가 부풀어 보인다.**
+        #:
+        #:   실측 2026-08-04 — `occurrences_for_wanted` 가 209,883 이었는데
+        #:   그중 **20,577행(10,500조항)에는 벡터가 없었다.** 우리 적재분(189,306)에
+        #:   이전 s6 shadow 적재분이 섞인 것이다. 벡터가 없으면 **검색에 안 걸린다.**
+        #:   그런데 숫자만 보면 20만 건이 다 찾아지는 것처럼 읽힌다.
+        #:
+        #:   지금은 새는 것이 아니다 — 그 행들은 게이트 값이 전부 `NULL` 이라
+        #:   `eligibility` 가 "모른다 → 못 씀"으로 막는다(같은 날 실측: 게이트 통과인데
+        #:   벡터 없는 행 **0건**). 그래도 **수를 갈라서 내보낸다** — 상태 보고가
+        #:   실제와 어긋나는 것이 이 프로젝트에서 되풀이된 사고 유형이다(§0).
+        #:
+        #:   비용: 실측 0.13~0.22초(발생 21만 × 조각 12만, 병렬 해시조인).
+        #:   `readiness` 의 `statement_timeout 5s` 아래서 돈다.
+        cur.execute(
+            "SELECT count(*) FROM policy_clause_occurrence o "
+            "WHERE o.index_generation = %s AND EXISTS ("
+            "  SELECT 1 FROM policy_clause_chunk k WHERE k.content_hash = o.content_hash)",
+            (gen,),
+        )
+        with_vec = cur.fetchone()[0]
     return {
         "wanted_generation": gen,
         "wanted_embed_model": model,
         "generations_in_db": gens,
         "embed_models_in_db": models,
         "occurrences_for_wanted": gens.get(gen, 0),
+        #: ★실제로 **검색에 걸릴 수 있는** 발생 수. 위 숫자와 다르면 차이가 곧 사각지대다.
+        "occurrences_with_vector": with_vec,
+        "occurrences_without_vector": gens.get(gen, 0) - with_vec,
         "chunks_for_wanted": models.get(model, 0),
         #: ★깨진 sha 는 **개수로 드러낸다.** 0 이 아니면 준비된 게 아니다.
         "occurrences_with_bad_sha": bad_sha,

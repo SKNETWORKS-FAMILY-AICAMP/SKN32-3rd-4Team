@@ -28,9 +28,13 @@ from app.core.errors import InfraError
 class _Cur:
     """`index_state()` 가 던지는 두 질의에만 답하는 최소 커서."""
 
-    def __init__(self, gens: dict, models: dict, bad_sha: int = 0) -> None:
+    def __init__(self, gens: dict, models: dict, bad_sha: int = 0,
+                 with_vec: int | None = None) -> None:
         self._gens, self._models, self._rows = gens, models, []
         self._bad_sha = bad_sha
+        #: ★기본값은 **승인 세대 발생 전부에 벡터가 있다**로 둔다. 그래야
+        #:   벡터 유무를 다루지 않는 기존 시험이 이 축을 신경 쓰지 않아도 된다.
+        self._with_vec = with_vec
 
     def __enter__(self):
         return self
@@ -38,10 +42,17 @@ class _Cur:
     def __exit__(self, *exc):
         return False
 
-    def execute(self, sql, *_):
+    def execute(self, sql, *args):
         #: ★깨진 sha 개수 질의는 스칼라 하나를 돌려준다.
         if "length(sha256)" in sql:
             self._rows = [(self._bad_sha,)]
+        #: ★★**이 분기가 아래 `policy_clause_occurrence` 보다 먼저 와야 한다.**
+        #:   벡터 보유 수 질의도 그 테이블을 읽으므로, 순서를 뒤집으면
+        #:   세대별 집계 결과가 스칼라 자리로 돌아와 조용히 튜플이 섞인다.
+        elif "EXISTS" in sql:
+            gen = args[0][0] if args and args[0] else ""
+            total = self._gens.get(gen, 0)
+            self._rows = [(total if self._with_vec is None else self._with_vec,)]
         elif "policy_clause_occurrence" in sql:
             self._rows = list(self._gens.items())
         else:
@@ -55,11 +66,13 @@ class _Cur:
 
 
 class _Conn:
-    def __init__(self, gens: dict, models: dict, bad_sha: int = 0) -> None:
+    def __init__(self, gens: dict, models: dict, bad_sha: int = 0,
+                 with_vec: int | None = None) -> None:
         self._gens, self._models, self._bad_sha = gens, models, bad_sha
+        self._with_vec = with_vec
 
     def cursor(self):
-        return _Cur(self._gens, self._models, self._bad_sha)
+        return _Cur(self._gens, self._models, self._bad_sha, self._with_vec)
 
 
 @pytest.fixture
@@ -171,3 +184,32 @@ def test_sha256_이_전부_64자면_통과한다(_release):
     conn = _Conn({"s6": 100}, {"m": 100}, bad_sha=0)
     assert ix.index_state(conn)["ready"] is True
     ix.ensure_index_matches_release(conn)
+
+
+def test_벡터_없는_발생을_발생_수에_섞어_보고하지_않는다(_release):
+    """★**검색 가능 범위가 부풀어 보이던 것.**
+
+    실측 2026-08-04 — `occurrences_for_wanted` 가 209,883 이라 20만 건이 다
+    찾아지는 것처럼 읽혔다. 실제로 벡터가 있는 것은 **189,306** 이고
+    나머지 20,577행은 이전 s6 shadow 적재분이라 **검색에 안 걸린다.**
+
+    누수는 아니다 — 그 행들은 게이트 값이 `NULL` 이라 `eligibility` 가 막는다.
+    그래도 수를 **갈라서** 내보낸다. 상태 보고가 실제와 어긋나는 것이
+    이 프로젝트에서 되풀이된 사고 유형이다(CLAUDE.md §0).
+    """
+    _release("s6", "m")
+    conn = _Conn({"s6": 209_883}, {"m": 122_697}, with_vec=189_306)
+    st = ix.index_state(conn)
+    assert st["occurrences_for_wanted"] == 209_883
+    assert st["occurrences_with_vector"] == 189_306
+    assert st["occurrences_without_vector"] == 20_577
+    #: ★막지는 않는다. 게이트가 이미 거르므로 **미준비가 아니다** —
+    #:   여기서 false 로 만들면 안전한 상태를 고장으로 보고하는 것이 된다.
+    assert st["ready"] is True
+
+
+def test_전부_벡터가_있으면_사각지대가_0이다(_release):
+    _release("s6", "m")
+    st = ix.index_state(_Conn({"s6": 100}, {"m": 100}))
+    assert st["occurrences_with_vector"] == 100
+    assert st["occurrences_without_vector"] == 0

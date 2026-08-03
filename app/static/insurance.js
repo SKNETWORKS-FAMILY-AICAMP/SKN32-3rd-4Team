@@ -30,6 +30,35 @@ async function api(path, opts) {
   return { status: res.status, body };
 }
 
+/* ── 반응형 화면 흐름 · 세션 요약 ─────────────────────────────── */
+
+const sessionToken = (() => {
+  const raw = globalThis.crypto?.randomUUID?.().replaceAll('-', '')
+    || Math.random().toString(36).slice(2);
+  return `ses_${raw.slice(0, 8)}`;
+})();
+
+function updateSessionCard() {
+  $('sessionId').textContent = sessionToken;
+  $('sessionInsurer').textContent = $('insurer').value.trim() || '미등록';
+  $('sessionProduct').textContent = $('productName').value.trim() || '미등록';
+  $('sessionDate').textContent = $('enrolled').value.trim() || '미등록';
+}
+
+function showChat() {
+  updateSessionCard();
+  $('appShell').classList.add('show-chat');
+  requestAnimationFrame(() => $('chatIn').focus({ preventScroll: true }));
+}
+
+function updateRegisterState() {
+  const ready = $('consent').checked
+    && $('insurer').value.trim()
+    && /^\d{8}$/.test($('enrolled').value.trim())
+    && $('codes').value.trim();
+  $('go').disabled = !ready;
+}
+
 /* ── 컷① 지원범위 ─────────────────────────────────────────────── */
 
 async function loadScope() {
@@ -143,8 +172,17 @@ function renderResult(status, b) {
       ${renderCitations(b.citations)}
 
       <div class="small muted" style="margin-top:16px">
-        규칙엔진 ${esc(b.rule_engine_version || '')} · 추출 ${esc(b.extractor || '')} ·
-        추적 ${esc(b.trace_id || '')}
+        ${/*
+          ★빈 값이면 라벨째 뺀다. 앞서 `추출 ` 만 덩그러니 찍혔다(실측 2026-08-04).
+            `extractor` 는 PG 색인 경로에서 **원래 비어 있다** — PG 에 그 값이 없어
+            `pg_clause_store.stats()` 가 안 돌려준다. 없는 것을 채우지 않는 것은 맞고
+            (CLAUDE.md §1), 화면이 라벨만 보여 주는 것이 틀렸다.
+        */''}
+        ${[
+          b.rule_engine_version ? `규칙엔진 ${esc(b.rule_engine_version)}` : '',
+          b.extractor ? `추출 ${esc(b.extractor)}` : '',
+          b.trace_id ? `추적 ${esc(b.trace_id)}` : '',
+        ].filter(Boolean).join(' · ')}
       </div>
     </section>`;
 }
@@ -161,6 +199,7 @@ function bindCandidates() {
 
 async function runPrecheck(productName) {
   const codes = $('codes').value.split(',').map((s) => s.trim()).filter(Boolean);
+  const selectedProduct = productName || $('productName').value.trim();
   $('status').textContent = '판정 중…';
   $('go').disabled = true;
 
@@ -172,15 +211,23 @@ async function runPrecheck(productName) {
       enrolled_on: $('enrolled').value.trim(),
       kcd_codes: codes,
       //: ★사용자가 후보를 고른 경우에만 실린다. 화면이 지어내지 않는다.
-      ...(productName ? { product_name: productName } : {}),
+      ...(selectedProduct ? { product_name: selectedProduct } : {}),
     }),
   });
 
   $('status').textContent = '';
-  $('go').disabled = !$('consent').checked;
+  updateRegisterState();
   renderResult(status, body);
   bindCandidates();
   if (codes.length) loadCohorts(codes[0]);
+
+  if (status === 200 && body) {
+    const [label] = VERDICT_KO[body.verdict] || [body.verdict];
+    bubble('bot', `<strong>${esc(label)}</strong><br>${esc(body.message || '상세 결과를 확인했습니다.')}`);
+  } else {
+    bubble('bot', '입력하신 보험정보를 확인하지 못했습니다. 입력값을 다시 확인해주세요.');
+  }
+  showChat();
 }
 
 /* ── 컷⑧ 코호트 — ★실제와 합성을 각각 제 구역에만 그린다 ────────── */
@@ -232,7 +279,8 @@ function bubble(cls, html) {
   d.innerHTML = html;
   const log = $('chatLog');
   log.appendChild(d);
-  log.scrollTop = log.scrollHeight;
+  const scroll = $('chatScroll');
+  scroll.scrollTop = scroll.scrollHeight;
   return d;
 }
 
@@ -330,11 +378,25 @@ async function submitObservation() {
 
 /* ── 시작 ─────────────────────────────────────────────────────── */
 
-$('consent').addEventListener('change', (e) => { $('go').disabled = !e.target.checked; });
-$('go').addEventListener('click', runPrecheck);
+$('insuranceForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  if (!e.currentTarget.reportValidity()) return;
+  runPrecheck();
+});
+['insurer', 'productName', 'enrolled', 'codes'].forEach((id) => {
+  $(id).addEventListener('input', () => {
+    updateRegisterState();
+    updateSessionCard();
+  });
+});
+$('consent').addEventListener('change', updateRegisterState);
+$('skipBtn').addEventListener('click', showChat);
+$('mobileBack').addEventListener('click', () => $('appShell').classList.remove('show-chat'));
 $('obGo').addEventListener('click', submitObservation);
 $('chatGo').addEventListener('click', () => sendChat());
 $('chatIn').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendChat(); });
 document.querySelectorAll('.chip-btn').forEach((b) =>
   b.addEventListener('click', () => sendChat(b.dataset.q)));
+updateSessionCard();
+updateRegisterState();
 loadScope();

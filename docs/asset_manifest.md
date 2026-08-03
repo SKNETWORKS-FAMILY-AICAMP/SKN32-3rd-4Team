@@ -33,4 +33,4 @@
 
 ## 원본 대비 이번 복제에서 제외
 - 학습 artifact(`교과목3_LLM_학습_공략집.md`, `reference/`), `debug_notes/`, 원본 `plans/history/reports/legacy`,
-  생성물(`data/mall.db`, `data/vector_store/`), 캐시(`__pycache__`, `.pytest_cache`).
+  생성물(`data/db/insurance.sqlite3`, `data/vector_store/`), 캐시(`__pycache__`, `.pytest_cache`).

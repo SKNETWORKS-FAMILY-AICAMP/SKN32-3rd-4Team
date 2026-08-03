@@ -87,9 +87,28 @@ def build_hybrid_answer_question(top_k: int | None = None, rerank: bool = False)
     model = LlmGateway()
     retriever = HybridRetriever([PgVectorRetriever(), PgLexicalRetriever()])
     if rerank:
-        from app.adapters.reranker import LlmReranker, RerankedRetriever
+        from app.adapters.reranker import (
+            CrossEncoderReranker,
+            LlmReranker,
+            RerankedRetriever,
+        )
+        from app.core.config import get_settings
 
-        retriever = RerankedRetriever(retriever, LlmReranker(model))
+        settings = get_settings()
+        if settings.RERANKER_PROVIDER == "cross_encoder":
+            ranker = CrossEncoderReranker(
+                settings.RERANKER_MODEL,
+                device=settings.RERANKER_DEVICE,
+                batch_size=settings.RERANKER_BATCH_SIZE,
+                max_length=settings.RERANKER_MAX_LENGTH,
+                dtype=settings.RERANKER_DTYPE,
+                trust_remote_code=settings.RERANKER_TRUST_REMOTE_CODE,
+            )
+        else:
+            ranker = LlmReranker(model)
+        retriever = RerankedRetriever(
+            retriever, ranker, over_fetch=settings.RERANKER_OVER_FETCH
+        )
     return AnswerQuestion(retriever=retriever, model=model, top_k=top_k)
 
 
@@ -98,7 +117,11 @@ def build_hybrid_answer_question(top_k: int | None = None, rerank: bool = False)
 #: ★기본은 `file` 이다. 인덱스 A 적재는 CPU 로 4~5시간 걸리는 긴 작업이라
 #:   기계마다 상태가 다르다. **없는 것을 있는 척하지 않는다** —
 #:   PG 를 쓰려면 `CLAUSE_STORE=pg` 로 **명시**한다.
-_CLAUSE_STORE = os.getenv("CLAUSE_STORE", "file").strip().lower()
+#: ★★**부를 때 읽는다.** import 시점에 굳히면 두 가지가 깨진다 —
+#:   ① 환경을 바꿔도 같은 프로세스가 옛 선택을 붙들고 있다
+#:   ② 테스트가 `importlib.reload` 로 우회하다가 **뒤 테스트를 오염시킨다**(실제로 그랬다)
+def _clause_store_kind() -> str:
+    return os.getenv("CLAUSE_STORE", "file").strip().lower()
 
 
 def build_precheck():
@@ -115,11 +138,43 @@ def build_precheck():
       어긋났을 때 무엇이 맞는지 판단할 근거가 없어진다.
     """
     from app.adapters import manifest_policy_resolver
+    from app.core import release
+    from app.core.errors import ConfigError
 
-    if _CLAUSE_STORE == "pg":
+    #: ★★**어댑터를 만드는 시점에 fail-closed 검사를 한다.**
+    #:
+    #:   임포트 시점에 하면 테스트·CLI·부분 실행이 깨진다(코덱스).
+    #:   여기서 하면 "판정을 하려는 순간"에만 검사가 걸린다.
+    #:
+    #:   ★산출물이 반쪽이면 판정이 **"그 약관엔 그런 조항이 없다"** 고 답한다.
+    #:     그건 근거 없음이 아니라 **틀린 답**이다.
+    rel = release.current()
+    rel.ensure_ready()
+
+    kind = _clause_store_kind()
+
+    if kind == "pg":
         from app.adapters import pg_clause_store
 
+        #: ★승인된 임베딩 프로필이 없으면 PG 경로를 **고르지 않는다.**
+        #:   벡터가 없으면 검색이 0건인데, 그걸 "근거 없음"으로 내보내면
+        #:   적재를 안 한 것과 근거가 정말 없는 것을 구분할 수 없다.
+        if not rel.embed_profile.is_set:
+            raise ConfigError(
+                f"CLAUSE_STORE=pg 인데 승인된 임베딩 프로필이 없습니다"
+                f"(릴리스 {rel.release_id}).\n"
+                "★모델이 확정되지 않았습니다 — "
+                "`docs/reports/debugs/2026-08-03_임베딩_128토큰_절단_적재중단.md` 참조.\n"
+                "지금은 `CLAUSE_STORE=file` 로 두세요."
+            )
         return {"policies": manifest_policy_resolver, "clauses": pg_clause_store}
+
+    if kind != "file":
+        #: ★알 수 없는 값을 조용히 file 로 떨어뜨리지 않는다(코덱스).
+        #:   오타 하나로 다른 저장소를 쓰고 있는 줄 모르게 된다.
+        raise ConfigError(
+            f"CLAUSE_STORE 값을 모르겠습니다: {kind!r}. `file` 또는 `pg` 여야 합니다."
+        )
 
     from app.adapters import file_clause_store
 

@@ -224,7 +224,18 @@ class PrecheckGraph:
 
         ★분기와 재시도가 아래 `while` 하나에 다 보인다.
           자율 루프가 아니라 **상한이 코드에 박힌 반복**이다.
+
+        ★★**흐름 전체에서 승인 릴리스를 한 벌로 고정한다.**
+          판정 본체만 고정했더니 **뒤따르는 인용 검증이 밖에서 새 릴리스를 읽었다**
+          (코덱스 라운드3 지적). 판정과 검증이 다른 판을 보면
+          "근거가 실재하는가"를 **다른 약관에 대고 묻는 셈**이다.
         """
+        from app.core import release
+
+        with release.pinned():
+            return self._invoke(body)
+
+    def _invoke(self, body: PrecheckInput) -> tuple[PrecheckOutcome, GraphState]:
         st = GraphState()
         self.normalize(st, body)
         self.run_rules(st, body)
@@ -319,17 +330,93 @@ def verify_against_store(outcome: PrecheckOutcome, clauses) -> tuple:
 
     #: ★독립 출처. 판정 결과가 아니라 저장소에서 읽는다.
     try:
+        #: ★★`usable_only=False` 로 **전부** 읽되, 아래에서 공통 게이트로 다시 거른다.
+        #:   전에는 전부 읽고 `row.usable` 을 **확인하지 않았다**(코덱스 지적) —
+        #:   인용 부적격 조항이 "저장소에 있으니 통과"가 됐다.
         stored = clauses.load_clauses(sha, usable_only=False)
     except Exception as e:  # 저장소 장애는 통과가 아니라 실패다
         return False, ReasonCode.CITATION_UNVERIFIED, f"조항 저장소를 읽지 못했습니다: {e}"
 
-    by_id = {row.clause_id: row for row in stored}
+    #: ★★**정확히 한 행일 때만** 통과시킨다.
+    #:
+    #:   `clause_id` 는 `sha12 + qualified_no + hash8` 이라 잘린 해시를 쓴다.
+    #:   dict 로 만들면 충돌한 행이 **조용히 덮인다**(코덱스 지적) —
+    #:   덮인 쪽을 인용했는데 남은 쪽과 대조해 통과할 수 있다.
+    #:
+    #:   그래서 같은 키가 둘 이상이면 **그 키는 아예 못 쓴다**로 표시한다.
+    by_id: dict[str, object] = {}
+    ambiguous: set[str] = set()
+    for row in stored:
+        k = row.clause_id
+        if k in by_id:
+            ambiguous.add(k)
+        by_id[k] = row
+    #: 조회용 보조 색인 — occurrence 식별자가 있으면 그게 더 정확하다.
+    by_occ = {}
+    for row in stored:
+        oid = getattr(row, "occurrence_id", "")
+        if oid:
+            by_occ.setdefault(oid, []).append(row)
 
     def _norm(s: str) -> str:
         return re.sub(r"\s+", "", s or "")
 
     for c in outcome.citations:
+        if c.clause_id in ambiguous:
+            return (
+                False,
+                ReasonCode.AMBIGUOUS_CITATION,
+                f"같은 식별자의 조항이 둘 이상입니다: {c.clause_id}",
+            )
         row = by_id.get(c.clause_id)
+        if row is not None:
+            #: ★★인용이 **수록 식별자를 들고 왔으면** 그것으로 대조한다.
+            #:   안 들고 왔으면 저장소 행의 것을 쓰되, 그것도 없으면 기권한다 —
+            #:   "정확히 한 행" 을 확인할 방법이 없는데 통과시킬 수는 없다.
+            oid = getattr(c, "occurrence_id", "") or getattr(row, "occurrence_id", "")
+            if not oid:
+                return (
+                    False,
+                    ReasonCode.CITATION_UNVERIFIED,
+                    f"수록 식별자가 없어 인용을 특정할 수 없습니다: {c.clause_id}",
+                )
+            #: ★★**두 식별자가 같은 행인지 확인한다.**
+            #:   전에는 `count == 1` 만 보고 `clause_id=A + occurrence_id=B` 조합을
+            #:   통과시켰다(코덱스 지적) — 서로 다른 조항을 가리키는데도.
+            hit = by_occ.get(oid, [])
+            if len(hit) == 1 and hit[0] is not row:
+                return (
+                    False,
+                    ReasonCode.CITATION_UNVERIFIED,
+                    f"조항 식별자와 수록 식별자가 다른 조항을 가리킵니다: "
+                    f"{c.clause_id} vs {oid}",
+                )
+            if len(hit) != 1:
+                return (
+                    False,
+                    ReasonCode.AMBIGUOUS_CITATION,
+                    f"수록 식별자가 한 행을 가리키지 않습니다: {oid}",
+                )
+            #: ★★**공통 게이트를 여기서 다시 부른다.**
+            #:   `row.usable` 만 믿으면 안 된다 — `ClauseRow.usable` 의 **기본값이 True** 라
+            #:   필드를 안 채운 저장소의 행이 그대로 통과한다(코덱스 지적).
+            #:   판정 근거는 두 번 검사해도 손해가 없다.
+            from app.core.domain import eligibility as _elig
+
+            _v = _elig.check_row(row)
+            if not _v.usable:
+                return (
+                    False,
+                    ReasonCode.CITATION_UNVERIFIED,
+                    f"근거로 쓸 수 없는 조항을 인용했습니다: {c.clause_id} ({_v.reason})",
+                )
+            if not getattr(row, "usable", False):
+                return (
+                    False,
+                    ReasonCode.CITATION_UNVERIFIED,
+                    f"근거로 쓸 수 없는 조항을 인용했습니다: {c.clause_id}"
+                    f" ({getattr(row, 'unusable_reason', '사유 미상')})",
+                )
         if row is None:
             return (
                 False,
@@ -373,10 +460,20 @@ def build() -> PrecheckGraph:
     from app.core.usecases import precheck as uc
 
     deps = build_precheck()
-    versions = deps["policies"].load_versions()
+
+    #: ★★기동 시 한 번 읽어 **가두지 않는다.**
+    #:
+    #:   전에는 여기서 `load_versions()` 를 불러 클로저에 담았다. 그래서
+    #:   판정 모드를 바꿔도, 확정 원장에 문서를 추가해도 **재시작 전까지
+    #:   반영되지 않았다**(2026-08-04 실측). 캐시는 어댑터가 파일 지문으로
+    #:   관리한다 — 안 바뀌면 재사용하므로 매 요청 1,367줄을 다시 읽지 않는다.
+    def _versions():
+        loader = getattr(deps["policies"], "load_versions_cached", None)
+        return loader() if loader else deps["policies"].load_versions()
 
     def _run(body: PrecheckInput) -> PrecheckOutcome:
-        return uc.run(body, policies=deps["policies"], clauses=deps["clauses"], versions=versions)
+        return uc.run(body, policies=deps["policies"], clauses=deps["clauses"],
+                      versions=_versions())
 
     def _verify(outcome: PrecheckOutcome):
         return verify_against_store(outcome, deps["clauses"])

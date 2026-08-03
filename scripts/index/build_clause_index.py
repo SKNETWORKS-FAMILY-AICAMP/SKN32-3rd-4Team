@@ -52,13 +52,26 @@ _STRUCT = _ROOT / "data" / "structured"
 _BATCH = 256
 
 
-#: ★읽을 조항 JSON 버전. **한 곳에서만 정한다** — 여기가 s5 로 남아 있으면
-#:   s6 를 만들어 놓고도 옛 산출물을 색인한다(실제로 그럴 뻔했다).
-_CLAUSE_TAG = "s6_"
+#: ★★**읽을 조항 버전을 여기서 정하지 않는다.**
+#:
+#:   전에는 `_CLAUSE_TAG = "s6_"` 였다. 승인 릴리스는 `s5` 였는데 적재만 `s6` 를 읽어
+#:   **판정 경로와 벡터 경로가 다른 세대를 보고 있었다**(실측 2026-08-03).
+#:
+#:   ★단, 적재는 **shadow 세대**로도 돌 수 있어야 한다 — 승인 전에 미리 만들어 두고
+#:     평가를 통과하면 승인 포인터만 바꾸는 방식이다(코덱스). 그래서 `--clause-tag` 로
+#:     **명시**할 수 있게 두되, 기본값은 승인 릴리스다. 명시하면 출력에 남긴다.
 
 
-def _iter_docs(limit: int | None):
-    files = sorted(_STRUCT.glob(f"*/{_CLAUSE_TAG}*/*.clauses.json"))
+def _clause_tag(override: str | None = None) -> str:
+    if override:
+        return override
+    from app.core import release
+
+    return release.load().clause_tag
+
+
+def _iter_docs(limit: int | None, tag: str):
+    files = sorted(_STRUCT.glob(f"*/{tag}/*.clauses.json"))
     if limit:
         files = files[:limit]
     for p in files:
@@ -95,6 +108,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--stats", action="store_true", help="현황만 출력")
     #: ★GPU 상자와 나눠 돌릴 때 쓴다. 해시 정렬 순의 나머지 연산이라 **결정적**이다 —
     #:   두 기계가 같은 조각을 두 번 하지 않고, 빠지지도 않는다.
+    ap.add_argument("--clause-tag", default="",
+                    help="★shadow 적재용. 승인 릴리스가 아닌 세대를 읽는다")
     ap.add_argument("--shards", type=int, default=1, help="전체 조각 수")
     ap.add_argument("--index", type=int, default=0, help="내가 맡을 몫(0부터)")
     ap.add_argument("--ignore-citation-gate", action="store_true",
@@ -108,12 +123,17 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(ix.stats(conn), ensure_ascii=False, indent=2))
         return 0
 
-    texts, occurrences, report = _collect(args.limit or None, args.ignore_citation_gate)
+    tag = _clause_tag(args.clause_tag)
+    #: 적재 한 판 안에서 읽기·쓰기가 **같은 태그**를 쓰도록 굳혀 둔다.
+    args.resolved_tag = tag
+    note = "  ★승인 릴리스가 아니라 지정한 세대를 읽는다(--clause-tag)" if args.clause_tag else ""
+    print(f"[세대] 조항 산출 {tag}{note}", flush=True)
+    texts, occurrences, report = _collect(args.limit or None, args.ignore_citation_gate, tag)
     print(report, flush=True)
     return _load(conn, texts, occurrences, args)
 
 
-def _collect(limit, ignore_gate: bool):
+def _collect(limit, ignore_gate: bool, tag: str):
     """조항 JSON → `(내용 dict, 발생 list, 보고 문자열)`.
 
     ★**한 곳에서만 모은다.** 분산 적재(`shard_embed`)도 이 함수를 쓴다 —
@@ -127,7 +147,9 @@ def _collect(limit, ignore_gate: bool):
     n_skip_cite = 0     # citation_eligible=false 로 건너뛴 **조항**
     n_annex = n_skip_annex = 0   # 부록(별표·붙임·분류표)
 
-    for p, doc in _iter_docs(limit):
+    from app.core.domain import eligibility
+
+    for p, doc in _iter_docs(limit, tag):
         status = doc.get("parse_status") or "unknown"
         if status != "ok":
             #: ★추출이 의심스러운 문서의 조항은 판정 근거가 될 수 없다.
@@ -156,7 +178,14 @@ def _collect(limit, ignore_gate: bool):
         insurer = src.get("insurer") or ""
         for c in doc.get("clauses") or []:
             #: ★조항 단위 게이트. 구조 모순이 걸린 조항만 뺀다.
-            if not ignore_gate and c.get("citation_eligible") is False:
+            #: ★★`is False` 가 아니라 **`is not True`** 다.
+            #:   전에는 필드가 **없으면 통과**했다(fail-open · 코덱스 지적).
+            #:   옛 스키마 산출물이 조용히 근거가 된다. 모르면 못 쓴다(§0).
+            #:   ★법령 조문(`is_statute`)도 뺀다 — 약관 조항이 아니다.
+            #:     그대로 인용하면 "특별약관 제651조(고지의무위반…)" 같은 근거가 나간다.
+            #: ★★**공통 게이트 하나로 판정한다.** 부분 조건을 여기 또 쓰면
+            #:   저장소와 규칙이 갈린다 — 그게 애초의 문제였다(코덱스).
+            if not ignore_gate and not eligibility.check(c, parse_status=status).usable:
                 n_skip_cite += 1
                 continue
             h = c.get("content_hash") or ""
@@ -222,7 +251,14 @@ def _load(conn, texts, occurrences, args):
     from app.adapters import pgvector_clause_index as ix
     import json, time
 
-    n_occ = ix.upsert_occurrences(conn, occurrences)
+    #: ★★**읽은 세대를 그대로 기록한다.** 안 넘기면 `--clause-tag=s6…` 로 읽고도
+    #:   발생행은 **승인 세대(s5)** 로 박힌다 — shadow 적재가 그대로 혼입이 된다
+    #:   (코덱스 라운드2 지적). 읽은 곳과 쓰는 곳의 세대는 **같은 값**이어야 한다.
+    #: ★★**읽은 태그에서 곧바로 세대를 낸다.** `current_generation()` 을 따로 부르면
+    #:   읽는 사이에 승인 포인터가 바뀌었을 때 **읽은 세대와 기록할 세대가 달라진다**
+    #:   (코덱스 라운드3 지적). 같은 값에서 파생해야 경쟁이 없다.
+    n_occ = ix.upsert_occurrences(conn, occurrences,
+                                  generation=ix.generation_of(args.resolved_tag))
     print(f"[발생] {n_occ:,}행 새로 기록 (총 {len(occurrences):,}건 시도)", flush=True)
 
     #: ★반쪽으로 남은 것을 먼저 지운다. 남겨 두면 검색에 잘린 본문이 올라온다.

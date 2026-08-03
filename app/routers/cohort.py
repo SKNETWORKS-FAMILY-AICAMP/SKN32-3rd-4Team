@@ -73,8 +73,23 @@ def _run(source: DataSource, code: str, product_id: str, age_band: str | None) -
         "approval_rate": ans.approval_rate,
         "approval_ci": list(ans.approval_ci) if ans.approval_ci else None,
         "headline": ans.headline,
-        "warnings": list(ans.stats.warnings),
+        #: ★★등급별 내역을 **항상** 싣는다.
+        #:   `admin_attested` 는 "관리자가 보고 납득했다"이지 발행처 확인이 아니다.
+        #:   n 만 보면 그 차이를 알 방법이 없다.
+        "by_verification": dict(ans.stats.by_verification),
+        "warnings": list(ans.stats.warnings) + _attestation_note(ans.stats),
     }
+
+
+def _attestation_note(stats) -> list[str]:
+    """관리자 교차검증분이 섞여 있으면 **경고로 말한다.**"""
+    n = dict(stats.by_verification).get("admin_attested", 0)
+    if not n:
+        return []
+    return [
+        f"이 표본 중 {n}건은 관리자 교차검증(admin_attested)으로 반영됐습니다 — "
+        "보험사·발행처에 조회해 확인한 것이 아닙니다."
+    ]
 
 
 @router.get("/cohorts")

@@ -1,4 +1,6 @@
-# 바로봄 — AI 커머스·지식 상담 플랫폼
+# 올바른 보험비서 — KCD 질병기호 × 실손보험 약관 사전판정
+
+팀 **비서단**. 커머스 실습(`_unified_mall`)에서 출발해 보험 도메인으로 옮기는 중이다.
 
 RAG 기반 문서 질의응답을 코어로, 커머스 승인 루프·AI 에이전트(ReAct+CoT)·MCP·A2A·RBAC 관리자와
 음성/화상 상담·얼굴 로그인 2차 인증까지 통합한 **로컬 우선(API 키 없이 기본 동작)** 플랫폼이다.
@@ -53,10 +55,12 @@ python -m scripts.manage ingest       # 문서 임베딩 → FAISS 인덱스
 | 페이지 | 주소 | 사용법 |
 |---|---|---|
 | 관리자 대시보드(랜딩) | `/` 또는 `/static/admin.html` | 주문·이벤트·인덱스·지식갭 조회, **요약 보고서 PDF** 생성/저장/인쇄 |
-| RAG 실험실 | `/static/rag.html` | 백엔드(faiss/hybrid/graph) 바꿔가며 검색·QA 비교 |
-| MCP 도구 | `/static/mcp.html` | MCP 도구 목록 조회 및 직접 호출 |
 | 얼굴인식 벤치마크 | `/static/facebench.html` | 3개 백엔드(AdaFace/LVFace/insightface) 코사인·지연 실측 비교 (관리자 전용) |
-| 주문 관리 | `/static/orders.html` | 주문 미리보기/승인 흐름 점검 |
+
+> ★**2026-08-03 정리.** 이 표에 `RAG 실험실`·`MCP 도구`·`주문 관리` 세 줄이 더 있었는데
+> **`mcp.html`·`orders.html` 은 파일이 애초에 없었다.** 문서가 없는 화면을 현행처럼 적고 있었다.
+> `rag.html`·`rag.js` 는 커머스 RAG 화면이라 `legacy/_unified_mall/app/static/` 으로 격리했다.
+> 재발 방지로 `tests/test_static_ui.py` 에 **링크 실재 검사**를 넣었다(죽은 링크 12개를 잡았다).
 
 **관리자 계정**: 관리자 승격은 **CLI 전용**이다(권한상승 사고 방지 — UI 버튼 없음).
 

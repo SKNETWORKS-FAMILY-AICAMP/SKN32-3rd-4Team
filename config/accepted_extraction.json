@@ -1,5 +1,6 @@
 {
-  "release_id": "r2026-08-03-clause-s6-arctic-ko",
+  "release_id": "r2026-08-04-clause-s7.1-arctic-ko-ocr-approved",
+  "supplemental_facts": "config/accepted_s7_1_facts.json",
   "_release_id_주의": "★페이지 스키마도 s5 로 올라 `s5_pymupdf-1.28.0` 이 두 층에 다 있다. 이름만으로 구분되지 않아 release_id 를 둔다.",
   "page_tag": "s4_pymupdf-1.28.0",
   "clause_tag": "s6_pymupdf-1.28.0",
@@ -20,9 +21,12 @@
     "바꾸면 같은 질문에 다른 답이 나온다. 반드시 근거를 함께 적고 팀에 알린다.",
     "DB 적재 후에는 문서별 document_extraction.approval='accepted' 로 옮긴다(ERD §①)."
   ],
-  "accepted_at": "2026-08-03",
-  "accepted_by": "feature-frontend 트랙",
+  "accepted_at": "2026-08-04",
+  "accepted_by": "사용자 29패턴 원문 검수 + Codex 검증",
   "reason": [
+    "S7.1: 사람 검수 approve 24패턴·850 OCR facts만 Arctic-ko 인덱스에 증분 적재했다.",
+    "S7.1: fix 5패턴·216 facts는 격리했고 serving/citation에 포함하지 않았다.",
+    "S7.1: 75개 고유 청크·850 occurrence·179문서, 리랭크 8,285쌍, 회귀 85건을 검증했다.",
     "v4 가 법령 인용이 조밀한 본문을 목차로 오판해 본문 24,511쪽을 버리고 있었다.",
     "실측 피해: NH농협생명 176쪽 문서의 「보상하지 않는 사항」이 목차상 3개인데",
     "산출물엔 1개뿐이었고 그 1개도 p39·40·41·44 가 빠진 채 조립됐다 —",

@@ -1,4 +1,4 @@
-"""SQLAlchemy ORM 모델 (바로봄 커머스 코어).
+"""SQLAlchemy ORM 모델 (커머스 코어 — 실습 잔재).
 
 카탈로그 엔티티는 Product(실데이터 products.csv 기준). 주문 시점 단가/상품명은
 OrderItem에 스냅샷으로 저장한다.

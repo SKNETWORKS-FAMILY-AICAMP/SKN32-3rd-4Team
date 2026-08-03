@@ -64,11 +64,101 @@ def _graph():
 _VERSIONS = None
 
 
+#: ★캐시를 만들 때의 모드 설정 파일 mtime. **프로세스가 둘이기 때문에** 필요하다.
+_VERSIONS_STAMP = None
+
+
+def _mode_stamp() -> float:
+    """판정 모드 설정의 변경 시각. 파일이 없으면 0."""
+    from app.core.domain import identification_mode
+
+    try:
+        f = identification_mode._MODE_FILE
+        return f.stat().st_mtime if f.exists() else 0.0
+    except OSError:
+        return 0.0
+
+
 def _versions():
-    global _VERSIONS
-    if _VERSIONS is None:
-        _VERSIONS = _deps()["policies"].load_versions()
-    return _VERSIONS
+    """판정에 쓸 약관 목록(캐시).
+
+    ★★**모드가 바뀌면 자동으로 다시 읽는다.**
+
+        관리 서버(8081)에서 모드를 바꿔도 고객 서버(8080)는 **다른 프로세스**라
+        `invalidate_versions_cache()` 가 닿지 않는다. 실측 2026-08-04:
+        엄격 모드로 바꿨는데 고객 API 는 계속 `total_policy_versions=132` 를
+        보고했다 — **표시와 동작이 어긋난 상태**다. 관측 스트림에서 이미
+        같은 종류의 문제를 겪었고, 같은 해법(파일을 진실의 출처로)을 쓴다.
+    """
+    #: ★캐시는 **어댑터가 파일 지문으로** 관리한다. 라우터가 따로 캐시를 두면
+    #:   판정 경로와 표시 경로가 서로 다른 목록을 보게 된다 — 실제로 그랬다.
+    loader = getattr(_deps()["policies"], "load_versions_cached", None)
+    return loader() if loader else _deps()["policies"].load_versions()
+
+
+def invalidate_versions_cache() -> None:
+    """★판정 모드가 바뀌면 **반드시** 부른다.
+
+    모드는 어떤 문서를 판정에 쓸지 바꾼다. 캐시를 그대로 두면 화면에는
+    "엄격"이라 적혀 있는데 판정은 자동승인 결과로 계속 나온다 —
+    **표시와 동작이 어긋나는 것이 이 도메인에서 가장 나쁜 상태**다.
+    """
+    global _VERSIONS, _VERSIONS_STAMP
+    _VERSIONS = None
+    _VERSIONS_STAMP = None
+
+
+def _confirmation_stats() -> dict:
+    """확정이 **어디까지** 됐나. 분모를 함께 낸다.
+
+    ★`total_policy_versions` 만 내보내면 그게 전량인 줄 안다.
+      숫자를 인용할 때 분모가 무엇인지 함께 적는다(CLAUDE.md §1).
+    """
+    from app.adapters import manifest_policy_resolver as mpr
+
+    try:
+        ledger = mpr.load_ledger()
+        collected = mpr.count_collected()
+    except Exception:  # noqa: BLE001
+        #: ★삼켜서 0 으로 보고하지 않는다. "못 셌다"와 "0건"은 다르다.
+        return {"error": "확정 현황을 세지 못했습니다"}
+    scopes: dict[str, int] = {}
+    pending = 0
+    for e in ledger.values():
+        scopes[e.get("scope") or "-"] = scopes.get(e.get("scope") or "-", 0) + 1
+        if "대기" in (e.get("confirmed_by") or ""):
+            pending += 1
+    return {
+        "confirmed": len(ledger),
+        "collected": collected,
+        "scopes": scopes,
+        "human_signoff_pending": pending,
+        "ledger": "config/confirmed_documents.jsonl",
+    }
+
+
+def _confirmation_coverage() -> str:
+    st = _confirmation_stats()
+    if st.get("error") or not st.get("confirmed"):
+        return ""
+    total = st.get("collected") or 0
+    pct = (st["confirmed"] / total * 100) if total else 0.0
+    #: ★**마크다운을 쓰지 않는다.** 이 문장은 화면에 **그대로** 찍힌다 —
+    #:   `insurance.js` 가 `textContent` 로 넣기 때문에 `**강조**` 가 별표째 보인다.
+    #:   실측 2026-08-04: 화면에 `**10건(0.7%)**` 이 그대로 나왔다.
+    msg = (f"⚠ 확정된 약관은 수집분 {total:,}건 중 {st['confirmed']}건({pct:.1f}%) 뿐입니다. "
+           "여기 없는 약관은 판정하지 않고 기권합니다.")
+    #: ★`demo` 만 이름으로 집어 말하다가 `machine_verified` 확대분(122건)이
+    #:   **문장에서 통째로 빠졌다**(2026-08-04). 범위 이름이 늘 때마다 여기를 고쳐야 하면
+    #:   반드시 빠뜨린다 — 있는 것을 **전부** 적는다.
+    _LABEL = {"demo": "시연", "machine_verified": "기계대조", "-": "범위미상"}
+    parts = [f"{_LABEL.get(k, k)} {v}건" for k, v in sorted(st.get("scopes", {}).items())]
+    if parts:
+        msg += f" 확정 범위 — {' · '.join(parts)}."
+    if st.get("human_signoff_pending"):
+        msg += (f" {st['human_signoff_pending']}건은 기계 대조로 확정됐고 "
+                "사람의 최종 승인이 남아 있습니다.")
+    return msg
 
 
 #: ★도메인 ↔ HTTP 변환은 **여기(바깥)** 의 일이다.
@@ -156,7 +246,42 @@ def create_precheck(body: PrecheckRequest) -> PrecheckResult:
         #:   그래프는 판정을 바꾸지 않고 잇고·분기하고·재시도만 통제한다
         #:   (`docs/handoff/06_계약_Agent.md` §1).
         outcome, _state = _graph().invoke(_to_input(body))
-        return _to_dto(outcome)
+        dto = _to_dto(outcome)
+        #: ★★**확정이 부분이면 고른 판본이 진짜 최신이 아닐 수 있다.**
+        #:
+        #:   `resolve()` 는 「가입일 이전 판매 시작 중 **가장 늦은 것**」을 고른다.
+        #:   그런데 그 '가장 늦은 것'은 **확정된 것 중에서만** 가장 늦다.
+        #:   진짜 적용 판본이 아직 미확정이면 **조용히 더 오래된 판본**이 뽑히고,
+        #:   응답은 그것을 100% 확정된 것과 **똑같은 확신으로** 말한다.
+        #:
+        #:   실측 2026-08-04 — 확정을 10건에서 132건으로 늘리자
+        #:   `NH농협생명 20180101` 의 적용 판본이 **2세대에서 3세대로 바뀌었다.**
+        #:   답이 바뀐 것이 아니라 **원래 3세대였는데 안 보였던 것**이다.
+        #:   그때 응답의 `warnings` 는 비어 있었다 — 사용자는 알 길이 없었다.
+        #:
+        #:   ★그래서 판본을 골랐을 때만 붙인다. 기권했으면 이미 다른 사유를 말하고 있다.
+        if dto.applied_policy is not None:
+            st = _confirmation_stats()
+            done, total = st.get("confirmed") or 0, st.get("collected") or 0
+            if total and done < total:
+                dto.warnings = [
+                    *dto.warnings,
+                    f"확정된 약관은 보유 {total:,}건 중 {done:,}건({done / total * 100:.1f}%)입니다. "
+                    "아직 확정되지 않은 약관 중에 더 나중에 판매된 판본이 있을 수 있고, "
+                    "그렇다면 여기 적힌 약관은 실제 적용 판본이 아닐 수 있습니다.",
+                ]
+        #: ★관측은 **응답을 만든 뒤** 붙인다. 여기서 실패해도 판정은 이미 끝나 있다.
+        #:   그리고 판정 자체를 바꾸지 않는다(`agent_stream` 은 표현 계층이다).
+        from app.obs import agent_stream
+
+        agent_stream.publish(
+            "agent.precheck",
+            client_ref=body.client_ref or "-",
+            detail={"insurer": body.insurer, "codes": list(body.kcd_codes)[:3],
+                    "verdict": dto.verdict, "abstained": dto.abstained,
+                    "trace_id": dto.trace_id},
+        )
+        return dto
     except ValidationErr as e:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e)
@@ -214,11 +339,35 @@ def support_manifest() -> dict:
             "확인 안 된 약관으로 보장 여부를 답하지 않습니다.",
         )
 
+    #: ★★**확정 범위를 숨기지 않는다.**
+    #:
+    #:   0건일 때는 위 경고가 사실을 말했다. 그런데 데모용으로 10건을 확정하자
+    #:   경고가 **사라지고** `total_policy_versions: 10` 만 남았다 — 읽는 사람은
+    #:   전체 1,367건 중 판정 준비가 끝난 것으로 읽는다. 실제로는 **0.7%** 다.
+    #:
+    #:   그리고 그 10건은 `scripts.confirm.identify_documents` 의 **기계 대조**로
+    #:   확정됐다. 사람의 최종 승인이 아직 남아 있다면 그것도 말해야 한다 —
+    #:   감지하고 통과시키면서 신호를 안 남기면 그건 폴백이다(CLAUDE.md §0).
+    coverage = _confirmation_coverage()
+    if coverage:
+        notes.insert(0, coverage)
+
+    #: ★자동승인 모드면 **맨 앞에** 경고를 둔다. 뒤에 두면 안 읽힌다.
+    from app.core.domain import identification_mode
+
+    mode = identification_mode.current()
+    if mode.auto_approve:
+        notes.insert(0, f"⚠ {mode.as_dict()['warning']}")
+
     return {
         "schema_version": "v1",
         "rule_engine_version": precheck.RULE_ENGINE_VERSION,
         "require_confirmed_documents": REQUIRE_CONFIRMED,
+        #: ★어느 게이트로 만든 목록인지 **항상** 함께 낸다. 숫자만 보면 오해한다.
+        "identification_mode": mode.as_dict(),
         "total_policy_versions": len(vs),
+        #: 판정 준비가 끝난 범위. `total_policy_versions` 만 보면 전량으로 오해한다.
+        "confirmation": _confirmation_stats(),
         "insurers": {
             k: {
                 "versions": d["versions"],
@@ -262,6 +411,17 @@ def submit_observation(body: ExternalCaseSubmission) -> dict:
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e)
         ) from e
 
+    from app.obs import agent_stream
+
+    #: ★`track="verified_real"` — **제출된 트랙**을 말하는 것이지
+    #:   "검증됐다"는 뜻이 아니다. 아래 `verification` 이 `unverified` 인 것과 모순 아니다.
+    agent_stream.publish(
+        "agent.observe",
+        client_ref=body.client_ref,
+        track="verified_real",
+        detail={"outcome": body.outcome, "codes": list(body.kcd_codes)[:3],
+                "duplicate": res.duplicate},
+    )
     return {
         "accepted": True,
         "stored": res.stored,

@@ -1,0 +1,18 @@
+{
+  "schema_version": "b7-external-table-label-provenance-v1",
+  "source": "C:\\Users\\playdata2\\Documents\\llm_workspace\\_3rd_project_4\\ai-1\\table_true_false.json",
+  "imported_source_sha256": "b93b62c58b8c0a1f4030c8af05b767bf34df7e2091b426bf7d22889a974ec3a8",
+  "current_source_sha256": "1450108158027f3a4579aaa853fdd78a44152bd5a8579571f20b9f727fdf2dac",
+  "source_byte_identical": false,
+  "semantic_label_set_identical": true,
+  "current_raw_rows": 61,
+  "current_unique_rows": 59,
+  "imported_unique_rows": 59,
+  "current_s5_documents": 1367,
+  "manifest_documents": 1367,
+  "missing_documents": [],
+  "missing_pages": [],
+  "missing_manifest_hashes": [],
+  "verdict": "same_document_revision_and_semantic_labels",
+  "note": "외부 라벨 파일의 서식/중복이 바뀌어 바이트 SHA는 다르지만 고유 라벨·문서 SHA·페이지는 동일하다."
+}

@@ -192,3 +192,37 @@ def test_조항의_가지번호를_구분한다():
     r = verify(cited_clauses=["제9조의2"], evidence=ev)
     assert r.ok
     assert r.checks[0].matched.text == "가지조"
+
+
+def test_같은_경로_후보가_여럿이면_인용문이_든_것을_고른다():
+    """★`by_path` 가 dict 라 **뒤에 온 것만 남았다**(코덱스 지적 2026-08-04).
+
+    같은 `qualified_no` 가 여러 문서·여러 쪽에 실린다 — 중복률 66% 코퍼스에서
+    드문 일이 아니다. 덮어쓰면 인용문이 **앞의 것에 있어도 못 찾아**
+    `quote_mismatch` 가 난다. 근거가 있는데 없다고 말하는 것이다.
+
+    ★같은 파일 위쪽에 「번호 색인은 list 다. dict 로 만들면 덮인다」고
+      적어 놓고, 바로 아래 줄에서 같은 실수를 하고 있었다.
+    """
+    from app.core.domain.citation_guard import EvidenceClause, verify
+
+    ev = [
+        EvidenceClause(qualified_no="보통약관/제9조", text="첫 번째 문서의 본문이다."),
+        EvidenceClause(qualified_no="보통약관/제9조", text="두 번째 문서의 본문이다."),
+    ]
+    #: 인용문이 **앞의 것**에 있다 — 덮어쓰던 시절엔 못 찾았다.
+    r = verify(cited_clauses=["보통약관/제9조"], evidence=ev,
+               quotes={"보통약관/제9조": ["첫 번째 문서의"]})
+    c = r.checks[0]
+    #: ★`quote_mismatch` 는 어긋났을 때만 채워진다(없으면 빈 문자열).
+    assert not c.quote_mismatch, f"인용문이 있는데 못 찾았습니다: {c.quote_mismatch!r}"
+
+    #: 뒤의 것에 있어도 찾아야 한다.
+    r2 = verify(cited_clauses=["보통약관/제9조"], evidence=ev,
+                quotes={"보통약관/제9조": ["두 번째 문서의"]})
+    assert not r2.checks[0].quote_mismatch
+
+    #: ★어디에도 없으면 **사유가 남아야** 한다. 조용히 통과시키면 안 된다.
+    r3 = verify(cited_clauses=["보통약관/제9조"], evidence=ev,
+                quotes={"보통약관/제9조": ["없는 문장"]})
+    assert r3.checks[0].quote_mismatch

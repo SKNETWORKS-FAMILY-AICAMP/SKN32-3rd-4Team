@@ -49,11 +49,13 @@ def _plan(shards: int, index: int):
     from app.adapters import pgvector_clause_index as ix
     from app.adapters.pgvector_index import get_conn
 
-    from scripts.index.build_clause_index import _collect, _token_counter
+    from scripts.index.build_clause_index import _clause_tag, _collect, _token_counter
 
     conn = get_conn()
     ix.ensure_schema(conn)
-    texts, _occ, _report = _collect(None, ignore_gate=False)
+    #: ★세대를 명시해 넘긴다. 안 넘기면 `TypeError` 다(코덱스 라운드2 지적) —
+    #:   `_collect` 가 태그를 필수 인자로 받게 바뀐 뒤 여기만 안 따라왔다.
+    texts, _occ, _report = _collect(None, False, _clause_tag())
     done = ix.existing_hashes(conn)
     #: ★해시로 정렬해 **결정적**으로 가른다. dict 순서에 기대면 재실행 때 달라진다.
     todo = sorted((h, t) for h, t in texts.items() if h not in done)

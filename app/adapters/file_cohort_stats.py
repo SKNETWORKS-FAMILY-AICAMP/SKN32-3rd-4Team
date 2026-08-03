@@ -37,7 +37,13 @@ _ROOT = Path(__file__).resolve().parents[2]
 _BASE = _ROOT / "data" / "cohort"
 
 #: ★집계에 넣을 검증 등급. `unverified` 는 **넣지 않는다.**
-_COUNTED = {"document_backed", "confirmed"}
+#:
+#: ★`admin_attested` 추가(2026-08-04) — 관리자 교차검증. 계획서 §3 이
+#:   "발행처 API 확인이 불가능하면 관리자 교차검증을 필수 경로로 두고
+#:   그 사실을 응답에 명시한다"고 한 그 경로다. **집계에는 들어가되
+#:   등급을 따로 세어 응답에 싣는다**(`by_verification`) — 합치기만 하면
+#:   "n=5" 가 "5건 발행처 확인됨"으로 읽힌다.
+_COUNTED = {"document_backed", "confirmed", "admin_attested"}
 
 #: 폴더 이름 — `DataSource` 값과 1:1. 섞이지 않게 물리적으로 나눈다.
 _DIR = {
@@ -95,6 +101,12 @@ def fetch(
     approved = sum(1 for e in rows if e.get("outcome") == "paid")
     denied = sum(1 for e in rows if e.get("outcome") == "denied")
 
+    #: ★등급별 내역. 어떤 등급이 몇 건인지 숨기지 않는다.
+    grades: dict[str, int] = {}
+    for e in rows:
+        g = e.get("verification") or "?"
+        grades[g] = grades.get(g, 0) + 1
+
     #: ★구조적 경고(제보 편향 등)는 **유스케이스가 붙인다.** 여기서 중복해 넣지 않는다.
     #:   어댑터는 저장소 사실만 말한다.
     #: ★합성 표시도 **유스케이스가 붙인다**(`cohort.py`). 여기서도 넣었더니
@@ -109,6 +121,7 @@ def fetch(
         data_source=data_source,
         min_sample=DEFAULT_MIN_SAMPLE,
         warnings=tuple(warnings),
+        by_verification=tuple(sorted(grades.items())),
     )
 
 

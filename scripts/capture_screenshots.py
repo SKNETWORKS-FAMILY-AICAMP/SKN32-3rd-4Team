@@ -1,4 +1,18 @@
-"""docs/screenshots용 실 화면 캡처 스크립트 (재사용 도구 — UI 변경 시 다시 실행해 docs/screenshots를 갱신한다).
+"""docs/screenshots용 실 화면 캡처 스크립트.
+
+★★**2026-08-03 — 이 스크립트는 지금 돌지 않는다. 커머스 시대 산물이다.**
+
+    가리키는 화면 중 `orders.html` · `shop.html` · `mcp.html` 은 **파일이 없다**(내 변경 이전부터).
+    `rag.html` 은 2026-08-03 에 `legacy/v6_rag_ui.zip` 으로 격리했다.
+    남은 것은 `admin.html` · `facebench.html` · `mypage.html` · `insurance.html` 뿐이다.
+
+    ★**고치지 않고 사실만 적어 둔다.** 보험 화면(`insurance.html`) 캡처로 다시 쓰려면
+      흐름을 새로 짜야 하는데, 그건 이 정리 작업의 범위가 아니다(RULE §2 범위 초과 금지).
+      **후속 과제다.** 돌려 보고 "왜 안 되지" 하는 시간을 없애려고 여기 남긴다.
+
+---
+
+(원문) 재사용 도구 — UI 변경 시 다시 실행해 docs/screenshots를 갱신한다.
 
 전제: `python scripts/run_dev_server.py`가 http://localhost:8080 에서 이미 떠 있어야 한다.
 실제 페이지를 실제로 클릭·입력해서 실제 API 응답을 화면에 띄운 뒤 PNG로 저장한다(목업 아님).

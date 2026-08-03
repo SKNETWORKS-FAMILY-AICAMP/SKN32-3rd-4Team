@@ -55,6 +55,31 @@ def test_backend_graph_routes_to_graph_builder(client, monkeypatch):
     assert called["which"] == "graph"
 
 
+def test_hybrid_rerank_can_be_enabled_from_settings(client, monkeypatch):
+    from types import SimpleNamespace
+
+    import app.core.config as config
+    import app.routers.rag as rag_router
+
+    called = {}
+
+    def fake_build(top_k=None, rerank=False):
+        called["rerank"] = rerank
+        return lambda q: AnswerResult(answer="a", sources=[])
+
+    monkeypatch.setattr(rag_router, "build_hybrid_answer_question", fake_build)
+    monkeypatch.setattr(
+        config,
+        "get_settings",
+        lambda: SimpleNamespace(RAG_RERANK_ENABLED=True),
+    )
+    response = client.post(
+        "/api/rag/qa", json={"question": "q", "backend": "hybrid"}
+    )
+    assert response.status_code == 200
+    assert called["rerank"] is True
+
+
 def test_unknown_backend_is_rejected_not_defaulted(client):
     """알 수 없는 backend를 조용히 faiss로 대체하지 않고 422로 거부한다(무폴백)."""
     r = client.post("/api/rag/qa", json={"question": "q", "backend": "nope"})

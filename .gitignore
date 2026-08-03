@@ -95,3 +95,67 @@ data/exports/**/*_clauses.parquet
 
 # IDE
 .idea/
+
+# ★판정 모드는 **런타임 상태**다 — 커밋하지 않는다.
+#
+#   `config/precheck_mode.json` 은 「기계 대조까지만 된 문서도 판정에 쓸 것인가」를
+#   정한다. 관리 화면(`PUT /api/admin/precheck-mode`)과 스크린샷 스크립트가 쓰고,
+#   실측 2026-08-04 에 `changed_by` 가 `test` → `capadmin_fcfb12f4` 로 계속 바뀌었다.
+#
+#   커밋하면 **누군가의 로컬 조작이 다른 환경의 판정 범위가 된다.**
+#   시연용으로 켜 둔 자동승인 모드가 그대로 딸려 가는 식이다.
+#   환경마다 자기 값을 갖게 두고, 기본값은 코드(`identification_mode._DEFAULT`)가 정한다.
+config/precheck_mode.json
+
+# ─────────────────────────────────────────────────────────────
+# ★2026-08-04 — `git add -A` 가 여기를 쓸어 담았다(커밋 전에 잡았다).
+#
+#   `data/extracted/`·`data/structured/` 는 "약관 파생물이라 저작물"이라고 막아 뒀는데
+#   그 뒤에 생긴 폴더들은 안 막혀 있었다. 실측: 스테이징 7,504건 중 **7,174건이 data/** 였다.
+#
+#   data/work/       s7 OCR 중간산출물. 4.15 GB · 6,130파일 (렌더 PNG·원격 전송 묶음)
+#   data/candidates/ ★**약관 원문 문구가 그대로 들어 있다.** 재배포가 된다:
+#                      "amount_formula": "처방전 1 건당 '「국민건강보험법」에서 정한 …"
+#   data/obs/        런타임 관측 로그. 환경마다 다르고 재현 대상이 아니다
+#   data/demo/submissions/  시연 중 생성되는 합성 제출물. 런타임 상태다
+#
+#   ★남기는 것은 `data/manifests/preprocess/` 다 — 해시뿐이고 D2 의 근거다.
+data/work/
+data/candidates/
+data/obs/
+data/demo/submissions/
+
+# ★같은 이유로 `data/eval/` 의 **큰 산출물**도 막는다(2026-08-04).
+#   스테이징에 382 MB 가 잡혔다. 안에 든 것이 무엇인지가 문제다 —
+#     ocr_shadow48/images        약관 PDF 를 **그림으로 렌더한 것**. 원본 그대로다
+#     ocr_shadow48/*.zip         위를 원격 GPU 로 보내던 전송 묶음
+#     struct_events/             S1·S2 사건 32,215건 — 조 제목·본문 조각이 실려 있다
+#     annex_*_s6/ · a1_gap_* · outside_clause_pages_s6.jsonl
+#                                조항·부록 본문이 들어 있다
+#   ★남기는 것은 **지표와 라벨**이다 — 사람이 찍은 라벨, 벤치 결과 요약, 후보 목록.
+#     그건 약관 원문이 아니라 우리가 만든 판단이다.
+data/eval/ocr_shadow48/
+data/eval/ocr_sota5/
+data/eval/struct_events/
+data/eval/annex_shadow_s6/
+data/eval/annex_precheck_diff_s6/
+data/eval/coverage_boundary_shards/
+data/eval/a1_gap_causes_s6.jsonl
+data/eval/a1_gap_causes_s6_review240.jsonl
+data/eval/outside_clause_pages_s6.jsonl
+data/eval/outside_clause_pages_s6_review200.jsonl
+data/eval/retrieval_probes.json
+data/eval/*_top20_rerank.json
+
+# ★★`data/exports/dataset/` — **모델팀 인계 데이터셋. 조항 본문 전체다.**
+#   `clauses.jsonl` 하나가 **233 MB** 이고 `text` 열에 약관 원문이 그대로 있다.
+#   앞서 같은 내용의 `*_clauses.parquet` 가 팀 저장소에 올라간 적이 있는데(위 규칙),
+#   이번엔 **확장자만 바뀐 같은 것**이 규칙을 비껴갔다.
+#   인계는 저장소가 아니라 별도 전달 경로로 한다.
+data/exports/dataset/
+
+# ★사람 검수용 HTML — 약관 표·조항 내용을 페이지에 그대로 박아 만든다.
+#   `table_review_20260803.html` 8 MB · 한글 81,713자 · `제N조` 332회.
+#   검수는 로컬에서 열어 보는 것이고 저장소에 남길 것이 아니다(CLAUDE.md §2).
+#   ★`docs/handoff/preprocess_viz.html` 은 남긴다 — 조항 인용이 0 이고 계약 산출물이다.
+docs/review/*.html

@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<title>바로봄 — 화면 워크스루 (실제 캡처 기반)</title>
+<title>올바른 보험비서 — 화면 워크스루 (실제 캡처 기반)</title>
 <style>
   :root{
     --bg:#f7f8fa; --panel:#fff; --ink:#16202b; --muted:#5b6875; --line:#dde3ea;
@@ -61,14 +61,14 @@
 
 <div class="wrap">
 <header>
-  <p class="eyebrow">바로봄 · 화면 워크스루</p>
+  <p class="eyebrow">올바른 보험비서 · 화면 워크스루</p>
   <h1>실제로 무엇이 보이고,<br>어떤 상태 전이가 일어나는가</h1>
   <p class="sub">목업이 아니라 <b>실행 중인 앱을 캡처한 18장</b>입니다. 각 화면에 “무엇을 확인해야 하는지”를 달았습니다. 구조·설계 이유는 <a href="project_overview.html">프로젝트 전체 설명</a>을 보세요.</p>
 </header>
 
 <div class="callout">
   <p class="kicker">캡처 기준 — 2026-07-22 전량 재생성</p>
-  <p>18장 모두 <b>현재 코드·현재 브랜드(바로봄)</b>로 다시 촬영했습니다. 실 LLM(로컬 Gemma)·PostgreSQL(pgvector·그래프)을
+  <p>18장 모두 <b>현재 코드·당시 브랜드</b>로 다시 촬영했습니다. 실 LLM(로컬 Gemma)·PostgreSQL(pgvector·그래프)을
   띄운 상태에서 실제 클릭·실제 API 응답을 찍은 것이며, 손으로 그린 목업이 아닙니다.</p>
   <p style="margin-bottom:0" class="rel" >재생성 방법: <code>scripts/pg.py start</code> → <code>scripts/pg.py setup</code> →
   <code>local_model_server.py</code> → <code>run_dev_server.py</code> → <code>capture_screenshots.py</code>(01–08) ·
@@ -260,7 +260,7 @@
 
 <div class="shot">
   <div class="head"><span class="no">15</span><span class="title">스토어 — 장바구니와 로그인 요구</span><span class="path">/ 또는 /static/shop.html · :8080</span></div>
-  <img src="screenshots/15_shop_cart.png" alt="바로봄 스토어 화면 — 상품 카드, 장바구니 3건, 로그인 요구 모달">
+  <img src="screenshots/15_shop_cart.png" alt="스토어 화면 — 상품 카드, 장바구니 3건, 로그인 요구 모달">
   <div class="ann"><dl>
     <dt>사용자 목표</dt><dd>상품을 담고 주문한다</dd>
     <dt>입력·행동</dt><dd>상품 <b>담기</b> → 장바구니 확인 → <b>주문하기</b></dd>

@@ -23,10 +23,18 @@
 | [10_계약_모델_평가.md](10_계약_모델_평가.md) | 서유현·송채영 | **모델 평가 지표·평가셋·색인 입력 계약** |
 | [11_AI_구조_지도.md](11_AI_구조_지도.md) | 전원 | ★**RAG는 몇 개인가 · 무엇이 무엇을 근거로 쓰나 · 역할 구분** — 반복 질문 한 장 정리 |
 | [12_모델팀_개선사항.md](12_모델팀_개선사항.md) | 서유현·송채영 | ★**`feature-ai1` 점검 결과 — 재색인 전 고칠 것** (P0 1건 · P1 7건 · P2 2건) |
+| ★[13_임베딩모델_선정_브리핑.md](13_임베딩모델_선정_브리핑.md) | 서유현·송채영 | **임베딩 후보 21회 측정 + 짝비교 신뢰구간.** ★§3-3 은 배포 결정이 아니라 **예비 후보 축소**다. §5 를 함께 읽을 것. **§5-10 = 지표 계산 결함과 전량 재측정 기록** |
+| ★[18_브랜치_반영_내역.md](18_브랜치_반영_내역.md) | 전원 | **팀 브랜치에서 무엇을 가져왔고 무엇을 안 가져왔나** — 거절 사유까지. §6 에 팀에 알릴 것 4건 |
+| [archive/…_v1_재측정전.md](archive/13_임베딩모델_선정_브리핑_2026-08-03_v1_재측정전.md) | — | ☠**폐기된 이전 판.** 인용 금지 — 무엇이 왜 틀렸는지 남기려고 보관 |
+| [14_금감원_분쟁사례_평가셋_작업계획.md](14_금감원_분쟁사례_평가셋_작업계획.md) | 서유현·송채영 | 분쟁사례 기반 평가셋 |
+| ★[15_표_정답셋_라벨링_의뢰.md](15_표_정답셋_라벨링_의뢰.md) | **서유현(AI 1)** | **표 과탐 판별기 재료 + 층화 정답셋** — 사람이 찍어야만 되는 것 |
+| ★[16_DB_스키마_적재_의뢰.md](16_DB_스키마_적재_의뢰.md) | **김지혜(백엔드)** | **`app.*` DDL 전체 + 적용 + 데모 한 줄기** — 스키마 계약 확정 |
+| ★[17_LangGraph_인용검증_MCP_결함수정_의뢰.md](17_LangGraph_인용검증_MCP_결함수정_의뢰.md) | **정재희(Agent)** | **재현 결함 3건 + 문서/0근거 게이트 + 그래프 정본 통합** |
 | [erd_briefing.html](erd_briefing.html) | 전원 | ERD·스키마 브리핑 — **왜 이렇게 설계했나**(브라우저로 열기) |
 | [erd_tables.html](erd_tables.html) | 백엔드·전원 | ★**테이블·컬럼 사전** — 27테이블+뷰1의 전 컬럼·타입·제약·enum(브라우저로 열기) |
 | [system_diagrams.html](system_diagrams.html) | 전원 | ★**시스템 시각화 6장** — 아키텍처·오프라인/온라인·기권 게이트·실패 전파·검증 확장·12GB 예산(브라우저로 열기) |
-| [preprocess_viz.html](preprocess_viz.html) | 모델팀·전원 | ★**전처리 v5 산출물 시각화** — 그림 7장 + DB 적재 정합성 + Tad 행 단위 캡처 5장(브라우저로 열기) |
+| [preprocess_viz.html](preprocess_viz.html) | 모델팀·전원 | ★**전처리 s6 산출물 시각화** — 그림 7장 + DB 적재 정합성 + Tad 행 단위 캡처 5장(브라우저로 열기). ★캡처만 10:05 판이라 낡음 배너가 붙어 있다 |
+| ★[구조결함 S1·S2 원인규명](../reports/2026-08-03_2330_구조결함_S1_S2_원인규명.md) | 모델팀·백엔드 | **게이트가 멀쩡한 조항을 끄고 있다** — S1 87.2% 는 부 경계 누락, S2 41.9% 는 결함 아님. 사건 파일 위치·재실행법 포함 |
 | [storyboard.html](storyboard.html) | 전원 | **데모 흐름 스토리보드(브라우저로 열기)** |
 
 ---
@@ -51,6 +59,26 @@ curl -X POST localhost:8000/v1/prechecks -H 'Content-Type: application/json' -d 
 
 ---
 
+## 어느 판의 숫자인가 — 기준선은 manifest 가 갖는다
+
+수치를 인용할 때 **어느 스키마 판인지 함께 적는다.** 실제로 s5 값을 s6 인 양 인용해
+한 번 헛짚었다(치과 커버리지 154 → 4,181. 전처리가 좋아진 게 아니라 측정 패턴이 달랐다).
+
+```bash
+# 기준선 확인 — 입력·산출물·코드·설정·환경 해시가 한 자리에 박혀 있다
+python -m scripts.extract.build_manifest --schema s6 --verify
+```
+
+| 파일 | 무엇 |
+|---|---|
+| `data/manifests/preprocess/manifest_s6.json` | **s6 기준선.** 문서 1,367 · 입력 PDF SHA-256(원본 재해시 대조) · `s5`/`s6` 산출물 해시 · extractor·config·의존성·**git commit + dirty 해시** |
+| `data/raw/manifests/*.jsonl` | **수집 기록**(URL 2,121행). 축이 다르다 — 저건 입력의 계보, 위는 **산출물의 계보** |
+
+`--verify` 는 기록된 해시를 실제 파일과 다시 대조한다. 산출물이 1바이트라도 바뀌면 실패한다.
+**manifest 는 불변이다** — 내용이 다른 것을 같은 경로에 쓰려 하면 거부한다.
+
+---
+
 ## 전처리 산출물을 직접 뒤져 보려면
 
 집계는 [preprocess_viz.html](preprocess_viz.html) 로, **행 단위 탐색은 Parquet + Tad** 로 나눴다.
@@ -61,20 +89,24 @@ curl -X POST localhost:8000/v1/prechecks -H 'Content-Type: application/json' -d 
 
 | 파일 | 내용 |
 |---|---|
-| `data/exports/s5_clauses.parquet` | **211,131행 · 22컬럼.** 조항 본문 + `reuse_docs`(재사용 문서 수) · `para_ambiguous` · `statute` |
-| `data/exports/s5_documents.parquet` | 1,367행. 문서별 쪽수·조항수·항수·suspect·모호·미해결 |
+| `data/exports/s6_clauses.parquet` | **204,098행 · 22컬럼 · 57MB.** 조항 본문 + `reuse_docs`(재사용 문서 수) · `para_ambiguous` · `statute` |
+| `data/exports/s6_documents.parquet` | 1,367행. 문서별 쪽수·조항수·항수·suspect·모호·미해결 |
 | `data/exports/views/v1~v5.parquet` | ★**행 단위로만 보이는 것 5개.** HTML §H 의 캡처와 같은 화면이 그대로 열린다 |
 
 ```
-v1_clause_boundary  조항 경계 붕괴 (30,000자 초과 133행)
-v2_page_fallback    페이지 덩어리 438행 — 조항이 아니다
-v3_reuse            170문서에 실린 같은 조항 2,843행
-v4_para_marker      항 표지 충돌 2,795행
-v5_pua              못 읽은 보조 PUA 515행 — 문맥 스니펫 포함
+v1_clause_boundary  조항 경계 붕괴 (30,000자 초과)     7행   ← s5 133행에서 급감
+v2_page_fallback    페이지 덩어리 — 조항이 아니다      438행
+v3_reuse            170문서에 실린 같은 조항         2,962행
+v4_para_marker      항 표지 충돌                   2,843행
+v5_pua              못 읽은 보조 PUA — 스니펫 포함    366행
 ```
 
-`s5_clauses.parquet` 에서 `reuse_docs` 내림차순 정렬 → 중복 조항,
-`para_ambiguous=true` 필터 → 인용 못 대는 조항 9,838건이 바로 나온다.
+`s6_clauses.parquet` 에서 `reuse_docs` 내림차순 정렬 → 중복 조항,
+`para_ambiguous=true` 필터 → 인용 못 대는 조항 **8,554건**(s6)이 바로 나온다.
+`unresolved>0` 은 366건이다.
+
+> ★위 수치는 전부 **s6 기준**이다. 앞서 이 문단이 s5 값(9,838)을 달고 있었다.
+> 스키마가 바뀌면 **분모가 바뀐다** — 인용할 때 어느 판인지 함께 적는다.
 
 ---
 

@@ -15,7 +15,7 @@
                                  ★0 에 가까우면 **뒷부분이 최종 표현을 바꾸지 못했다.**
                                    "모델이 그 문장을 입력으로 못 받았다"는 **해석**이지
                                    측정값이 아니다 — 여기서 세는 것은 거리뿐이다.
-                                   현재 모델(ko-sroberta 128토큰)이 60건 중 34건 그랬다.
+                                   현재 모델(ko-sroberta 128토큰)이 60건 중 **46건** 그랬다.
                                  ★표시 이름은 「벡터무변화」, 저장 키는
                                    `proviso_blind_count` 그대로다(옛 결과 호환).
     truncated_ratio              코퍼스 중 모델 최대 길이를 넘어 잘린 비율
@@ -38,8 +38,17 @@ import time
 
 _ROOT = pathlib.Path(__file__).resolve().parents[2]
 _SET = _ROOT / "data" / "eval" / "embed_bench.json"
-#: 「벡터무변화」 문턱. ★float64 코사인 기준이라 잴 수 있는 값이다.
-#:   앞서 쓰던 1e-6 은 fp16 분해능(2⁻¹¹≈4.9e-4) 아래라 **못 재는 문턱**이었다.
+#: 「벡터무변화」 문턱. ★이건 **분해능이 아니라 임의 허용오차**다(코덱스 지적).
+#:
+#:   앞서 쓰던 1e-6 은 fp16 내적의 분해능(2⁻¹¹≈4.9e-4) 아래라 **못 재는 문턱**이었다.
+#:   float64 로 계산하면 1e-9 은 잴 수 있지만, "여기 아래는 같다"는 **선택**이지
+#:   계산 한계가 아니다.
+#:
+#:   ★실측(2026-08-03): 이 값 위의 **가장 작은 비영 거리가 1.15e-4** 라
+#:     1e-9 과 다섯 자릿수 떨어져 있다 — 이 데이터에서는 어디를 잘라도 같다.
+#:     다만 fp16 가중치의 **1 ULP 변화가 코사인 거리 4.65e-10** 로 계산되므로,
+#:     "정말 한 비트만 다른" 경우는 무변화로 분류된다. 그건 의도한 동작이다 —
+#:     재려는 것은 **뒷부분이 표현을 의미 있게 바꿨는가**이지 비트 동일성이 아니다.
 _BLIND_EPS = 1e-9
 
 _OUT = _ROOT / "data" / "eval" / "embed_bench_results"
@@ -133,7 +142,8 @@ def run(model_id: str, *, q_prefix: str, d_prefix: str, batch: int, device: str,
 
     ★탐침 재측정 전용 경로가 필요한 이유 — 「벡터무변화」 계산이 틀려(§5-10)
       21건을 다시 재야 하는데, 코퍼스 2,000건까지 다시 넣을 이유가 없다.
-      탐침은 120문장이라 **인코딩이 수백 배 싸다.** 내려받는 값은 그대로 든다.
+      코퍼스 2,000건 대 탐침 120문장이라 **인코딩 대상이 약 17배 적다.**
+      (실행 시간은 재지 않았다 — 내려받는 비용이 지배적이다.)
       결과는 기존 JSON 에 **덮어쓰지 않고 합친다** — 순위 지표는 유효하므로.
     """
     import numpy as np
@@ -316,7 +326,8 @@ def run(model_id: str, *, q_prefix: str, d_prefix: str, batch: int, device: str,
     #:   앞서는 `1 - np.sum(h*w)` 로 잰 뒤 `< 1e-6` 으로 셌는데, 두 군데가 틀렸다.
     #:
     #:   ① 모델이 돌려준 벡터가 **단위 노름이 아니다.** fp16 정규화 뒤 노름이
-    #:      1±0.002, 4bit 는 1±0.005 다. 그래서 내적이 1을 넘고 delta 가
+    #:      fp16 0.999579~1.000488, 4bit 0.998076~1.003902 다(재측정 실측).
+    #:      그래서 내적이 1을 넘고 delta 가
     #:      **음수**가 된다 — 실측 최소 −0.00498. 각도가 실제로 벌어졌는데도
     #:      `< 1e-6` 에 걸려 「안 움직였다」로 세어졌다.
     #:   ② fp16 으로 더하면 1 근처 분해능이 **2⁻¹¹ ≈ 4.9e-4** 다.
@@ -382,6 +393,20 @@ def run(model_id: str, *, q_prefix: str, d_prefix: str, batch: int, device: str,
         #: ★**덮어쓰지 않는다.** 순위 지표(MRR·R@k·ranks)는 유효하므로 그대로 두고,
         #:   탐침 관련 값만 갈아 끼운다. 통째로 쓰면 멀쩡한 측정을 날린다.
         old = json.loads(dst.read_text(encoding="utf-8"))
+        #: ★★**조건이 다르면 합치지 않는다 — 거부한다.**
+        #:
+        #:   앞서는 어긋난 사실을 `probes_dtype_matches_original` 에 **적어만 두고
+        #:   덮어썼다.** 기록은 남지만 표에 든 값은 이미 섞인 뒤다 —
+        #:   읽는 사람은 그 필드를 보지 않는다(코덱스 지적 2026-08-03).
+        #:   별도 병합 스크립트(`merge_probe_remeasure.py`)는 거부하는데
+        #:   **여기만 안 막혀 있었다.** 막는 곳이 하나 빠지면 막은 게 아니다.
+        if old.get("dtype") and dtype != old["dtype"]:
+            raise SystemExit(
+                f"""★정밀도가 다릅니다: 저장본 {old['dtype']} · 이번 측정 {dtype}.
+  탐침만 갈아 끼우면 표의 값이 무엇으로 잰 것인지 알 수 없게 됩니다.
+  같은 조건으로 다시 재세요 — GPU fp16 이면 `--device cuda` 를,
+  4bit 면 `--quant 4bit` 도 함께 주세요."""
+            )
         keys = ("proviso_delta_mean", "proviso_delta_min", "proviso_blind_count",
                 "proviso_probes", "probe_norm_min", "probe_norm_max", "blind_eps")
         old.update({k: res[k] for k in keys if k in res})
@@ -391,6 +416,11 @@ def run(model_id: str, *, q_prefix: str, d_prefix: str, batch: int, device: str,
         #:   계산을 고쳐서인지 **정밀도가 달라서인지 가릴 수 없었다**
         #:   (원래 측정은 GPU fp16). 조건을 안 남기면 다음 사람도 못 가린다.
         old["probes_remeasured"] = True
+        #: ★**GPU 이름을 남긴다.** `cuda:0` 만으로는 어느 기계인지 모른다 —
+        #:   4bit 원 측정은 RunPod(RTX 2000 Ada), 재측정은 랩(RTX 4070 SUPER)이라
+        #:   조건이 달라졌는데 `probes_device` 로는 안 드러났다(코덱스 지적).
+        old["probes_gpu"] = res.get("gpu", "")
+        old["probes_gpu_matches_original"] = (res.get("gpu") == old.get("gpu"))
         old["probes_device"] = dev
         old["probes_dtype"] = dtype
         old["probes_dtype_matches_original"] = (dtype == old.get("dtype"))
@@ -481,6 +511,83 @@ def _report_md(rows: list) -> None:
             blind, r["truncated_ratio"], r.get("dtype", "?")))
 
 
+def repro_commands(md: bool = False) -> None:
+    """**저장된 결과에서** 그것을 만든 명령을 되짚어 낸다.
+
+    ★손으로 관리하던 목록(`remote_bench.sh`)이 실제 측정과 어긋나 있었다 —
+      21회를 쟀는데 목록에는 13개뿐이었고, `Qwen3-8B` 는 `--quant 4bit` 없이
+      적혀 있어 그대로 돌리면 12GB 에서 죽는다(코덱스 지적 2026-08-03).
+      "재현 방법"이라고 적어 놓고 재현이 안 되면 그건 재현 방법이 아니다.
+
+    ★그래서 **목록을 따로 두지 않는다.** 결과 JSON 이 곧 명령의 원본이다.
+      측정을 하나 더 하면 이 출력이 저절로 따라온다.
+    """
+    rows = [json.loads(p.read_text(encoding="utf-8")) for p in sorted(_OUT.glob("*.json"))]
+    #: 큰 것을 뒤로 — 디스크가 좁을 때 작은 것부터 끝난다.
+    rows.sort(key=lambda d: (d.get("dtype") != "float16", d.get("dim", 0), d["model"]))
+    lines = []
+    for d in rows:
+        model = d["model"].split(" ")[0]
+        cmd = f"python -m scripts.eval.bench_embedders --model {model} --device cuda"
+        if d.get("dtype") == "4bit":
+            cmd += " --quant 4bit"
+        #: ★배포 설정을 바꿔 잰 것은 `--max-seq` 가 있어야 같은 값이 나온다.
+        if " (max_seq=" in d["model"]:
+            cmd += f" --max-seq {d['max_seq_length']}"
+        lines.append((cmd + " --purge", d["model"], d.get("dtype")))
+    if md:
+        print("```bash")
+    for cmd, _m, _t in lines:
+        print(cmd)
+    if md:
+        print("```")
+    print()
+    print(f"# 총 {len(lines)}회 — fp16 {sum(1 for _, _, t in lines if t == 'float16')}"
+          f" · 4bit {sum(1 for _, _, t in lines if t == '4bit')}")
+    print("# ★탐침 재측정(§5-10)은 위 명령에 `--probes-only` 를 붙여 돌린 뒤")
+    print("#   `python -m scripts.eval.merge_probe_remeasure <폴더>` 로 합쳤다.")
+
+
+def prefix_table(md: bool = True) -> None:
+    """**실제로 넣은 접두어**를 모델별로 낸다. ★측정한 모델만.
+
+    ★손으로 쓴 표가 코드와 어긋나 있었다(코덱스 지적 2026-08-03) —
+      `arctic`·`arctic-ko`·`laal` 을 「없음」으로 적어 두었는데 실제로는 넣고 쟀다.
+      표가 틀리면 "권장 설정으로 쟀다"가 거짓이 된다. 그래서 **코드에서 뽑는다.**
+
+    ★이 표는 **우리가 넣은 것**이지 **모델이 요구하는 것**이 아니다.
+      둘을 대조하는 일은 아직 안 했다 — 문서에 그렇게 적어 둔다.
+    """
+    measured = {json.loads(p.read_text(encoding="utf-8"))["model"].split(" ")[0]
+                for p in _OUT.glob("*.json")}
+    seen: set[str] = set()
+    rows = []
+    for m, _, q, d, _n in CANDIDATES:
+        if m in seen or m not in measured:
+            continue
+        seen.add(m)
+        how = ('`prompt_name="query"`' if q == "@qwen"
+               else f"질의 `{q}` · 문서 `{d}`" if q and d
+               else f"질의 `{q}` · 문서 없음" if q else "없음")
+        rows.append((how, m))
+    #: ★**측정했는데 후보 목록에 없는 모델**을 조용히 빠뜨리지 않는다.
+    #:   `Frony` 가 그랬다 — 표에서 사라져 접두어를 무엇으로 넣었는지 알 수 없었다.
+    orphan = sorted(measured - seen)
+    order = sorted({h for h, _ in rows}, key=lambda h: (h == "없음", h))
+    if md:
+        print("| 접두어 | 적용한 모델 |")
+        print("|---|---|")
+        for h in order:
+            names = " · ".join(f"`{m}`" for hh, m in rows if hh == h)
+            print(f"| {h} | {names} |")
+        if orphan:
+            print(f"| ★**목록에 없음 — 확인 필요** | "
+                  + " · ".join(f"`{m}`" for m in orphan) + " |")
+    else:
+        for h in order:
+            print(h, [m for hh, m in rows if hh == h])
+
+
 def report(dtype: str = "", md: bool = False) -> None:
     """측정 결과 표. `dtype` 을 주면 그 정밀도만. `md=True` 면 **마크다운 표**.
 
@@ -568,6 +675,10 @@ def main(argv=None) -> int:
     ap.add_argument("--probes-only", action="store_true",
                     help="탐침만 다시 재고 기존 결과에 합친다")
     ap.add_argument("--report", action="store_true")
+    #: ★접두어 표도 **코드에서 뽑는다.** 손으로 쓰면 어긋난다.
+    ap.add_argument("--prefixes", action="store_true", help="실제로 넣은 접두어 표")
+    #: ★재현 명령도 **결과에서 되짚는다.** 손 목록은 어긋난다.
+    ap.add_argument("--repro", action="store_true", help="저장된 결과를 만든 명령")
     ap.add_argument("--compare", default="", help="이 모델을 기준으로 짝지어 비교")
     ap.add_argument("--task", default="title", choices=["title", "tail", "exclusion"])
     #: ★정밀도를 섞지 않는다. 빈 값이면 전부.
@@ -591,6 +702,12 @@ def main(argv=None) -> int:
     if a.report:
         report(a.dtype, md=a.md)
         return 0
+    elif a.prefixes:
+        prefix_table(md=a.md or True)
+        return 0
+    elif a.repro:
+        repro_commands(md=a.md)
+        return 0
     if not a.model:
         ap.error("--model 이 필요합니다 (--list 로 후보 확인)")
 
@@ -613,5 +730,22 @@ def main(argv=None) -> int:
     return 0
 
 
+def _utf8_stdout() -> None:
+    """★기본 cp949 콘솔에서 `—` 하나 때문에 죽지 않게 한다.
+
+    실측 2026-08-03 — `PYTHONIOENCODING` 없이 `--report --dtype 4bit` 를 돌리면
+    `UnicodeEncodeError` 로 **표가 안 나온다.** 팀원이 재현 명령을 그대로
+    복사해 붙이면 여기서 막힌다. 도구가 환경을 탓하지 않게 스스로 맞춘다.
+    """
+    import sys
+
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:  # noqa: BLE001 — 리다이렉트 등 재설정 불가한 경우
+            pass
+
+
 if __name__ == "__main__":
+    _utf8_stdout()
     raise SystemExit(main())

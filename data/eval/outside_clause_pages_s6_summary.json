@@ -1,0 +1,140 @@
+{
+  "by_insurer": {
+    "dbins": {
+      "documents_with_uncovered": 232,
+      "risk:blank_or_image_only_proxy": 326,
+      "risk:business_signal": 2263,
+      "risk:short_text_proxy": 239,
+      "risk:unclassified_narrative": 229,
+      "uncovered_pages": 3057
+    },
+    "heungkukfire": {
+      "documents_with_uncovered": 187,
+      "risk:blank_or_image_only_proxy": 264,
+      "risk:business_signal": 3204,
+      "risk:short_text_proxy": 307,
+      "risk:unclassified_narrative": 281,
+      "uncovered_pages": 4056
+    },
+    "heungkuklife": {
+      "documents_with_uncovered": 9,
+      "risk:business_signal": 26,
+      "risk:unclassified_narrative": 13,
+      "uncovered_pages": 39
+    },
+    "hyundaimarine": {
+      "documents_with_uncovered": 217,
+      "risk:blank_or_image_only_proxy": 1120,
+      "risk:business_signal": 4290,
+      "risk:short_text_proxy": 297,
+      "risk:unclassified_narrative": 178,
+      "uncovered_pages": 5885
+    },
+    "kbinsure": {
+      "documents_with_uncovered": 19,
+      "risk:business_signal": 110,
+      "risk:short_text_proxy": 20,
+      "uncovered_pages": 130
+    },
+    "lotteins": {
+      "documents_with_uncovered": 72,
+      "risk:blank_or_image_only_proxy": 149,
+      "risk:business_signal": 1085,
+      "risk:short_text_proxy": 47,
+      "risk:unclassified_narrative": 111,
+      "uncovered_pages": 1392
+    },
+    "meritzfire": {
+      "documents_with_uncovered": 9,
+      "risk:blank_or_image_only_proxy": 37,
+      "risk:business_signal": 59,
+      "risk:unclassified_narrative": 17,
+      "uncovered_pages": 113
+    },
+    "myangel": {
+      "documents_with_uncovered": 9,
+      "risk:blank_or_image_only_proxy": 7,
+      "risk:business_signal": 178,
+      "risk:short_text_proxy": 11,
+      "risk:unclassified_narrative": 24,
+      "uncovered_pages": 220
+    },
+    "nhfire": {
+      "documents_with_uncovered": 10,
+      "risk:blank_or_image_only_proxy": 74,
+      "risk:business_signal": 453,
+      "risk:short_text_proxy": 20,
+      "risk:unclassified_narrative": 20,
+      "uncovered_pages": 567
+    },
+    "nhlife": {
+      "documents_with_uncovered": 52,
+      "risk:blank_or_image_only_proxy": 92,
+      "risk:business_signal": 348,
+      "risk:short_text_proxy": 76,
+      "risk:unclassified_narrative": 30,
+      "uncovered_pages": 546
+    },
+    "samsungfire": {
+      "documents_with_uncovered": 222,
+      "risk:blank_or_image_only_proxy": 599,
+      "risk:business_signal": 2150,
+      "risk:short_text_proxy": 324,
+      "risk:unclassified_narrative": 570,
+      "uncovered_pages": 3643
+    },
+    "samsunglife": {
+      "documents_with_uncovered": 189,
+      "risk:blank_or_image_only_proxy": 138,
+      "risk:business_signal": 3024,
+      "risk:short_text_proxy": 365,
+      "risk:unclassified_narrative": 470,
+      "uncovered_pages": 3997
+    }
+  },
+  "classification_warning": "risk_class is a deterministic proxy, not a human truth label",
+  "clause_tag": "s6_pymupdf-1.28.0",
+  "counts": {
+    "all_pages": 156867,
+    "context:after_last_covered": 369,
+    "context:before_first_covered": 15283,
+    "context:between_covered": 7993,
+    "covered_non_toc_pages": 128654,
+    "non_toc_pages": 152299,
+    "ok_documents": 1306,
+    "position:first5": 3981,
+    "position:last5": 225,
+    "position:middle": 19439,
+    "risk:blank_or_image_only_proxy": 2806,
+    "risk:business_signal": 17190,
+    "risk:short_text_proxy": 1706,
+    "risk:unclassified_narrative": 1943,
+    "risk_context:blank_or_image_only_proxy|after_last_covered": 131,
+    "risk_context:blank_or_image_only_proxy|before_first_covered": 1973,
+    "risk_context:blank_or_image_only_proxy|between_covered": 702,
+    "risk_context:business_signal|after_last_covered": 182,
+    "risk_context:business_signal|before_first_covered": 10854,
+    "risk_context:business_signal|between_covered": 6154,
+    "risk_context:short_text_proxy|after_last_covered": 1,
+    "risk_context:short_text_proxy|before_first_covered": 1427,
+    "risk_context:short_text_proxy|between_covered": 278,
+    "risk_context:unclassified_narrative|after_last_covered": 55,
+    "risk_context:unclassified_narrative|before_first_covered": 1029,
+    "risk_context:unclassified_narrative|between_covered": 859,
+    "signal:business_term": 13410,
+    "signal:clause_head": 78,
+    "signal:kcd": 340,
+    "signal:money": 2903,
+    "signal:rate": 3817,
+    "signal:table": 10885,
+    "signal:trusted_table": 188,
+    "skipped_no_clause_heads": 9,
+    "skipped_suspect": 52,
+    "structured_files": 1367,
+    "toc_pages": 4568,
+    "uncovered_pages": 23645
+  },
+  "page_tag": "s5_pymupdf-1.28.0",
+  "schema_version": "outside-clause-pages-audit-v1",
+  "uncovered_rate_non_toc": 0.15525380993965818
+}

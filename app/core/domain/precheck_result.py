@@ -49,6 +49,11 @@ class ReasonCode(str, Enum):
     EXCEPTION_APPLIES = "exception_applies"
     COVERED_BY_CLAUSE = "covered_by_clause"
     # 판정하지 못한 경우
+    #: ★**보유는 하고 있는데 아직 확정되지 않았다.** `insurer_not_supported` 와 다르다.
+    #:   확정 0건일 때 "약관을 보유하고 있지 않습니다"라고 답하면 **사실을 잘못 전한다** —
+    #:   1,367건을 갖고 있는데 없다고 말하는 것이다(CLAUDE.md §3).
+    #:   사용자가 할 일도 다르다: 전자는 기다리면 되고, 후자는 다른 곳을 찾아야 한다.
+    DOCUMENTS_NOT_CONFIRMED = "documents_not_confirmed"
     INSURER_NOT_SUPPORTED = "insurer_not_supported"
     NO_VERSION_AT_DATE = "no_version_at_date"
     AMBIGUOUS_PRODUCT = "ambiguous_product"
@@ -93,6 +98,15 @@ class CitationRef:
     page_from: int = 0
     page_to: int = 0
     tier: EvidenceTier = EvidenceTier.POLICY_CLAUSE
+    #: ★★**수록(occurrence) 식별자.** `{release_id}:{sha256}:{clause|annex}:{ordinal}`
+    #:
+    #:   `clause_id` 는 `sha12 + qualified_no + hash8` 이라 해시를 자르고
+    #:   세대·조항/부록 구분이 없다. 같은 키에 여러 행이 걸리면
+    #:   **검증기가 엉뚱한 행과 대조해 통과**시킬 수 있다(코덱스 지적).
+    #:
+    #:   ★비어 있으면 **검증을 건너뛰지 않고 기권**해야 한다.
+    #:     "식별자가 없다"는 "괜찮다"가 아니다.
+    occurrence_id: str = ""
 
 
 @dataclass(frozen=True)

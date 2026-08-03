@@ -201,7 +201,7 @@ def test_arch_003_usecases_do_not_import_adapters():
 
 #: 레거시를 코드로 참조하는 흔적.
 _LEGACY_REF = re.compile(
-    r"legacy[/\\]v\d|LEGACY_DATA_DIR|import\s+legacy|from\s+legacy"
+    r'''["']legacy["']|legacy[/\\]|LEGACY_DATA_DIR|import\s+legacy|from\s+legacy'''
 )
 
 
@@ -262,15 +262,20 @@ def test_arch_004_current_code_does_not_reference_legacy():
 
 
 def test_arch_004_legacy_is_archived_not_importable():
-    """레거시는 **압축본**으로만 둔다 — 풀린 상태로 두면 import 될 수 있다."""
+    """레거시는 README와 **압축본**으로만 둔다 — 풀린 파일은 형식과 무관하게 금지한다.
+
+    예전 검사는 `.py`만 찾아서 `legacy/_unified_mall/app/static/rag.html`·`rag.js`가
+    풀린 채 남은 것을 통과시켰다. HTML/JS도 현행 코드가 경로로 읽으면 다시 의존성이
+    생기므로 확장자 예외를 두지 않는다.
+    """
     legacy = _ROOT / "legacy"
     if not legacy.exists():
         return  # 레거시가 없는 것은 정상이다
     loose = [
         str(p.relative_to(_ROOT))
-        for p in legacy.rglob("*.py")
-        if "__pycache__" not in str(p)
+        for p in legacy.rglob("*")
+        if p.is_file() and p.name != "README.md" and p.suffix.lower() != ".zip"
     ]
     assert loose == [], (
-        f"레거시에 풀린 .py 가 있습니다. 압축해서 보관하세요: {loose[:5]}"
+        f"레거시에 풀린 파일이 있습니다. README와 zip만 허용합니다: {loose[:5]}"
     )
