@@ -42,8 +42,20 @@ from typing import Callable
 
 from app.core.errors import InfraError
 
-#: 임베딩 차원. 모델은 레지스트리(`app/rag/embeddings.py`)가 정한다.
-_EMBED_DIM = 768
+#: 임베딩 차원의 **되돌림 값**. ★진짜 값은 승인 릴리스의 `embed_profile.dim` 이다.
+#:
+#:   상수로 박아 두었더니 arctic-ko(1024d)를 적재하려는 순간 막혔다 —
+#:   테이블이 `vector(768)` 로 이미 만들어져 있었다(2026-08-03).
+#:   차원은 **모델이 정하는 것**이지 우리가 고르는 값이 아니다.
+#:   그래서 설정에서 파생하고, 설정이 비었을 때만 이 값을 쓴다.
+_EMBED_DIM_FALLBACK = 768
+
+
+def embed_dim() -> int:
+    """이 릴리스가 쓰는 벡터 차원. **승인 프로필에서 온다.**"""
+    from app.core import release
+
+    return release.current().embed_profile.dim or _EMBED_DIM_FALLBACK
 
 #: ★쪼개는 단위를 **글자에서 토큰으로** 바꿨다.
 #:
@@ -204,6 +216,30 @@ class ClauseHit:
 #:     승인 릴리스를 바꿨는데 프로세스가 옛 값을 붙들고 있으면 전환이 안 된다.
 LEGACY_EMBED_MODEL = "legacy-truncated-128"
 
+#: ★★**거리 하한 — "못 찾았다"고 말할 수 있어야 한다.**
+#:
+#:   하한이 없으면 아무리 안 맞아도 상위 k 개를 돌려준다. 그러면 호출자는
+#:   **무관한 조항을 근거로** 받는다. 판정이 그걸 인용하면 사람이 손해를 본다.
+#:   "확인 불가"가 정답인 경우가 있다(CLAUDE.md §0).
+#:
+#: ★값은 **추측이 아니라 실측**으로 정했다(2026-08-03 · arctic-ko · s6 12만 조각).
+#:   세 종류 질의의 최근접 거리 분포:
+#:
+#:     A 원문 그대로 (조항에서 떼어 온 문장)   0.168 ~ 0.825   n=9
+#:     B 구어체      (사람이 물을 법한 말)     0.850 ~ 1.084   n=8
+#:     C 무관        (약관과 상관없는 문장)     1.171 ~ 1.283   n=8
+#:
+#:   B 최대 1.084 와 C 최소 1.171 사이에 **겹침이 없다.** 그 사이에 둔다.
+#:   ★표본이 8~9개씩이라 **작다.** 진짜 분포는 더 겹칠 수 있다.
+#:   그래서 두 오류 중 **덜 나쁜 쪽**으로 기울였다 —
+#:   진짜 질문을 물리치면 "확인 불가"가 나오지만(설계된 안전한 답),
+#:   무관한 것을 통과시키면 **엉뚱한 근거가 판정에 들어간다.**
+#:
+#: ★이 값은 **모델·정규화·거리 연산자에 묶여 있다.** `<->`(L2)와 단위 벡터 기준이다.
+#:   모델이나 정규화가 바뀌면 **다시 재야 한다.**
+#:   `scripts/eval/` 의 거리 분포 측정을 다시 돌려서 정한다.
+MAX_DISTANCE = 1.13
+
 
 def generation_of(clause_tag: str) -> str:
     """조항 태그에서 세대를 파생한다. shadow 적재가 쓴다."""
@@ -253,12 +289,26 @@ def index_state(conn) -> dict:
     """
     gen, model = current_generation(), current_embed_model()
     with conn.cursor() as cur:
+        #: ★**락을 기다리지 않는다.** 이건 현황 조회다 — 남이 DDL 을 걸고 있으면
+        #:   비켜 준다. 실측 2026-08-03: 이 조회가 3시간짜리 읽기 락을 쥐고
+        #:   `ALTER TABLE` 을 막았고, 그 뒤로 12개 세션이 밀렸다.
+        cur.execute("SET LOCAL lock_timeout = '2s'")
         cur.execute("SELECT index_generation, count(*) FROM policy_clause_occurrence "
                     "GROUP BY 1 ORDER BY 2 DESC")
         gens = dict(cur.fetchall())
         cur.execute("SELECT embed_model, count(*) FROM policy_clause_chunk "
                     "GROUP BY 1 ORDER BY 2 DESC")
         models = dict(cur.fetchall())
+        #: ★★**`sha256` 이 64자인지 본다.** 세대·모델만 보면 `ready:true` 인데
+        #:   실제로는 조회가 전부 실패하는 상태가 된다.
+        #:
+        #:   실측 2026-08-03 — 적재 스크립트가 `p.stem` 을 써서
+        #:   `"fd36cc4d66b2.clauses"`(20자)를 넣었다. 파일 저장소는 64자 sha 를
+        #:   받아 앞 12자로 찾으므로 **짝이 안 맞아 PG 경로가 통째로 죽었다.**
+        #:   그런데 `ready` 는 `true` 였다 — **준비됐다는 말이 거짓이었다.**
+        cur.execute("SELECT count(*) FROM policy_clause_occurrence "
+                    "WHERE index_generation = %s AND length(sha256) <> 64", (gen,))
+        bad_sha = cur.fetchone()[0]
     return {
         "wanted_generation": gen,
         "wanted_embed_model": model,
@@ -266,8 +316,11 @@ def index_state(conn) -> dict:
         "embed_models_in_db": models,
         "occurrences_for_wanted": gens.get(gen, 0),
         "chunks_for_wanted": models.get(model, 0),
+        #: ★깨진 sha 는 **개수로 드러낸다.** 0 이 아니면 준비된 게 아니다.
+        "occurrences_with_bad_sha": bad_sha,
         "ready": bool(gen) and bool(model)
-        and gens.get(gen, 0) > 0 and models.get(model, 0) > 0,
+        and gens.get(gen, 0) > 0 and models.get(model, 0) > 0
+        and bad_sha == 0,
     }
 
 
@@ -300,6 +353,12 @@ def ensure_index_matches_release(conn) -> None:
             f"  · 조각: 승인 모델 {st['wanted_embed_model']!r} 로 적재된 것이 **0건**입니다. "
             f"DB 에 있는 것 — {st['embed_models_in_db'] or '없음'}"
         )
+    if st.get("occurrences_with_bad_sha"):
+        lines.append(
+            f"  · ★`sha256` 이 64자가 아닌 발생 행이 **{st['occurrences_with_bad_sha']:,}건** 있습니다. "
+            "파일 저장소는 64자 sha 를 받아 앞 12자로 찾으므로 **짝이 안 맞습니다.** "
+            "적재 스크립트가 sha 를 잘못 넣었습니다 — 지우고 다시 적재하세요."
+        )
     if not st["occurrences_for_wanted"]:
         lines.append(
             f"  · 발생: 승인 세대 {st['wanted_generation']!r} 로 적재된 것이 **0건**입니다. "
@@ -326,7 +385,7 @@ def ensure_schema(conn) -> None:
                 --: ★이 조항이 **몇 조각으로 나뉘었는지**. 재개 판정에 쓴다.
                 n_chunks     integer NOT NULL DEFAULT 0,
                 text         text    NOT NULL,
-                embedding    vector({_EMBED_DIM}) NOT NULL,
+                embedding    vector({embed_dim()}) NOT NULL,
                 PRIMARY KEY (content_hash, chunk_ix)
             )
             """
@@ -358,6 +417,20 @@ def ensure_schema(conn) -> None:
             )
             """
         )
+        #: ★★**인용 게이트에 필요한 것을 저장한다.**
+        #:
+        #:   전에는 이 필드들이 없어서 `pg_clause_store` 가 전 행을
+        #:   "모른다 → 못 씀"으로 판정했다. 그래서 `load_clauses()` 가
+        #:   **0건**을 돌려줬다(실측 2026-08-04) — 데이터는 있는데 못 쓰는 상태였다.
+        #:   그건 정직한 상태이긴 하지만 **PG 경로를 쓸 수 없게** 만든다.
+        for col, typ in (("citation_eligible", "boolean"),
+                         ("chunk_type", "text"),
+                         ("is_statute", "boolean"),
+                         ("parse_status", "text")):
+            cur.execute(
+                f"ALTER TABLE policy_clause_occurrence "
+                f"ADD COLUMN IF NOT EXISTS {col} {typ}"
+            )
         #: 앞서 만든 테이블에는 이 열이 없다. 붙인다(멱등).
         cur.execute(
             "ALTER TABLE policy_clause_chunk "
@@ -529,6 +602,19 @@ def upsert_chunks(conn, rows, *, model: str | None = None) -> int:
 
     ★한 조항의 조각은 **전부 한 트랜잭션**에 들어와야 한다.
       호출자가 조항 단위로 묶어서 넘긴다 — 중간에 죽어도 반쪽이 남지 않는다.
+
+    ★★**느리다 — 조각 하나당 왕복 한 번이다.**
+
+        실측 2026-08-03: 122,697조각 적재에 **초당 약 100건**(20분).
+        그때 클라이언트 CPU 9% · postgres 75%(8코어 중 1) 였다 —
+        계산이 아니라 **파싱·트랜잭션 오버헤드**가 병목이다.
+
+        `psycopg.extras.execute_values` 나 `COPY` 로 묶어 보내면 크게 준다.
+        지금 고치지 않은 이유는 **적재가 한 번뿐인 작업**이어서다.
+        다시 적재할 일이 잦아지면 그때 고친다(YAGNI — RULE §3.3).
+
+        ★기계를 바꿔서 해결되지 않는다. DB 가 로컬이라 다른 기계로 옮기면
+          loopback 이 네트워크 왕복이 되어 **더 느려진다.**
     """
     model = model or current_embed_model()
     n = 0
@@ -557,12 +643,24 @@ def upsert_occurrences(conn, rows, *, generation: str | None = None) -> int:
     with conn.cursor() as cur:
         for r in rows:
             kind = r[8] if len(r) > 8 else "clause"
+            #: ★인용 게이트 값. **없으면 `None`(=모른다)** 로 둔다 —
+            #:   `True` 로 때우면 못 쓸 조항이 근거로 나간다.
+            gate = r[9] if len(r) > 9 else {}
             cur.execute(
                 "INSERT INTO policy_clause_occurrence "
                 "(content_hash, sha256, insurer, qualified_no, section, title, "
-                " page_from, page_to, index_generation, source_kind) "
-                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING",
-                (*r[:8], generation, kind),
+                " page_from, page_to, index_generation, source_kind, "
+                " citation_eligible, chunk_type, is_statute, parse_status) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+                "ON CONFLICT (content_hash, sha256, qualified_no, page_from, index_generation) "
+                "DO UPDATE SET "
+                "  citation_eligible = EXCLUDED.citation_eligible,"
+                "  chunk_type        = EXCLUDED.chunk_type,"
+                "  is_statute        = EXCLUDED.is_statute,"
+                "  parse_status      = EXCLUDED.parse_status",
+                (*r[:8], generation, kind,
+                 gate.get("citation_eligible"), gate.get("chunk_type"),
+                 gate.get("is_statute"), gate.get("parse_status")),
             )
             n += cur.rowcount
     conn.commit()
@@ -575,13 +673,21 @@ def search(
     *,
     sha256s: list[str] | None,
     limit: int = 8,
+    max_distance: float | None = None,
 ) -> list[ClauseHit]:
     """조항 검색.
 
     ★`sha256s` 는 **반드시 넘긴다.** `None` 은 "전역으로 찾겠다"는 **명시적 선택**이고,
       용어 설명 경로에서만 쓴다. 판정 경로는 약관 버전 목록을 넘겨 가둔다.
       기본값을 두지 않는 이유다 — 안 넘기면 호출이 실패해야 한다.
+
+    ★`max_distance` 를 넘는 것은 **버린다**(기본 `MAX_DISTANCE`).
+      결과가 빈 목록이면 그건 "근거를 못 찾았다"이고, 호출자는 그렇게 읽어야 한다.
+      ★`0` 을 주면 하한이 없다 — 분포를 재는 도구만 그렇게 쓴다.
     """
+    max_distance = MAX_DISTANCE if max_distance is None else max_distance
+    if max_distance <= 0:
+        max_distance = 1e9
     if sha256s is not None and not sha256s:
         #: 빈 목록은 "쓸 수 있는 약관이 없다"이다. 전역 검색으로 바꿔치지 않는다.
         return []
@@ -636,6 +742,8 @@ def search(
             ORDER BY o.sha256, o.page_from
             LIMIT 1
         ) o ON TRUE
+        --: ★하한을 넘는 것은 **버린다.** 근거가 못 되는 것을 근거로 주지 않는다.
+        WHERE b.distance <= %(maxd)s
         ORDER BY b.distance
         LIMIT %(k)s
     """
@@ -645,7 +753,7 @@ def search(
     import numpy as np
 
     q = np.asarray(query_vec, dtype=np.float32)
-    params = {"q": q, "k": limit, "shas": sha256s,
+    params = {"q": q, "k": limit, "shas": sha256s, "maxd": max_distance,
               "gen": current_generation(), "model": current_embed_model()}
     with conn.cursor() as cur:
         cur.execute(sql, params)

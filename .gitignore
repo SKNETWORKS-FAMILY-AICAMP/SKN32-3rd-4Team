@@ -1,6 +1,7 @@
 __pycache__/
 *.pyc
-data/mall.db
+data/db/*.sqlite3
+data/db/*.sqlite3-*
 data/vector_store/
 .env
 .venv/
@@ -48,9 +49,12 @@ data/extracted/
 data/structured/
 data/raw/excluded/
 
-# 레거시 보관소 — 압축본이고 현행 프로젝트와 무관하다.
-# 로컬에만 두고 저장소에는 올리지 않는다(ARCH-004 가 참조 금지를 강제한다).
-legacy/
+# 레거시 보관소 — 현행 프로젝트와 분리된 **압축본만** 추적한다.
+# 폴더 전체를 ignore 하면 활성 파일을 zip 으로 옮긴 커밋에서 zip 은 빠지고 삭제만
+# 전달되는 사고가 난다. README와 zip 이외의 loose 파일은 숨기되 압축본은 저장소에 남긴다.
+/legacy/*
+!/legacy/README.md
+!/legacy/*.zip
 
 # 외부 에이전트 보고 — 개인정보가 섞일 수 있다. 저장소에 올리지 않는다.
 data/external/
@@ -82,3 +86,12 @@ data/eval/embed_bench.json
 #   같은 폴더의 나머지 산출물은 메타데이터만이라 남겨 둔다(전수 확인함).
 data/exports/*_clauses.parquet
 data/exports/**/*_clauses.parquet
+
+# ★코덱스 검수가 만든 샌드박스 잔재. 권한이 잠겨 있어 **관리자 권한 없이 못 지운다.**
+#   비어 있지만 git 이 열지 못해 `status` 마다 경고가 난다.
+#   지우려면: 관리자 PowerShell 에서
+#     takeown /f .pytest_tmp_probe_* /r /d y ; rmdir /s /q .pytest_tmp_probe_*
+.pytest_tmp_*/
+
+# IDE
+.idea/

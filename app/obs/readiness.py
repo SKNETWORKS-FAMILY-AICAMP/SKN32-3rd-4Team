@@ -64,13 +64,37 @@ def _clause_index_state() -> dict[str, object]:
     ★PG 가 없거나 못 붙어도 여기서 죽지 않는다 — 이 함수는 **보고**다.
       다만 "확인 못 함"과 "준비됨"을 **구분해서** 적는다. 섞으면 폴백이다.
     """
+    #: ★★**절대 매달리지 않는다.** 준비 상태는 **보고**이지 작업이 아니다.
+    #:
+    #:   실측 2026-08-03 — 이 함수가 연 연결이 `idle in transaction` 으로
+    #:   **3시간 9분** 남아 `policy_clause_chunk` 에 읽기 락을 쥐고 있었다.
+    #:   그 뒤로 병행 트랙의 `ALTER TABLE ... ADD COLUMN` 이 막히고,
+    #:   그 뒤로 다시 이 함수의 조회 **12개**가 줄줄이 밀렸다.
+    #:   그 상태로 테스트를 돌리니 **64% 에서 15분 넘게 멈췄다.**
+    #:
+    #:   세 가지가 겹쳤다 —
+    #:     ① 읽고 나서 트랜잭션을 **안 닫았다**(SELECT 도 트랜잭션을 연다)
+    #:     ② 시간 제한이 **없었다** — 락을 만나면 영원히 기다린다
+    #:     ③ `pg` 마커가 없는 테스트 경로에서 **PG 를 요구했다**
     try:
         from app.adapters import pgvector_clause_index as ix
         from app.adapters.pgvector_index import get_conn
 
-        with get_conn() as conn:
+        conn = get_conn()
+        try:
+            #: ★락을 만나면 **기다리지 않고 실패한다.** 보고하려다 남을 막으면 안 된다.
+            with conn.cursor() as cur:
+                cur.execute("SET LOCAL lock_timeout = '2s'")
+                cur.execute("SET LOCAL statement_timeout = '5s'")
             st = ix.index_state(conn)
+        finally:
+            #: ★**읽기만 했어도 닫는다.** 이걸 안 해서 3시간짜리 락이 생겼다.
+            try:
+                conn.rollback()
+            finally:
+                conn.close()
     except Exception as exc:  # noqa: BLE001
+        #: ★"확인 못 함"과 "준비됨"을 **구분해서** 적는다. 섞으면 그게 폴백이다.
         return {"checked": False, "reason": f"{type(exc).__name__}: {exc}"[:200]}
     st["checked"] = True
     if not st["ready"]:

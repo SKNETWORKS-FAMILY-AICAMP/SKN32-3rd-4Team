@@ -28,8 +28,9 @@ from app.core.errors import InfraError
 class _Cur:
     """`index_state()` 가 던지는 두 질의에만 답하는 최소 커서."""
 
-    def __init__(self, gens: dict, models: dict) -> None:
+    def __init__(self, gens: dict, models: dict, bad_sha: int = 0) -> None:
         self._gens, self._models, self._rows = gens, models, []
+        self._bad_sha = bad_sha
 
     def __enter__(self):
         return self
@@ -38,20 +39,27 @@ class _Cur:
         return False
 
     def execute(self, sql, *_):
-        self._rows = list(
-            (self._gens if "policy_clause_occurrence" in sql else self._models).items()
-        )
+        #: ★깨진 sha 개수 질의는 스칼라 하나를 돌려준다.
+        if "length(sha256)" in sql:
+            self._rows = [(self._bad_sha,)]
+        elif "policy_clause_occurrence" in sql:
+            self._rows = list(self._gens.items())
+        else:
+            self._rows = list(self._models.items())
+
+    def fetchone(self):
+        return self._rows[0] if self._rows else None
 
     def fetchall(self):
         return self._rows
 
 
 class _Conn:
-    def __init__(self, gens: dict, models: dict) -> None:
-        self._gens, self._models = gens, models
+    def __init__(self, gens: dict, models: dict, bad_sha: int = 0) -> None:
+        self._gens, self._models, self._bad_sha = gens, models, bad_sha
 
     def cursor(self):
-        return _Cur(self._gens, self._models)
+        return _Cur(self._gens, self._models, self._bad_sha)
 
 
 @pytest.fixture
@@ -139,3 +147,27 @@ def test_검색_경로가_이_검사를_실제로_부른다():
         assert "ensure_index_matches_release" in inspect.getsource(fn), (
             f"{fn.__module__}.{fn.__name__} 이 색인-릴리스 검사를 부르지 않습니다"
         )
+
+
+def test_sha256_이_64자가_아니면_준비됐다고_하지_않는다(_release):
+    """★세대·모델만 보면 `ready:true` 인데 조회가 전부 실패하는 상태가 있었다.
+
+    실측 2026-08-03 — 적재가 `p.stem` 을 써서 `"…clauses"`(20자)를 넣었다.
+    파일 저장소는 64자 sha 를 받아 앞 12자로 찾으므로 짝이 안 맞았고,
+    PG 경로가 통째로 죽었는데도 **준비됐다고 말하고 있었다.**
+    """
+    _release("s6", "m")
+    conn = _Conn({"s6": 100}, {"m": 100}, bad_sha=186_094)
+    st = ix.index_state(conn)
+    assert st["occurrences_with_bad_sha"] == 186_094
+    assert st["ready"] is False
+    with pytest.raises(InfraError) as e:
+        ix.ensure_index_matches_release(conn)
+    assert "64자" in str(e.value) and "186,094" in str(e.value)
+
+
+def test_sha256_이_전부_64자면_통과한다(_release):
+    _release("s6", "m")
+    conn = _Conn({"s6": 100}, {"m": 100}, bad_sha=0)
+    assert ix.index_state(conn)["ready"] is True
+    ix.ensure_index_matches_release(conn)

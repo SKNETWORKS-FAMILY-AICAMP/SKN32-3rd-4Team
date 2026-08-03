@@ -74,8 +74,30 @@ def ensure_search_index(conn) -> None:
 
 
 def _rows_to_clauses(rows) -> list[ClauseRow]:
+    """★★**`usable=True` 를 무조건 붙이지 않는다.**
+
+    전에는 PG 에서 읽은 행을 전부 `usable=True` 로 만들었다(코덱스 지적).
+    적재 때 걸렀으니 괜찮다고 본 것인데, 적재 게이트 자체가
+    `citation_eligible is False` 만 제외해 **필드 부재를 통과**시키고 있었다.
+    두 곳이 다 새면 아무 데서도 안 막힌다.
+
+    ★PG 는 아직 `citation_eligible`·`chunk_type`·`is_statute` 를 저장하지 않는다.
+      그러면 공통 게이트가 "모른다"로 판정해 **못 쓴다**고 답한다 — 그게 맞다.
+      저장하도록 스키마를 늘리기 전까지 PG 경로는 인용 근거로 쓸 수 없다.
+    """
+    from app.core import release
+    from app.core.domain import eligibility
+
+    try:
+        rid = release.current().release_id
+    except Exception:  # noqa: BLE001
+        rid = ""
     out: list[ClauseRow] = []
-    for content_hash, text, sha, qno, section, title, pfrom, pto in rows:
+    for row in rows:
+        (content_hash, text, sha, qno, section, title, pfrom, pto) = row[:8]
+        #: ★게이트 값이 없으면 `None` — 공통 게이트가 "모른다"로 판정한다.
+        gate = dict(zip(("citation_eligible", "chunk_type", "is_statute", "parse_status"),
+                        row[8:12])) if len(row) >= 12 else {}
         out.append(
             ClauseRow(
                 sha256=sha,
@@ -88,12 +110,42 @@ def _rows_to_clauses(rows) -> list[ClauseRow]:
                 page_from=pfrom,
                 page_to=pto,
                 content_hash=content_hash,
-                #: ★적재 대상이 `parse_status == "ok"` 문서뿐이므로 여기 있는 것은 쓸 수 있다.
-                #:   그 필터는 적재 스크립트가 건다 — 이 어댑터가 다시 판단하지 않는다.
-                usable=True,
+                #: ★★"적재 때 걸렀으니 괜찮다"고 **가정하지 않는다.**
+                #:   적재 게이트가 새고 있었고(필드 부재 통과), 두 곳이 다 새면
+                #:   아무 데서도 안 막힌다. 공통 게이트로 다시 판정한다.
+                #:   PG 가 eligibility 필드를 아직 저장하지 않으므로 "모른다"가 되고,
+                #:   그러면 **못 쓴다**로 나온다 — 그게 정직한 상태다.
+                release_id=rid,
+                **_gate(qno, text, gate),
             )
         )
     return out
+
+
+def _gate(qualified_no: str, text: str, stored: dict | None = None) -> dict:
+    """공통 게이트로 판정한 결과를 `ClauseRow` 필드로 만든다.
+
+    ★`stored` 는 **DB 에서 읽은** 게이트 값이다. 없으면 `None`(모른다)이고,
+      그러면 게이트가 "못 쓴다"로 답한다 — 채워 넣지 않는다(§0).
+
+    ★★전에는 이 함수가 값을 **무조건 `None`** 으로 만들었다.
+      그때는 스키마에 그 컬럼이 없었으니 맞는 동작이었다. 컬럼을 붙인 뒤에도
+      그대로 두면 **읽어 놓고 안 쓰는** 상태가 된다 — 실측 2026-08-04 에
+      `load_clauses()` 가 데이터를 다 갖춰 두고 0건을 돌려줬다.
+    """
+    from app.core.domain import eligibility
+
+    st = stored or {}
+    c = {"citation_eligible": st.get("citation_eligible"),
+         "chunk_type": st.get("chunk_type"),
+         "is_statute": st.get("is_statute"),
+         "qualified_no": qualified_no, "text": text}
+    v = eligibility.check(c, parse_status=st.get("parse_status"))
+    return {"usable": v.usable, "unusable_reason": v.reason,
+            "citation_eligible": st.get("citation_eligible"),
+            "chunk_type": st.get("chunk_type"),
+            "is_statute": st.get("is_statute"),
+            "parse_status": st.get("parse_status")}
 
 
 def load_clauses(sha256: str, *, usable_only: bool = True) -> list[ClauseRow]:
@@ -111,7 +163,8 @@ def load_clauses(sha256: str, *, usable_only: bool = True) -> list[ClauseRow]:
             cur.execute(
                 """
                 SELECT o.content_hash, ct.text,
-                       o.sha256, o.qualified_no, o.section, o.title, o.page_from, o.page_to
+                       o.sha256, o.qualified_no, o.section, o.title, o.page_from, o.page_to,
+                       o.citation_eligible, o.chunk_type, o.is_statute, o.parse_status
                 FROM policy_clause_occurrence o
                 JOIN policy_clause_content ct ON ct.content_hash = o.content_hash
                 WHERE o.sha256 = %s
@@ -132,7 +185,12 @@ def load_clauses(sha256: str, *, usable_only: bool = True) -> list[ClauseRow]:
             "인용 불가(citation_eligible=false)로 제외됐거나 아직 적재 전입니다. "
             "GET /v1/support-manifest 로 대상 여부를 확인하세요."
         )
-    return _rows_to_clauses(fetched)
+    rows = _rows_to_clauses(fetched)
+    #: ★★`usable_only` 를 **무시하고 있었다**(코덱스 지적). 인자를 받아 놓고
+    #:   전 행을 돌려주면 호출부가 "걸러 달라"고 한 뜻이 사라진다.
+    #:   ★PG 는 아직 eligibility 필드를 저장하지 않아 전부 "모른다"→못 씀이다.
+    #:     그래서 `usable_only=True` 면 **0건**이 나온다 — 그게 정직한 상태다.
+    return [r for r in rows if r.usable] if usable_only else rows
 
 
 def stats(sha256: str) -> dict:
@@ -177,7 +235,12 @@ def stats(sha256: str) -> dict:
         #: ★기록은 있으나 본문이 없는 것. 숨기지 않는다.
         "recorded_occurrences": recorded,
         "missing_bodies": recorded - usable,
-        "parse_status": "ok",
+        #: ★★`parse_status: "ok"` 를 **지어내고 있었다**(코덱스 지적).
+        #:   PG 에는 그 값이 없다. 없는 것을 "ok" 로 채우면
+        #:   호출부가 "이 문서는 파싱됐다"고 믿는다 — 확인한 적이 없는데.
+        "parse_status": None,
+        "parse_status_note": "PG 색인은 문서 파싱 상태를 저장하지 않는다(모름)",
+        "eligibility_fields_stored": False,
         "source": "pg/index_a",
     }
 
