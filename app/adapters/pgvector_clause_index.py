@@ -159,11 +159,68 @@ class ClauseHit:
     title: str
     page_from: int
     page_to: int
+    #: ★★**부모 문서 회수(parent-document retrieval).**
+    #:
+    #:   검색은 **조각**으로 하고(정밀도), LLM 에는 **조 전체**를 준다(문맥).
+    #:   법률문은 예외가 뒤에 온다 —
+    #:     "…보상합니다. 다만 … 경우에는 보상하지 않습니다"
+    #:   조각만 주면 앞 절만 남아 **뜻이 반대가 된다.**
+    #:
+    #:   실측 근거 둘:
+    #:     · KCD 코드 스캔이 조각 밖 코드를 **못 본다**(`precheck.scan_clause`)
+    #:     · 인용 검증이 조 안의 문장을 "근거에 없다"고 **버린다**(`citation_guard`)
+    #:
+    #:   본문 한 벌은 `policy_clause_content` 에 이미 있다. 조인 한 번이면 된다 —
+    #:   **데이터를 다 갖춰 두고 안 쓰고 있었다.**
+    full_text: str = ""
+
+    @property
+    def citable_text(self) -> str:
+        """인용·판정에 쓸 본문. **조 전체**를 준다.
+
+        ★`full_text` 가 비면 조각으로 떨어진다. 조용히 그러지 않도록
+          비는 경우는 `policy_clause_content` 에 본문이 없을 때뿐이고,
+          그건 적재가 반쪽이라는 뜻이라 `drop_incomplete` 가 지운다.
+        """
+        return self.full_text or self.text
 
     @property
     def clause_id(self) -> str:
         tail = f"#{self.content_hash[:8]}" if self.content_hash else ""
         return f"{self.sha256[:12]}/{self.qualified_no}{tail}"
+
+
+#: ★★현재 세대. **조항 JSON 스키마 버전과 맞춘다.**
+#:
+#:   검색은 이 세대의 발생행만 본다. 옛 세대는 지우지 않고 남겨 두되
+#:   **사용자 경로에는 안 보인다.** 지우면 6시간짜리 임베딩을 버리고,
+#:   그냥 두면 오염된 옛 근거가 계속 올라온다 — 가르는 것이 답이다.
+CURRENT_GENERATION = "s6"
+
+#: ★★**어느 모델로 만든 벡터인가.** 모델이 바뀌면 벡터 공간이 통째로 다르다 —
+#:   섞이면 거리 비교가 무의미해지고, 그런데도 **아무 오류도 안 난다.**
+#:
+#:   실측 사고(2026-08-03): 지금 설정된 모델은 `max_seq_length = 128` 이다.
+#:   우리 조각은 448토큰 예산이라 **표본 6,000조각 중 89.1%가 잘렸고
+#:   전체 토큰의 59.8%가 버려졌다.** 면책은 문장 끝에 오므로
+#:   ("…보상합니다. 다만 … 보상하지 않습니다") 우리가 절대 놓치면 안 되는
+#:   부분이 구조적으로 사라진다.
+#:
+#:   ★모델을 아직 **고르지 않았다.**
+#:     `docs/reports/2026-08-02_1800_임베딩모델_후보_20선_코덱스합의.md` 결론:
+#:     "200~500개 실손보험 질의로 재보기 전에는 아무것도 확정하지 않는다."
+#:
+#:   ★모델 ID 를 **여기 적지 않는다.** 레지스트리(설정)가 정한다 —
+#:     하드코딩하면 설정을 바꿔도 태그가 안 따라와 벡터 공간이 조용히 섞인다.
+#:     (`tests/test_model_registry.py::test_llm_reg_002` 가 이걸 막는다)
+LEGACY_EMBED_MODEL = "legacy-truncated-128"
+
+
+def current_embed_model() -> str:
+    """지금 설정된 임베딩 모델 이름. 벡터 행에 그대로 박는다."""
+    from app.core.config import get_settings
+
+    return get_settings().ST_EMBEDDING_MODEL
 
 
 def ensure_schema(conn) -> None:
@@ -215,6 +272,82 @@ def ensure_schema(conn) -> None:
             "ALTER TABLE policy_clause_chunk "
             "ADD COLUMN IF NOT EXISTS n_chunks integer NOT NULL DEFAULT 0"
         )
+        #: ★★**세대(generation)를 행에 박는다.**
+        #:
+        #:   조항 스키마가 오르면 `content_hash` 가 바뀐다(s6 에서 부록을 본문에서 뺐다).
+        #:   구·신 해시가 한 테이블에 같이 남으면 **오염된 옛 근거가 계속 검색된다**(코덱스).
+        #:   그렇다고 지우면 6시간짜리 임베딩을 버린다.
+        #:   그래서 **지우지 않고 갈라 놓는다** — 검색은 현재 세대만 본다.
+        #:
+        #:   ★기존 행의 기본값을 `s5-mixed` 로 둔다. `s5` 라고 하지 않는다 —
+        #:     실제로 s5 적재 중간에 s6 발생행이 섞여 들어간 적이 있어
+        #:     그 안이 순수한 s5 라고 **말할 수 없다.** 모르면 모른다고 적는다(§0).
+        cur.execute(
+            "ALTER TABLE policy_clause_occurrence "
+            "ADD COLUMN IF NOT EXISTS index_generation text NOT NULL DEFAULT 's5-mixed'"
+        )
+        #: ★조항인가 부록인가. 판정이 인용 문구를 다르게 써야 한다 —
+        #:   부록을 `제27조(준용규정)` 이라 부르면 출처가 틀린다.
+        cur.execute(
+            "ALTER TABLE policy_clause_occurrence "
+            "ADD COLUMN IF NOT EXISTS source_kind text NOT NULL DEFAULT 'clause'"
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS policy_clause_occurrence_gen "
+            "ON policy_clause_occurrence (index_generation)"
+        )
+        #: ★벡터를 만든 모델. 세대와 **같은 이유**로 행에 박는다 —
+        #:   모델이 다르면 벡터 공간이 다르고, 섞여도 오류가 안 난다.
+        #:   기존 행은 128토큰에서 잘린 벡터다. 그 사실을 이름에 적어 둔다.
+        cur.execute(
+            "ALTER TABLE policy_clause_chunk ADD COLUMN IF NOT EXISTS "
+            f"embed_model text NOT NULL DEFAULT '{LEGACY_EMBED_MODEL}'"
+        )
+        #: ★PK 에 넣는다. 안 넣으면 `ON CONFLICT DO NOTHING` 때문에
+        #:   새 모델 벡터가 **버려지고** 옛 벡터가 자리를 지킨다(발생행에서 겪은 그 함정).
+        cur.execute(
+            """
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.key_column_usage
+                    WHERE table_name = 'policy_clause_chunk'
+                      AND constraint_name = 'policy_clause_chunk_pkey'
+                      AND column_name = 'embed_model'
+                ) THEN
+                    ALTER TABLE policy_clause_chunk
+                        DROP CONSTRAINT IF EXISTS policy_clause_chunk_pkey;
+                    ALTER TABLE policy_clause_chunk
+                        ADD PRIMARY KEY (content_hash, chunk_ix, embed_model);
+                END IF;
+            END $$;
+            """
+        )
+        #: ★★**세대를 기본키에 넣는다.** 이걸 빠뜨리면 조용히 새는 곳이 생긴다 —
+        #:   `upsert_occurrences` 는 `ON CONFLICT DO NOTHING` 이라,
+        #:   `(hash, sha, no, page)` 가 같은 옛 세대 행이 이미 있으면
+        #:   **새 세대 행이 버려지고** 그 자리는 계속 `s5-mixed` 로 남는다.
+        #:   검색은 현재 세대만 보므로 그 조항은 **영원히 안 나온다.**
+        #:   적재 로그에는 "이미 있음"으로 찍혀 정상처럼 보인다. 최악의 실패다.
+        cur.execute(
+            """
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.key_column_usage
+                    WHERE table_name = 'policy_clause_occurrence'
+                      AND constraint_name = 'policy_clause_occurrence_pkey'
+                      AND column_name = 'index_generation'
+                ) THEN
+                    ALTER TABLE policy_clause_occurrence
+                        DROP CONSTRAINT IF EXISTS policy_clause_occurrence_pkey;
+                    ALTER TABLE policy_clause_occurrence
+                        ADD PRIMARY KEY (content_hash, sha256, qualified_no,
+                                         page_from, index_generation);
+                END IF;
+            END $$;
+            """
+        )
         cur.execute(
             "CREATE INDEX IF NOT EXISTS policy_clause_chunk_hnsw "
             "ON policy_clause_chunk USING hnsw (embedding vector_l2_ops)"
@@ -226,7 +359,7 @@ def ensure_schema(conn) -> None:
     conn.commit()
 
 
-def existing_hashes(conn) -> set[str]:
+def existing_hashes(conn, *, model: str | None = None) -> set[str]:
     """**온전히** 들어간 내용만. 다시 계산하지 않는다(재개 가능하게).
 
     ★조각 하나만 들어가도 "완료"로 보던 버그가 있었다.
@@ -239,12 +372,17 @@ def existing_hashes(conn) -> set[str]:
 
     이제 `n_chunks` 를 기록하고 **개수가 맞는 것만** 완료로 본다.
     """
+    model = model or current_embed_model()
     with conn.cursor() as cur:
+        #: ★**모델별로** 센다. 모델을 바꾸면 옛 모델 벡터가 있어도
+        #:   "이미 있음"이 되어선 안 된다 — 새 모델로는 아직 안 만든 것이다.
         cur.execute(
             "SELECT ct.content_hash FROM policy_clause_content ct "
             "JOIN policy_clause_chunk ck ON ck.content_hash = ct.content_hash "
+            "WHERE ck.embed_model = %s "
             "GROUP BY ct.content_hash, ct.n_chunks "
-            "HAVING count(*) = ct.n_chunks"
+            "HAVING count(*) = ct.n_chunks",
+            (model,),
         )
         return {r[0] for r in cur.fetchall()}
 
@@ -260,11 +398,16 @@ def drop_incomplete(conn) -> int:
     """
     done = existing_hashes(conn)
     with conn.cursor() as cur:
-        cur.execute("SELECT DISTINCT content_hash FROM policy_clause_chunk")
+        #: ★**현재 모델 안에서만** 반쪽을 찾는다. 모델 전체를 섞어 보면
+        #:   옛 모델 벡터를 "미완성"으로 오인해 통째로 지운다.
+        cur.execute("SELECT DISTINCT content_hash FROM policy_clause_chunk "
+                    "WHERE embed_model = %s", (current_embed_model(),))
         have = {r[0] for r in cur.fetchall()}
         bad = sorted(have - done)
         if bad:
-            cur.execute("DELETE FROM policy_clause_chunk WHERE content_hash = ANY(%s)", (bad,))
+            cur.execute("DELETE FROM policy_clause_chunk "
+                        "WHERE content_hash = ANY(%s) AND embed_model = %s",
+                        (bad, current_embed_model()))
         n = len(bad)
         #: 본문만 있고 조각이 없는 것도 지운다(반대 방향의 반쪽).
         cur.execute(
@@ -290,36 +433,43 @@ def upsert_content(conn, rows) -> int:
     return n
 
 
-def upsert_chunks(conn, rows) -> int:
+def upsert_chunks(conn, rows, *, model: str | None = None) -> int:
     """`(content_hash, chunk_ix, n_chunks, text, embedding)` 을 넣는다.
 
     ★한 조항의 조각은 **전부 한 트랜잭션**에 들어와야 한다.
       호출자가 조항 단위로 묶어서 넘긴다 — 중간에 죽어도 반쪽이 남지 않는다.
     """
+    model = model or current_embed_model()
     n = 0
     with conn.cursor() as cur:
         for content_hash, chunk_ix, n_chunks, text, vec in rows:
             cur.execute(
                 "INSERT INTO policy_clause_chunk "
-                "(content_hash, chunk_ix, n_chunks, text, embedding) "
-                "VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
-                (content_hash, chunk_ix, n_chunks, text, vec),
+                "(content_hash, chunk_ix, n_chunks, text, embedding, embed_model) "
+                "VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
+                (content_hash, chunk_ix, n_chunks, text, vec, model),
             )
             n += cur.rowcount
     conn.commit()
     return n
 
 
-def upsert_occurrences(conn, rows) -> int:
-    """조항이 **어느 문서 어디에** 실렸는지. 같은 자리는 한 번만."""
+def upsert_occurrences(conn, rows, *, generation: str = CURRENT_GENERATION) -> int:
+    """조항이 **어느 문서 어디에** 실렸는지. 같은 자리는 한 번만.
+
+    ★`rows` 는 `(hash, sha, insurer, qualified_no, section, title, page_from, page_to)`
+      또는 뒤에 `source_kind` 를 하나 더 붙인 9튜플.
+    """
     n = 0
     with conn.cursor() as cur:
         for r in rows:
+            kind = r[8] if len(r) > 8 else "clause"
             cur.execute(
                 "INSERT INTO policy_clause_occurrence "
-                "(content_hash, sha256, insurer, qualified_no, section, title, page_from, page_to) "
-                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING",
-                r,
+                "(content_hash, sha256, insurer, qualified_no, section, title, "
+                " page_from, page_to, index_generation, source_kind) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING",
+                (*r[:8], generation, kind),
             )
             n += cur.rowcount
     conn.commit()
@@ -352,9 +502,13 @@ def search(
     #:   범위 밖 조항이 자리를 차지하지 못하게 한다), 내용마다 대표 발생 하나를 붙인다.
     filt = (
         "AND EXISTS (SELECT 1 FROM policy_clause_occurrence o2 "
-        "WHERE o2.content_hash = c.content_hash AND o2.sha256 = ANY(%(shas)s))"
+        "WHERE o2.content_hash = c.content_hash AND o2.sha256 = ANY(%(shas)s) "
+        "AND o2.index_generation = %(gen)s)"
         if sha256s is not None
-        else ""
+        #: ★약관을 안 가둬도 **세대는 가둔다.** 옛 세대 조각이 올라오면
+        #:   부록을 삼킨 조항이 근거로 붙는다.
+        else "AND EXISTS (SELECT 1 FROM policy_clause_occurrence o2 "
+             "WHERE o2.content_hash = c.content_hash AND o2.index_generation = %(gen)s)"
     )
     sql = f"""
         WITH best AS (
@@ -362,16 +516,24 @@ def search(
                    c.content_hash, c.chunk_ix, c.text,
                    c.embedding <-> %(q)s AS distance
             FROM policy_clause_chunk c
-            WHERE TRUE {filt}
+            --: ★현재 모델의 벡터만 본다. 벡터 공간이 다르면 거리가 뜻을 잃는다.
+            WHERE c.embed_model = %(model)s {filt}
             ORDER BY c.content_hash, distance
         )
         SELECT b.content_hash, b.chunk_ix, b.text, b.distance,
                o.sha256, o.insurer, o.qualified_no, o.section, o.title,
-               o.page_from, o.page_to
+               o.page_from, o.page_to,
+               --: ★부모 문서 회수. 조각으로 찾고 **조 전체**를 돌려준다.
+               --:   `LEFT JOIN` 이다 — 본문이 없어도 결과를 **버리지 않는다.**
+               --:   그 경우 `citable_text` 가 조각으로 떨어지고, 그건
+               --:   적재가 반쪽이라는 신호다(`drop_incomplete` 가 처리).
+               COALESCE(ct.text, '') AS full_text
         FROM best b
+        LEFT JOIN policy_clause_content ct ON ct.content_hash = b.content_hash
         JOIN LATERAL (
             SELECT * FROM policy_clause_occurrence o
             WHERE o.content_hash = b.content_hash
+              AND o.index_generation = %(gen)s
               {"AND o.sha256 = ANY(%(shas)s)" if sha256s is not None else ""}
             ORDER BY o.sha256, o.page_from
             LIMIT 1
@@ -385,7 +547,8 @@ def search(
     import numpy as np
 
     q = np.asarray(query_vec, dtype=np.float32)
-    params = {"q": q, "k": limit, "shas": sha256s}
+    params = {"q": q, "k": limit, "shas": sha256s,
+              "gen": CURRENT_GENERATION, "model": current_embed_model()}
     with conn.cursor() as cur:
         cur.execute(sql, params)
         return [ClauseHit(*row) for row in cur.fetchall()]
@@ -397,12 +560,22 @@ def stats(conn) -> dict:
         with conn.cursor() as cur:
             cur.execute("SELECT count(*), count(DISTINCT content_hash) FROM policy_clause_chunk")
             chunks, contents = cur.fetchone()
+            cur.execute("SELECT embed_model, count(*), count(DISTINCT content_hash) "
+                        "FROM policy_clause_chunk GROUP BY 1 ORDER BY 1")
+            by_model = {m: {"chunks": c, "contents": d} for m, c, d in cur.fetchall()}
             cur.execute("SELECT count(*) FROM policy_clause_content")
             (bodies,) = cur.fetchone()
             cur.execute(
                 "SELECT count(*), count(DISTINCT sha256) FROM policy_clause_occurrence"
             )
             occ, docs = cur.fetchone()
+            #: ★세대·종류별로 **쪼개서** 보여준다. 합계만 보면 옛 세대가 섞인 걸 못 본다.
+            cur.execute(
+                "SELECT index_generation, source_kind, count(*), count(DISTINCT sha256) "
+                "FROM policy_clause_occurrence GROUP BY 1,2 ORDER BY 1,2"
+            )
+            by_gen = {f"{g}/{k}": {"occurrences": n, "documents": d}
+                      for g, k, n, d in cur.fetchall()}
     except Exception as exc:  # noqa: BLE001
         raise InfraError(f"인덱스 A 현황을 읽지 못했습니다: {exc}") from exc
     return {
@@ -411,6 +584,11 @@ def stats(conn) -> dict:
         "bodies": bodies,
         "occurrences": occ,
         "documents": docs,
+        #: ★검색이 실제로 보는 세대. 합계와 나란히 놓아야 오염이 눈에 띈다.
+        "current_generation": CURRENT_GENERATION,
+        "current_embed_model": current_embed_model(),
+        "by_embed_model": by_model,
+        "by_generation": by_gen,
     }
 
 

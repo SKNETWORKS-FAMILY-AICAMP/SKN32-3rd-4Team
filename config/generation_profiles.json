@@ -2,24 +2,38 @@
   "schema_version": "1",
   "compiled_at": "2026-07-31",
   "compiled_by": "claude+웹검색",
-  "review_status": "unreviewed",
+  "review_status": "partial",
   "_주의": [
     "여기 적힌 날짜는 ★제도 시행일(판매 개시 기준)이며, 개별 상품의 판매개시일과 다르다.",
     "판매구간은 세대 후보를 '제거하는 보조 제약'으로만 쓰고, 세대를 '부여하는 규칙'으로 쓰지 않는다.",
-    "review_status 가 'unreviewed' 인 동안에는 어떤 문서도 CONFIRMED 로 확정할 수 없다.",
-    "출처는 2차 자료(보도자료·보험사 뉴스룸)다. 금융위/협회 원문으로 재확인이 필요하다."
+    "★review_status 가 'partial' 이다 — 필드마다 근거 등급이 다르다. `review` 를 볼 것.",
+    "★★**effective_to 를 사실값으로 읽지 말 것.** 세대 종료일은 다음 세대 시작일에서",
+    "  역산한 파생값이다. 금융위 보도자료는 4세대 '판매 종료일'을 명시하지 않는다.",
+    "  게다가 회사마다 다르다 — 신한EZ손보는 2026-06-01 출시라 5월 한 달을 4세대로 더 판다.",
+    "  `evidence_basis` 와 `availability.overrides` 를 함께 읽어야 한다."
   ],
   "product_types": {
     "standard": {
       "label": "일반 실손",
-      "name_markers": ["실손의료비", "실손의료보험"],
-      "exclude_markers": ["노후", "유병력자", "간편", "해외여행", "국내여행"],
+      "name_markers": [
+        "실손의료비",
+        "실손의료보험"
+      ],
+      "exclude_markers": [
+        "노후",
+        "유병력자",
+        "간편",
+        "해외여행",
+        "국내여행"
+      ],
       "launched_on": null,
       "sources": []
     },
     "senior": {
       "label": "노후실손",
-      "name_markers": ["노후실손"],
+      "name_markers": [
+        "노후실손"
+      ],
       "exclude_markers": [],
       "launched_on": "2014-08-01",
       "launched_precision": "month",
@@ -31,7 +45,10 @@
     },
     "simplified_issue": {
       "label": "유병력자 실손",
-      "name_markers": ["유병력자", "간편"],
+      "name_markers": [
+        "유병력자",
+        "간편"
+      ],
       "exclude_markers": [],
       "launched_on": "2018-04-02",
       "launched_precision": "day",
@@ -43,7 +60,11 @@
     },
     "travel": {
       "label": "여행 실손(국내/해외)",
-      "name_markers": ["해외여행", "국내여행", "글로벌케어"],
+      "name_markers": [
+        "해외여행",
+        "국내여행",
+        "글로벌케어"
+      ],
       "exclude_markers": [],
       "launched_on": null,
       "sources": [],
@@ -54,56 +75,125 @@
     {
       "generation": 1,
       "label": "1세대 (표준화 이전)",
-      "applies_to": ["standard"],
+      "applies_to": [
+        "standard"
+      ],
       "effective_from": null,
       "effective_to": "2009-09-30",
       "verified": true,
-      "sources": ["https://news.kyobo.com/세대별-실손보험-완벽-비교-1-4세대-한눈에-정리/"]
+      "sources": [
+        "https://news.kyobo.com/세대별-실손보험-완벽-비교-1-4세대-한눈에-정리/"
+      ]
     },
     {
       "generation": 2,
       "label": "2세대 (표준화)",
-      "applies_to": ["standard"],
+      "applies_to": [
+        "standard"
+      ],
       "effective_from": "2009-10-01",
       "effective_to": "2017-03-31",
       "verified": true,
-      "sources": ["https://news.kyobo.com/세대별-실손보험-완벽-비교-1-4세대-한눈에-정리/"]
+      "sources": [
+        "https://news.kyobo.com/세대별-실손보험-완벽-비교-1-4세대-한눈에-정리/"
+      ]
     },
     {
       "generation": 3,
       "label": "3세대 (착한실손)",
-      "applies_to": ["standard"],
+      "applies_to": [
+        "standard"
+      ],
       "effective_from": "2017-04-01",
       "effective_to": "2021-06-30",
       "verified": true,
-      "sources": ["https://news.kyobo.com/세대별-실손보험-완벽-비교-1-4세대-한눈에-정리/"]
+      "sources": [
+        "https://news.kyobo.com/세대별-실손보험-완벽-비교-1-4세대-한눈에-정리/"
+      ]
     },
     {
       "generation": 4,
       "label": "4세대",
-      "applies_to": ["standard"],
+      "applies_to": [
+        "standard"
+      ],
       "effective_from": "2021-07-01",
       "effective_to": "2026-05-05",
       "verified": true,
       "sources": [
+        "https://www.fsc.go.kr/no010101 (금융위원회 보도자료, 2026-05-04)",
         "https://news.kyobo.com/세대별-실손보험-완벽-비교-1-4세대-한눈에-정리/",
         "https://www.cardif.co.kr/life-stage/5th-generation-indemnity-insurance-2026.do"
-      ]
+      ],
+      "evidence_basis": "derived",
+      "effective_to_basis": "derived_from_next_generation",
+      "_주의": "★effective_to 2026-05-05 는 **역산값**이다. 금융위 보도자료는 4세대 판매 종료일을 명시하지 않는다. 회사별로 다르다 — 신한EZ손해보험은 2026-05-31 까지 4세대다. 판정 코드는 5세대 availability.overrides 를 보고 회사별로 계산해야 한다(미구현).",
+      "effective_to_overrides": {
+        "신한EZ손해보험": "2026-05-31"
+      }
     },
     {
       "generation": 5,
       "label": "5세대",
-      "applies_to": ["standard"],
+      "applies_to": [
+        "standard"
+      ],
       "effective_from": "2026-05-06",
       "effective_to": null,
       "verified": true,
-      "sources": ["https://www.cardif.co.kr/life-stage/5th-generation-indemnity-insurance-2026.do"],
-      "_주의": "2026-05-06 출시, 손보 9·생보 7 총 16개사. 프로젝트 초기에 별도로 확인한 사실과 일치한다."
+      "sources": [
+        "https://www.fsc.go.kr/no010101 (금융위원회 보도자료, 2026-05-04)",
+        "https://www.cardif.co.kr/life-stage/5th-generation-indemnity-insurance-2026.do"
+      ],
+      "_주의": "2026-05-06 출시, 손보 9·생보 7 총 16개사 (금융위 보도자료 2026-05-04).",
+      "evidence_basis": "direct",
+      "market_launch_on": "2026-05-06",
+      "availability": {
+        "participant_count": 16,
+        "life": 7,
+        "non_life": 9,
+        "default_from": "2026-05-06",
+        "overrides": {
+          "신한EZ손해보험": {
+            "from": "2026-06-01",
+            "note": "금융위 보도자료 명시. 이 회사는 2026-05-06~05-31 에도 4세대만 팔았다."
+          }
+        }
+      }
     }
   ],
   "variant_markers": {
-    "contract_conversion": ["[계약전환용]", "계약전환용"],
-    "conversion_resume": ["[전환·재개용]", "[전환.재개용]", "전환·재개용"],
-    "child_conversion": ["[자녀보험전환용]", "자녀보험전환용"]
+    "contract_conversion": [
+      "[계약전환용]",
+      "계약전환용"
+    ],
+    "conversion_resume": [
+      "[전환·재개용]",
+      "[전환.재개용]",
+      "전환·재개용"
+    ],
+    "child_conversion": [
+      "[자녀보험전환용]",
+      "자녀보험전환용"
+    ]
+  },
+  "review": {
+    "generation_boundaries": {
+      "status": "reviewed",
+      "evidence_basis": "direct",
+      "source_refs": [
+        "https://www.fsc.go.kr/no010101 (금융위원회 보도자료, 2026-05-04)"
+      ]
+    },
+    "generation_end_dates": {
+      "status": "reviewed",
+      "evidence_basis": "derived",
+      "note": "다음 세대 시작일 -1일. 1차 출처에 종료일 명시 없음. 회사별로 다르다."
+    },
+    "product_types": {
+      "status": "unreviewed",
+      "evidence_basis": "observed",
+      "note": "노후·유병력자 marker 규칙은 2차 자료다. 출시일 자체는 금융위 자료가 있으나 상품명 규칙까지 검증하지 않는다."
+    }
   }
 }

@@ -1,0 +1,33 @@
+{
+  "model": "Qwen/Qwen3-Embedding-4B",
+  "device": "cuda:0",
+  "cuda": true,
+  "gpu": "NVIDIA RTX 2000 Ada Generation",
+  "dim": 2560,
+  "dtype": "4bit",
+  "max_seq_length": 40960,
+  "load_sec": 38.8,
+  "corpus": 2000,
+  "queries": 145,
+  "truncated_ratio": 0.0,
+  "body_tokens_p50": 348,
+  "body_tokens_p90": 1125,
+  "recall@1": 0.4828,
+  "recall@5": 0.6138,
+  "recall@10": 0.6897,
+  "mrr@10": 0.537,
+  "proviso": {
+    "n": 60,
+    "recall@1": 0.15,
+    "recall@5": 0.4667,
+    "recall@10": 0.55,
+    "mrr@10": 0.2698
+  },
+  "proviso_delta_mean": 0.011479,
+  "proviso_delta_min": -0.00417,
+  "proviso_blind_count": 13,
+  "proviso_probes": 60,
+  "sec_per_1k": 233.8,
+  "q_prefix": "@qwen",
+  "d_prefix": ""
+}

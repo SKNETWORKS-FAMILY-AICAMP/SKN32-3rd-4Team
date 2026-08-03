@@ -58,6 +58,30 @@ def _conn_or_skip():
         pytest.skip(f"PG 없음 — 건너뜀: {str(exc)[:80]}")
 
 
+
+def _sha_with_current_index(conn):
+    """**현재 세대 × 현재 임베딩 프로필**로 색인된 문서 하나를 고른다.
+
+    ★셋업이 세대·모델을 안 보면 옛 프로필로 색인된 문서를 골라 놓고
+      필터가 걸린 함수를 부른다 — 결과 0건이 나오고, 그걸 "검색이 고장났다"로
+      오독하게 된다(실제로 그랬다: `@128` 벡터만 있는 상태에서 0건).
+
+    ★없으면 **사유를 적어** 건너뛴다. 조용한 스킵을 만들지 않는다(CLAUDE.md §3).
+    """
+    from app.adapters import pgvector_clause_index as ix
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """SELECT o.sha256 FROM policy_clause_occurrence o
+               JOIN policy_clause_chunk c ON c.content_hash = o.content_hash
+               WHERE o.index_generation = %s AND c.embed_model = %s
+               GROUP BY 1 ORDER BY count(*) DESC LIMIT 1""",
+            (ix.CURRENT_GENERATION, ix.current_embed_model()),
+        )
+        row = cur.fetchone()
+    return row[0] if row else None
+
+
 @pytest.mark.pg
 def test_없는_약관은_조용히_빈_결과를_주지_않는다():
     """★없는 것을 `[]` 로 돌려주면 "조항이 없는 약관"으로 읽힌다.
@@ -124,16 +148,16 @@ def test_짧은_질의가_긴_조각에서_찾아진다():
     `word_similarity(질의, 본문)` 은 질의가 본문의 **어느 부분과** 맞는지를 잰다.
     검색이 조용히 0건을 돌려주면 판정은 근거 없이 기권한다 — 고장이 안 보인다.
     """
+    from app.adapters import pgvector_clause_index as ix
+
     conn = _conn_or_skip()
-    with conn.cursor() as cur:
-        cur.execute("""SELECT o.sha256 FROM policy_clause_occurrence o
-                       JOIN policy_clause_chunk c ON c.content_hash = o.content_hash
-                       GROUP BY 1 ORDER BY count(*) DESC LIMIT 1""")
-        row = cur.fetchone()
+    sha = _sha_with_current_index(conn)
     conn.close()
-    if not row:
-        pytest.skip("인덱스 A 가 비어 있음 — build_clause_index 미실행")
-    sha = row[0]
+    if not sha:
+        pytest.skip(
+            f"현재 프로필(세대 {ix.CURRENT_GENERATION} × 모델 "
+            f"{ix.current_embed_model()})로 색인된 문서가 없습니다 — 적재 미실행"
+        )
     hits = pg_clause_store.search(sha, "보험금의 지급사유", limit=5)
     assert hits, "짧은 질의가 0건입니다 — similarity/word_similarity 를 확인하세요"
 
@@ -146,19 +170,66 @@ def test_현황이_조회_결과와_어긋나지_않는다():
     때문이다. 실측(2026-08-02): 발생 156,946 중 **91.4%가 본문 없음**.
     현황이 조회 결과와 어긋나면 판정이 근거 없이 기권한다.
     """
+    from app.adapters import pgvector_clause_index as ix
+
     conn = _conn_or_skip()
-    with conn.cursor() as cur:
-        cur.execute("""SELECT o.sha256 FROM policy_clause_occurrence o
-                       JOIN policy_clause_chunk c ON c.content_hash = o.content_hash
-                       GROUP BY 1 ORDER BY count(*) DESC LIMIT 1""")
-        row = cur.fetchone()
+    sha = _sha_with_current_index(conn)
     conn.close()
-    if not row:
-        pytest.skip("인덱스 A 가 비어 있음")
-    sha = row[0]
+    if not sha:
+        pytest.skip(
+            f"현재 프로필(세대 {ix.CURRENT_GENERATION} × 모델 "
+            f"{ix.current_embed_model()})로 색인된 문서가 없습니다 — 적재 미실행"
+        )
     st = pg_clause_store.stats(sha)
     rows = pg_clause_store.load_clauses(sha)
     assert st["clauses"] == len(rows), (
         f"stats 는 {st['clauses']}개라는데 실제로는 {len(rows)}개가 나옵니다"
     )
     assert "missing_bodies" in st, "본문 없는 기록 수를 숨기면 안 됩니다"
+
+
+def test_세대_필터가_모든_조회_경로에_걸려_있다():
+    """★★**막는 곳이 하나 빠지면 막은 게 아니다.**
+
+    벡터 검색(`pgvector_clause_index.search`)에만 세대 격리를 넣고
+    이 저장소를 빠뜨렸었다. 같은 테이블의 옛 세대 행이 이쪽으로는
+    **그대로 나왔다**(코덱스 지적 2026-08-03).
+
+    실측 당시 `policy_clause_occurrence` 에 `s5-mixed` 158,186행과
+    `s6` 195,617행이 함께 있었다. 세대가 섞이면 부록을 삼킨 옛 조항이
+    판정 근거로 붙는다 — KCD 오인용이다.
+
+    ★PG 없이 확인한다. SQL 문자열에 필터가 들어 있는지만 본다 —
+      DB 를 띄워야만 도는 테스트는 CI 에서 조용히 건너뛰어진다.
+    """
+    import inspect
+    import re
+
+    src = inspect.getsource(pg_clause_store)
+    #: `policy_clause_occurrence` 를 읽는 SQL 은 전부 세대를 봐야 한다.
+    reads = len(re.findall(r"FROM policy_clause_occurrence", src))
+    gens = len(re.findall(r"index_generation", src))
+    assert reads > 0, "조회 경로를 못 찾았습니다 — 테스트가 낡았습니다"
+    assert gens >= reads, (
+        f"`policy_clause_occurrence` 조회 {reads}곳 중 "
+        f"세대 필터는 {gens}곳입니다. 빠진 경로가 있습니다."
+    )
+    #: 조각을 읽는 곳은 **모델**도 봐야 한다. 벡터 공간이 다르면 거리가 뜻을 잃는다.
+    chunk_reads = len(re.findall(r"policy_clause_chunk", src))
+    models = len(re.findall(r"embed_model", src))
+    assert models >= chunk_reads, (
+        f"`policy_clause_chunk` 조회 {chunk_reads}곳 중 모델 필터는 {models}곳입니다."
+    )
+
+
+def test_현황이_현재_세대만_센다():
+    """★`stats()` 가 전 세대를 합쳐 세면 **적재가 끝난 것처럼 보인다.**
+
+    실측: 조각 46,385개가 전부 128토큰에서 잘린 모델의 것이었는데
+    합계만 보면 "색인 있음"으로 읽힌다.
+    """
+    import inspect
+
+    src = inspect.getsource(pg_clause_store.stats)
+    assert "index_generation" in src
+    assert "embed_model" in src

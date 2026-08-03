@@ -1,4 +1,14 @@
-"""조항 조회 — **통합 저장소(PG)** 를 보는 어댑터. `ClauseSourcePort` 구현.
+"""★★**세대·모델 격리가 여기에도 걸려 있어야 한다.**
+
+    벡터 검색(`pgvector_clause_index.search`)만 막고 이쪽을 안 막았더니
+    같은 테이블의 **옛 세대 행이 이 경로로는 그대로 나왔다**(코덱스 지적 2026-08-03).
+    실측 당시 `policy_clause_occurrence` 에 `s5-mixed` 158,186행과
+    `s6` 195,617행이 함께 있었다.
+
+    기본 저장소가 `file` 이라 당장 새지는 않았지만 **환경변수 하나 차이**다.
+    막는 곳이 하나 빠지면 막은 게 아니다.
+
+조항 조회 — **통합 저장소(PG)** 를 보는 어댑터. `ClauseSourcePort` 구현.
 
 ★통합 저장소를 **새로 만들지 않는다.** 인덱스 A 가 그것이다.
 
@@ -33,6 +43,7 @@ from __future__ import annotations
 
 from typing import Sequence
 
+from app.adapters import pgvector_clause_index as ix
 from app.core.errors import InfraError
 from app.core.ports.precheck import ClauseRow
 
@@ -104,9 +115,10 @@ def load_clauses(sha256: str, *, usable_only: bool = True) -> list[ClauseRow]:
                 FROM policy_clause_occurrence o
                 JOIN policy_clause_content ct ON ct.content_hash = o.content_hash
                 WHERE o.sha256 = %s
+                  AND o.index_generation = %s
                 ORDER BY o.page_from, o.qualified_no
                 """,
-                (sha256,),
+                (sha256, ix.CURRENT_GENERATION),
             )
             fetched = cur.fetchall()
     except Exception as exc:  # noqa: BLE001
@@ -145,11 +157,13 @@ def stats(sha256: str) -> dict:
                 FROM policy_clause_occurrence o
                 LEFT JOIN LATERAL (
                     SELECT k.content_hash AS h FROM policy_clause_chunk k
-                    WHERE k.content_hash = o.content_hash LIMIT 1
+                    WHERE k.content_hash = o.content_hash
+                      AND k.embed_model = %s
+                    LIMIT 1
                 ) c ON true
-                WHERE o.sha256 = %s
+                WHERE o.sha256 = %s AND o.index_generation = %s
                 """,
-                (sha256,),
+                (ix.current_embed_model(), sha256, ix.CURRENT_GENERATION),
             )
             usable, uniq, recorded = cur.fetchone()
     except Exception as exc:  # noqa: BLE001
@@ -188,7 +202,10 @@ def search(sha256: str, query: str, *, limit: int = 8) -> Sequence[ClauseRow]:
                     FROM policy_clause_chunk c
                     JOIN policy_clause_occurrence o ON o.content_hash = c.content_hash
                     JOIN policy_clause_content ct ON ct.content_hash = c.content_hash
-                    WHERE o.sha256 = %(sha)s AND word_similarity(%(q)s, c.text) >= %(min)s
+                    WHERE o.sha256 = %(sha)s
+                      AND o.index_generation = %(gen)s
+                      AND c.embed_model = %(model)s
+                      AND word_similarity(%(q)s, c.text) >= %(min)s
                     ORDER BY o.content_hash, o.qualified_no, o.page_from, sim DESC
                 )
                 --: ★정렬을 **바깥에서** 다시 한다.
@@ -197,7 +214,8 @@ def search(sha256: str, query: str, *, limit: int = 8) -> Sequence[ClauseRow]:
                 --:   **해시 순서 앞쪽**이 나온다. (코덱스 지적 2026-08-02)
                 SELECT * FROM ranked ORDER BY sim DESC LIMIT %(k)s
                 """,
-                {"q": q, "sha": sha256, "min": _MIN_SIMILARITY, "k": limit},
+                {"q": q, "sha": sha256, "min": _MIN_SIMILARITY, "k": limit,
+                 "gen": ix.CURRENT_GENERATION, "model": ix.current_embed_model()},
             )
             fetched = cur.fetchall()
     except Exception as exc:  # noqa: BLE001

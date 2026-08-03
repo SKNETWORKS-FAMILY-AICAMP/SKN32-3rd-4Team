@@ -52,8 +52,13 @@ _STRUCT = _ROOT / "data" / "structured"
 _BATCH = 256
 
 
+#: ★읽을 조항 JSON 버전. **한 곳에서만 정한다** — 여기가 s5 로 남아 있으면
+#:   s6 를 만들어 놓고도 옛 산출물을 색인한다(실제로 그럴 뻔했다).
+_CLAUSE_TAG = "s6_"
+
+
 def _iter_docs(limit: int | None):
-    files = sorted(_STRUCT.glob("*/s5_*/*.clauses.json"))
+    files = sorted(_STRUCT.glob(f"*/{_CLAUSE_TAG}*/*.clauses.json"))
     if limit:
         files = files[:limit]
     for p in files:
@@ -88,6 +93,10 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="인덱스 A 적재")
     ap.add_argument("--limit", type=int, default=0, help="문서 수 제한(맛보기)")
     ap.add_argument("--stats", action="store_true", help="현황만 출력")
+    #: ★GPU 상자와 나눠 돌릴 때 쓴다. 해시 정렬 순의 나머지 연산이라 **결정적**이다 —
+    #:   두 기계가 같은 조각을 두 번 하지 않고, 빠지지도 않는다.
+    ap.add_argument("--shards", type=int, default=1, help="전체 조각 수")
+    ap.add_argument("--index", type=int, default=0, help="내가 맡을 몫(0부터)")
     ap.add_argument("--ignore-citation-gate", action="store_true",
                     help="★구조 모순 문서도 색인한다. 끈 사실이 출력에 남는다")
     args = ap.parse_args(argv)
@@ -99,14 +108,26 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(ix.stats(conn), ensure_ascii=False, indent=2))
         return 0
 
+    texts, occurrences, report = _collect(args.limit or None, args.ignore_citation_gate)
+    print(report, flush=True)
+    return _load(conn, texts, occurrences, args)
+
+
+def _collect(limit, ignore_gate: bool):
+    """조항 JSON → `(내용 dict, 발생 list, 보고 문자열)`.
+
+    ★**한 곳에서만 모은다.** 분산 적재(`shard_embed`)도 이 함수를 쓴다 —
+      수집 규칙을 두 벌 두면 게이트 하나가 달라져도 아무도 모른다.
+    """
     #: ★먼저 **문서에서 모은다.** 임베딩은 그다음이다 —
     #:   중복 제거를 하기 전에 임베딩하면 3배를 계산한다.
     texts: dict[str, str] = {}
     occurrences: list[tuple] = []
     n_docs = n_skip_doc = n_clause = n_skip_clause = 0
-    n_skip_cite = 0     # citation_eligible=false 로 건너뛴 문서
+    n_skip_cite = 0     # citation_eligible=false 로 건너뛴 **조항**
+    n_annex = n_skip_annex = 0   # 부록(별표·붙임·분류표)
 
-    for p, doc in _iter_docs(args.limit or None):
+    for p, doc in _iter_docs(limit):
         status = doc.get("parse_status") or "unknown"
         if status != "ok":
             #: ★추출이 의심스러운 문서의 조항은 판정 근거가 될 수 없다.
@@ -125,14 +146,19 @@ def main(argv: list[str] | None = None) -> int:
         #:   ★신호의 precision 은 아직 검증되지 않았다(정답셋 없음). 그래서 이 게이트는
         #:     **보수적**이다 — 지금 통과하는 문서는 161건뿐이다.
         #:     `--ignore-citation-gate` 로 끌 수 있게 두되, **끈 사실을 출력에 남긴다.**
-        if not args.ignore_citation_gate and doc.get("citation_eligible") is False:
-            n_skip_cite += 1
-            continue
+        #: ★★게이트는 **조항 단위**다. 문서 전체를 건너뛰면 안 된다 —
+        #:   결함 4개 때문에 그 문서의 조항 155개를 통째로 버린다.
+        #:   실측: 문서 게이트 897조항(0.42%) → 조항 게이트 168,523(93.95%),
+        #:   「보상하지 않는 사항」 조항이 0 → 2,224개.
         n_docs += 1
         src = doc.get("source") or {}
         sha = src.get("sha256") or ""
         insurer = src.get("insurer") or ""
         for c in doc.get("clauses") or []:
+            #: ★조항 단위 게이트. 구조 모순이 걸린 조항만 뺀다.
+            if not ignore_gate and c.get("citation_eligible") is False:
+                n_skip_cite += 1
+                continue
             h = c.get("content_hash") or ""
             body = c.get("text") or ""
             if not h or not body.strip():
@@ -151,17 +177,50 @@ def main(argv: list[str] | None = None) -> int:
                     c.get("title") or "",
                     int(loc.get("page_from") or c.get("page_from") or 0),
                     int(loc.get("page_to") or c.get("page_to") or 0),
+                    "clause",
                 )
             )
 
-    print(
+        #: ★★**부록도 넣는다.** s6 부터 별표·붙임·분류표가 `annexes[]` 로 빠졌는데
+        #:   여기서 안 읽으면 **질병분류표가 검색에 아예 없어진다.**
+        #:   KCD 코드 대조의 근거가 대부분 거기 있다 — 조항만 넣으면
+        #:   판정이 "확인 불가"만 내거나, 더 나쁘게는 표를 삼킨 옛 조항을 인용한다.
+        #:
+        #:   ★`qualified_no` 자리에 `label`(`[별표1] 특정질병 분류표`)을 넣는다.
+        #:     조 번호를 지어내지 않는다 — 부록은 조가 아니다.
+        #:     `owner_clause_ordinal` 이 `None` 인 것도 같은 이유다.
+        for a in doc.get("annexes") or []:
+            h = a.get("content_hash") or ""
+            body = a.get("text") or ""
+            if not h or not body.strip():
+                n_skip_annex += 1
+                continue
+            n_annex += 1
+            texts.setdefault(h, body)
+            loc = a.get("locator") or {}
+            occurrences.append((
+                h, sha, insurer,
+                a.get("label") or "부록",
+                a.get("section") or "",
+                a.get("label") or "",
+                int(loc.get("page_from") or 0),
+                int(loc.get("page_to") or 0),
+                "annex",
+            ))
+
+    return texts, occurrences, (
         f"[모음] 적재 대상 문서 {n_docs:,} · "
-        f"건너뜀: parse_status {n_skip_doc:,} + citation_eligible {n_skip_cite:,} · "
-        f"조항 등장 {n_clause:,} → 고유 {len(texts):,} "
-        f"(내용/해시 없음 {n_skip_clause:,})"
-        + ("  ★인용 게이트를 껐다(--ignore-citation-gate)" if args.ignore_citation_gate else ""),
-        flush=True,
+        f"건너뜀: 문서 parse_status {n_skip_doc:,} · 조항 citation_eligible {n_skip_cite:,} · "
+        f"조항 등장 {n_clause:,} + 부록 {n_annex:,} → 고유 {len(texts):,} "
+        f"(내용/해시 없음: 조항 {n_skip_clause:,} · 부록 {n_skip_annex:,})"
+        + ("  ★인용 게이트를 껐다(--ignore-citation-gate)" if ignore_gate else "")
     )
+
+
+def _load(conn, texts, occurrences, args):
+    """모은 것을 임베딩해 넣는다."""
+    from app.adapters import pgvector_clause_index as ix
+    import json, time
 
     n_occ = ix.upsert_occurrences(conn, occurrences)
     print(f"[발생] {n_occ:,}행 새로 기록 (총 {len(occurrences):,}건 시도)", flush=True)
@@ -172,8 +231,13 @@ def main(argv: list[str] | None = None) -> int:
         print(f"[정리] 미완성 조항 {dropped:,}개를 지우고 다시 넣는다", flush=True)
 
     done = ix.existing_hashes(conn)
-    todo = [(h, t) for h, t in texts.items() if h not in done]
-    print(f"[임베딩] 이미 있음 {len(done):,} · 할 것 {len(todo):,}", flush=True)
+    #: ★해시로 **정렬**한 뒤 가른다. dict 순서에 기대면 재실행 때 몫이 달라져
+    #:   이미 한 것을 또 하고 안 한 것이 남는다.
+    rest = sorted((h, t) for h, t in texts.items() if h not in done)
+    todo = [x for n, x in enumerate(rest) if n % args.shards == args.index]
+    note = f" · 내 몫 {args.index}/{args.shards}" if args.shards > 1 else ""
+    print(f"[임베딩] 이미 있음 {len(done):,} · 남은 것 {len(rest):,} · 할 것 {len(todo):,}{note}",
+          flush=True)
     if not todo:
         print(json.dumps(ix.stats(conn), ensure_ascii=False, indent=2))
         return 0
@@ -201,17 +265,19 @@ def main(argv: list[str] | None = None) -> int:
     #:   중간에 죽었을 때 반쪽이 남는다.
     count = _token_counter()
     plan: list[tuple[str, str, list[str]]] = []
-    n_chunks_total = 0
+    n_chunks_total = n_empty = 0
     for h, body in todo:
         parts = ix.chunk_clause(body, count)
         if not parts:
-            n_skip_clause += 1
+            #: ★조각이 0인 조항. 조용히 넘기지 않는다(CLAUDE.md §3).
+            n_empty += 1
             continue
         plan.append((h, body, parts))
         n_chunks_total += len(parts)
     print(
         f"[임베딩] 조항 {len(plan):,}개 → 조각 {n_chunks_total:,}개 "
-        f"(토큰 예산 {ix.MAX_TOKENS}, 겹침 {ix.OVERLAP_TOKENS})",
+        f"(토큰 예산 {ix.MAX_TOKENS}, 겹침 {ix.OVERLAP_TOKENS}"
+        + (f" · 조각 0인 조항 {n_empty:,}" if n_empty else "") + ")",
         flush=True,
     )
 

@@ -28,11 +28,38 @@ _STATIC = pathlib.Path(__file__).resolve().parents[1] / "app" / "static"
 _API_CALL = re.compile(r"""["'`](/api/[a-zA-Z0-9_/-]+|/v1/[a-zA-Z0-9_/-]+)""")
 #: HTML 이 부르는 스크립트.
 _SCRIPT_SRC = re.compile(r'<script[^>]+src="([^"]+)"')
+#: ★HTML 이 **링크로** 가리키는 정적 파일. `<script src>` 만 보면 이걸 놓친다.
+_STATIC_HREF = re.compile(r'(?:href|src)="(/static/[^"?#]+)')
 
 
 def _app_paths() -> set[str]:
     app = create_app("full")
     return {r.path for r in app.routes if hasattr(r, "path")}
+
+
+def test_화면이_링크하는_정적파일이_실제로_있다():
+    """★`<a href="/static/...">` 도 검사한다.
+
+    이 테스트가 없어서 **죽은 링크 12개가 조용히 남아 있었다**(2026-08-03 실측).
+
+        admin.html      → mcp.html · orders.html · shop.html
+        facebench.html  → mcp.html · orders.html · shop.html
+        mypage.html     → index.html · shop.html · video.html
+        rag.html        → mcp.html · orders.html · shop.html
+
+    앞선 두 테스트는 `<script src>` 와 API 만 봤다. **네비게이션 링크는 아무도 안 봤다** —
+    화면은 열리는데 메뉴를 누르면 404 가 난다. `video.html` 때와 같은 종류의 실패다.
+
+    ★`legacy/` 는 검사 범위 밖이다. 격리한 화면은 서비스하지 않으므로 고칠 이유가 없고,
+      특정 파일명을 예외로 두면 그 예외가 다음 구멍이 된다(코덱스 지적).
+    """
+    missing: list[str] = []
+    for html in sorted(_STATIC.glob("*.html")):
+        for path in _STATIC_HREF.findall(html.read_text(encoding="utf-8")):
+            name = path.rsplit("/", 1)[-1]
+            if not (_STATIC / name).is_file():
+                missing.append(f"{html.name} → {path}")
+    assert not missing, "없는 정적 파일을 링크합니다: " + ", ".join(missing)
 
 
 def test_html이_부르는_스크립트가_실제로_있다():
@@ -68,7 +95,13 @@ def test_운영_차단목록이_없는_파일을_막는_척하지_않는다():
     `mcp.html`·`orders.html` 이 레거시로 간 뒤에도 목록에 남아 있었다.
     """
     ghosts = [n for n in _OPS_STATIC if not (_STATIC / n).is_file()]
-    assert ghosts == [], f"차단 목록에 없는 파일이 있습니다: {sorted(ghosts)}"
+    #: ★메시지가 사실을 거꾸로 전하면 안 된다.
+    #:   앞서 "차단 목록에 없는 파일이 있습니다" 라고 적었는데, 재는 것은
+    #:   **목록에 있는데 파일이 없는 것**이다. 정반대로 읽혀 한참 엉뚱한 데를 봤다.
+    assert ghosts == [], (
+        f"차단 목록에 적혀 있으나 실제 파일이 없습니다: {sorted(ghosts)}. "
+        "레거시로 옮겼다면 목록에서도 빼세요 — 남겨 두면 '막고 있다'로 읽힙니다."
+    )
 
 
 def test_고객_포트에서_운영_화면이_실제로_막힌다():

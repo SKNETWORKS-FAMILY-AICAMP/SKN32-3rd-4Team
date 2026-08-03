@@ -53,7 +53,7 @@ _OUT = _ROOT / "data" / "extracted"
 #: v2 — 텍스트 정규화(제어문자·사용자영역 글리프 제거). §_clean_text
 #: v3 — 서로게이트 제거 + 원자적 쓰기 + 목차·부 경계 수정
 #: v4 — 보조 PUA 원문자 복구(①~⑨) + 번호체계 점수 선택 + 사후 검증
-SCHEMA_VERSION = "4"
+SCHEMA_VERSION = "5"
 #: 이 값이 바뀌면 같은 PDF 라도 결과가 달라진다. 산출물에 함께 기록한다.
 EXTRACTOR = f"pymupdf/{fitz.__doc__.split()[1] if fitz.__doc__ else 'unknown'}"
 
@@ -152,11 +152,26 @@ def _clean_text(s: str) -> tuple[str, int, int]:
     return s, n_ctl, n_pua
 
 
+def _coord_tables(page):
+    """좌표 기반 표 복원. **여기서만** import 한다 — 실패해도 나머지가 살게.
+
+    ★`table_coords` 는 `fitz` 의 `page.rotation_matrix`·`get_drawings()` 에 기댄다.
+      PyMuPDF 판이 바뀌면 여기가 먼저 깨진다. 그때 페이지 텍스트까지 못 만들면
+      전처리가 통째로 멈춘다 — 그래서 호출부에서 잡는다.
+    """
+    from scripts.extract.table_coords import extract as _tc
+
+    return _tc(page)
+
+
 def extract(pdf: Path, meta: dict) -> dict:
     """한 건을 페이지별 JSON 구조로 만든다."""
     doc = fitz.open(str(pdf))
     pages: list[dict] = []
     total_tables = 0
+    total_coord = 0
+    #: 좌표 복원이 실패한 페이지 → 사유. **세어서 남긴다.**
+    coord_failed: dict[int, str] = {}
     n_ctl_all = n_pua_all = 0
     #: 되살리지 못한 보조 PUA — **지우지 않고 세어 남긴다.** 뭘 잃었는지 알아야 한다.
     unmapped: dict[str, int] = {}
@@ -186,12 +201,46 @@ def extract(pdf: Path, meta: dict) -> dict:
                     "page": i + 1,
                     "text": text,
                     "tables": [],
+                    "tables_coords": [],
                     "table_extraction_failed": True,
                 }
             )
             continue
         total_tables += len(tables)
-        pages.append({"page": i + 1, "text": text, "tables": tables})
+        #: ★★**좌표 기반 표 복원을 함께 싣는다.**
+        #:
+        #:   `find_tables()` 는 병합 헤더를 못 풀고 rowspan 을 행 순서로 붙인다.
+        #:   실측(흥국화재 p109 특정질병 분류표): `find_tables()` 는 **2행 3열**로
+        #:   붕괴시킨다 — 실제 22행이다. 그 상태로 텍스트만 읽으면
+        #:   질병명↔KCD 짝 정확도가 **0.455** 다(정답셋 66레코드).
+        #:   좌표 복원은 같은 정답셋에서 **1.000** 이다.
+        #:
+        #:   ★그래도 `tables`(find_tables)를 **지우지 않는다.** 두 벌을 나란히 두고
+        #:     비교할 수 있어야 한다(CLAUDE.md §1). 좌표 복원이 실패한 페이지가 있고,
+        #:     그때 무엇을 잃었는지 알려면 옛 결과가 필요하다.
+        #:
+        #:   ★`grid` 는 안 싣는다 — `records` 에서 복원되고, 전량이면 수 GB 가 된다.
+        #:     대신 실패를 감추지 않도록 `method`·`word_coverage` 를 남긴다.
+        coord: list[dict] = []
+        try:
+            for t in _coord_tables(page):
+                if not t.get("records"):
+                    continue
+                coord.append({
+                    "method": t.get("method"),
+                    "panel": t.get("panel"),
+                    "cols": t.get("cols"),
+                    "rows": t.get("rows"),
+                    "word_coverage": t.get("word_coverage"),
+                    "records": t["records"],
+                })
+        except Exception as exc:  # noqa: BLE001
+            #: ★조용히 '표 없음'으로 만들지 않는다(CLAUDE.md §3).
+            coord = []
+            coord_failed[i + 1] = f"{type(exc).__name__}: {exc}"[:120]
+        total_coord += len(coord)
+        pages.append({"page": i + 1, "text": text,
+                      "tables": tables, "tables_coords": coord})
     n = doc.page_count
     doc.close()
 
@@ -216,6 +265,9 @@ def extract(pdf: Path, meta: dict) -> dict:
             "pages": n,
             "text_length": text_len,
             "tables": total_tables,
+            #: ★좌표 복원 표와 그 실패. 합계만 보면 실패가 안 보인다.
+            "tables_coords": total_coord,
+            "tables_coords_failed_pages": coord_failed,
             #: ★무엇을 지웠는지 남긴다. 조용한 변환은 나중에 원인을 못 찾게 한다.
             "normalized": {
                 "control_removed": n_ctl_all,

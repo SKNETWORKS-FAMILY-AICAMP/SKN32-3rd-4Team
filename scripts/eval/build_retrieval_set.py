@@ -60,7 +60,12 @@ _HEAD = re.compile(r"^\s*[\d가-힣]+[.\)]?\s*[（(]?[^)）\n]{0,40}[)）]?\s*")
 #:   "않습니다" 말고 "제외합니다"·"한합니다" 등 여러 가지였다.
 #:   실측: 코퍼스 2,000개 중 **884개**에 「다만」이 있다. 규칙이 좁았던 것이다.
 #:   탐침의 목적은 "모델이 뒷부분을 보는가"이므로 끝맺음을 좁힐 이유가 없다.
-_PROVISO = re.compile(r"다만[,\s]", re.DOTALL)
+#: ★「다만」 하나만 찾아서 표본이 편향돼 있었다(코덱스 지적).
+#:   실제 약관의 단서·면책 표지는 여러 가지다. 넓힌다.
+#:   ★그래도 **앞쪽 면책**은 여전히 안 재고 있다 — 그건 별도 과제다.
+_PROVISO = re.compile(r"(?:다만|단,|그러나|이 경우|또한)[,\s]", re.DOTALL)
+#: ★진짜 면책·부정 표현. 이게 있어야 「면책 질의」라 부를 수 있다.
+_NEGATION = re.compile(r"않습니다|않는|않으며|제외|아닙니다|불가|지급하지|보상하지|해당하지")
 #: 단서 문장의 끝. 여기까지를 꼬리로 삼는다.
 _SENT_END = re.compile(r"(?:니다|합니다|습니다)[.\s]")
 
@@ -130,7 +135,16 @@ def main() -> int:
         by_title.setdefault(c["title"], []).append(c)
     unique = [v[0] for v in by_title.values() if len(v) == 1]
     rng.shuffle(unique)
-    queries = [{"query": c["title"], "gold_id": c["id"]} for c in unique[:QUERY_N]]
+    #: ★본문이 **똑같은** 조항이 코퍼스에 또 있으면 그것도 정답이다.
+    #:   해시 중복은 이미 뺐지만, 앞머리 제거 결과가 같아지는 경우가 남는다.
+    by_body: dict[str, list[str]] = {}
+    for c in corpus:
+        by_body.setdefault(c["body"], []).append(c["id"])
+    queries = [
+        {"query": c["title"], "gold_id": c["id"],
+         "gold_ids": sorted(by_body.get(c["body"], [c["id"]]))}
+        for c in unique[:QUERY_N]
+    ]
 
     #: 면책 민감도 탐침 — 본문에 「다만 … 보상하지 않습니다」가 있는 조항에서 만든다.
     probes: list[dict] = []
@@ -155,28 +169,76 @@ def main() -> int:
         if len(probes) >= 60:
             break
 
+    #: ★과제 ② — **면책 조항 검색.** 이게 우리 서비스의 급소다.
+    #:
+    #:   질의 = 조항 끝에 붙은 「다만 …」 단서 문장 **원문 그대로**.
+    #:   정답 = 그 단서를 담고 있는 조항.
+    #:
+    #:   ★질의를 지어내지 않는다. 문서에 이미 적힌 문장이다.
+    #:   ★단서는 조항 **뒤쪽**(200자 이후)에만 있는 것을 골랐다.
+    #:     앞부분만 임베딩하는 모델은 이 문장을 **본 적이 없으므로** 못 찾는다.
+    #:     제목→본문 검색으로는 이 실패가 안 보인다 — 제목은 앞에 있기 때문이다.
+    #:   ★"다만" 이라는 표지는 **떼어 낸다.** 남겨 두면 그 낱말만 보고 맞힐 수 있다.
+    proviso_queries = []
+    for pr in probes:
+        tail = pr["with_proviso"][len(pr["head"]) :].strip()
+        q = re.sub(r"^(?:다만|단,|그러나|이 경우|또한)[,\s]*", "", tail).strip()
+        if len(q) < 25:
+            continue
+        #: ★정답을 **하나로 고정하지 않는다**(코덱스 지적).
+        #:   코퍼스 중복률이 65% 라 같은 문장이 다른 조항에도 실려 있다.
+        #:   그걸 오답 처리하면 모델이 **맞혔는데 틀린 것으로** 셈된다.
+        #:   질의 문장을 그대로 담은 조항은 전부 정답으로 인정한다 —
+        #:   판단이 아니라 **문자열 포함**이라 다툼의 여지가 없다.
+        golds = sorted({c["id"] for c in corpus if q in c["body"]}) or [pr["id"]]
+        #: ★이 질의가 **정말 면책인가**를 표시한다.
+        #:
+        #:   표지를 「다만」에서 「단,·그러나·이 경우·또한」으로 넓혔더니
+        #:   60개 중 부정·면책 표현이 있는 것은 **16개(27%)** 뿐이었다(코덱스 지적).
+        #:   나머지는 단순 접속 문장이다 —
+        #:   "법정상속인이 보험수익자로 지정된 경우 회사는 … 할 수 있습니다"
+        #:
+        #:   ★그래서 이 과제의 이름을 **「뒷부분 검색」**으로 바로잡는다.
+        #:     조항 뒤쪽 문장이 임베딩에 반영되는가를 재는 것이고, 그건 그것대로
+        #:     중요하다. 다만 **면책이라고 부르면 안 된다** — 재는 것과 이름이 다르면
+        #:     읽는 사람이 없는 근거를 있다고 믿는다.
+        #:   진짜 면책만 모은 부분집합도 따로 채점한다(표본 16개 — 작다).
+        is_excl = bool(_NEGATION.search(q))
+        proviso_queries.append({
+            "query": q, "gold_id": pr["id"], "gold_ids": golds,
+            "is_exclusion": is_excl,
+        })
+
     out = {
-        "built_at": "2026-08-02",
+        "built_at": "2026-08-03",
         "built_from": "s5",
         "source_documents": n_doc,
         "corpus_size": len(corpus),
         "query_count": len(queries),
         "proviso_probe_count": len(probes),
+        "proviso_query_count": len(proviso_queries),
+        "exclusion_query_count": sum(1 for q in proviso_queries if q["is_exclusion"]),
         "note": (
             "질의는 문서에 이미 적힌 조항 제목이다. 지어내지 않았다. "
             "본문에서 제목 문구를 지워 문자열 일치로 맞히지 못하게 했다. "
-            "★표본이 작다(코퍼스 2,000 · 질의 200). 순위 차이가 작으면 "
-            "우열을 단정하지 않는다."
+            "★표본이 작다(코퍼스 2,000 · 제목질의 145 · 면책질의 60). "
+            "순위 차이가 작으면 우열을 단정하지 않는다. "
+            "정답은 gold_ids(복수)로 준다 — 같은 문장을 담은 조항을 "
+            "오답 처리하면 맞힌 것을 틀렸다고 세게 된다."
         ),
         "corpus": corpus,
         "queries": queries,
         "proviso_probes": probes,
+        "proviso_queries": proviso_queries,
     }
     _OUT.parent.mkdir(parents=True, exist_ok=True)
     _OUT.write_text(json.dumps(out, ensure_ascii=False), encoding="utf-8")
 
     print(
-        f"코퍼스 {len(corpus):,} · 질의 {len(queries)} · 면책탐침 {len(probes)} "
+        f"코퍼스 {len(corpus):,} · 제목질의 {len(queries)} · "
+        f"뒷부분질의 {len(proviso_queries)}"
+        f"(진짜 면책 {sum(1 for q in proviso_queries if q['is_exclusion'])}) · "
+        f"탐침 {len(probes)} "
         f"(문서 {n_doc:,}개에서)"
     )
     print(f"→ {_OUT.relative_to(_ROOT)}")
