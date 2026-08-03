@@ -11,10 +11,13 @@
 ★측정하는 것
 
     recall@1/5/10 · MRR@10       조항 제목 → 본문 검색
-    proviso_delta                면책 민감도. **1 - cos(앞부분, 앞부분+단서)**
-                                 ★0 이면 모델이 뒷부분을 **전혀 안 본 것**이다.
-                                   현재 모델(ko-sroberta 128토큰)이 정확히 0 이었다.
-                                   면책은 늘 문장 끝에 오므로 이게 0 인 모델은 쓸 수 없다.
+    proviso_delta                뒷부분 민감도. **1 - cos(앞부분, 앞부분+단서)**
+                                 ★0 에 가까우면 **뒷부분이 최종 표현을 바꾸지 못했다.**
+                                   "모델이 그 문장을 입력으로 못 받았다"는 **해석**이지
+                                   측정값이 아니다 — 여기서 세는 것은 거리뿐이다.
+                                   현재 모델(ko-sroberta 128토큰)이 60건 중 34건 그랬다.
+                                 ★표시 이름은 「벡터무변화」, 저장 키는
+                                   `proviso_blind_count` 그대로다(옛 결과 호환).
     truncated_ratio              코퍼스 중 모델 최대 길이를 넘어 잘린 비율
     max_seq_length               ★모델이 **실제로** 쓰는 값. 모델카드 숫자가 아니다.
     sec_per_1k                   처리량
@@ -35,6 +38,10 @@ import time
 
 _ROOT = pathlib.Path(__file__).resolve().parents[2]
 _SET = _ROOT / "data" / "eval" / "embed_bench.json"
+#: 「벡터무변화」 문턱. ★float64 코사인 기준이라 잴 수 있는 값이다.
+#:   앞서 쓰던 1e-6 은 fp16 분해능(2⁻¹¹≈4.9e-4) 아래라 **못 재는 문턱**이었다.
+_BLIND_EPS = 1e-9
+
 _OUT = _ROOT / "data" / "eval" / "embed_bench_results"
 
 #: 후보. 순서는 우선순위가 아니라 **작은 것부터**다 — 디스크가 적을 때 먼저 끝난다.
@@ -87,7 +94,10 @@ NOT_MEASURED = {
     "gemini-embedding-001": (
         "★API 전용이라 오픈 웨이트가 없다. 재려면 약관 원문 2,000건을 "
         "구글 서버로 보내야 하는데, 약관은 저작물이고 우리 원칙은 외부 API 금지다. "
-        "같은 계열 오픈 모델 google/embeddinggemma-300m 로 대신한다."
+        #: ★"대신했다"고 쓰면 안 된다 — 대체하려던 embeddinggemma-300m 도
+        #:   게이트 모델이라 못 쟀다. 구글 계열은 **한 개도 측정하지 못했다.**
+        "같은 계열 오픈 모델 google/embeddinggemma-300m 로 대신하려 했으나 "
+        "그것도 게이트라 못 쟀다 — 구글 계열은 한 개도 측정하지 못했다."
     ),
 }
 
@@ -117,7 +127,15 @@ def _purge(model_id: str) -> str:
 
 
 def run(model_id: str, *, q_prefix: str, d_prefix: str, batch: int, device: str,
-        no_fp16: bool = False, quant: str = "", max_seq: int = 0) -> dict:
+        no_fp16: bool = False, quant: str = "", max_seq: int = 0,
+        probes_only: bool = False) -> dict:
+    """한 모델을 잰다. `probes_only` 면 **탐침만** 다시 잰다.
+
+    ★탐침 재측정 전용 경로가 필요한 이유 — 「벡터무변화」 계산이 틀려(§5-10)
+      21건을 다시 재야 하는데, 코퍼스 2,000건까지 다시 넣을 이유가 없다.
+      탐침은 120문장이라 **인코딩이 수백 배 싸다.** 내려받는 값은 그대로 든다.
+      결과는 기존 JSON 에 **덮어쓰지 않고 합친다** — 순위 지표는 유효하므로.
+    """
     import numpy as np
     import torch
     from sentence_transformers import SentenceTransformer
@@ -224,10 +242,14 @@ def run(model_id: str, *, q_prefix: str, d_prefix: str, batch: int, device: str,
 
     #: ★첫 인코딩에는 CUDA 초기화 비용이 섞인다. 워밍업 후에 잰다(코덱스 지적).
     enc([d_prefix + c["body"] for c in corpus[:32]])
-    t1 = time.time()
-    doc_vecs = enc([d_prefix + c["body"] for c in corpus])
-    enc_s = time.time() - t1
-    q_vecs = enc([qp + q["query"] for q in queries], as_query=True)
+    if probes_only:
+        #: ★코퍼스 2,000건을 넣지 않는다 — 탐침 재측정에는 필요 없다.
+        doc_vecs = None
+        enc_s = 0.0
+    else:
+        t1 = time.time()
+        doc_vecs = enc([d_prefix + c["body"] for c in corpus])
+        enc_s = time.time() - t1
 
     ids = [c["id"] for c in corpus]
     pos = {cid: i for i, cid in enumerate(ids)}
@@ -270,26 +292,46 @@ def run(model_id: str, *, q_prefix: str, d_prefix: str, batch: int, device: str,
             out["ranks"] = ranks
         return out
 
-    title = score(queries, keep_ranks=True)
+    title = score([] if probes_only else queries, keep_ranks=True)
     #: ★면책 조항 검색 — 우리 서비스의 급소.
     #:   조항 **뒤쪽**에 있는 단서를 질의로 쓴다. 앞부분만 임베딩하는 모델은
-    #:   그 문장을 본 적이 없으므로 못 찾는다.
+    #:   그 문장이 임베딩에 안 들어가므로 **불리하다**.
+    #:   ★"못 찾는다"고 단정하지 않는다 — 앞부분 단서만으로 맞히는 경우가 있다.
     #: ★이름을 바로잡는다 — 「면책」이 아니라 **「뒷부분」** 검색이다.
     #:   60개 중 실제 부정·면책 표현이 있는 것은 16개뿐이었다(코덱스 지적).
     tail_qs = data.get("proviso_queries") or []
-    proviso = score(tail_qs, keep_ranks=True)
+    proviso = score([] if probes_only else tail_qs, keep_ranks=True)
     #: 진짜 면책만 모은 부분집합. ★표본 16개 — 작다.
     excl_qs = [q for q in tail_qs if q.get("is_exclusion")]
-    exclusion = score(excl_qs, keep_ranks=True)
+    exclusion = score([] if probes_only else excl_qs, keep_ranks=True)
     r1, r5, r10 = title["recall@1"], title["recall@5"], title["recall@10"]
     mrr_v = title["mrr@10"]
     n = title["n"]
 
-    #: ★면책 민감도. 0 이면 모델이 뒷부분을 안 본 것이다.
-    h = enc([p["head"] for p in probes])
-    w = enc([p["with_proviso"] for p in probes])
-    deltas = 1.0 - np.sum(h * w, axis=1)
-    blind = int(np.sum(deltas < 1e-6))
+    #: ★뒷부분 민감도. 0 이면 **뒷부분이 최종 표현을 바꾸지 못했다**는 뜻이다.
+    #:   "모델이 그 문장을 입력으로 못 받았다"는 **해석**이지 측정값이 아니다 —
+    #:   여기서는 벡터가 안 움직였다는 사실만 센다.
+    #: ★★**코사인을 float64 로, 노름까지 직접 나눠 계산한다.**
+    #:
+    #:   앞서는 `1 - np.sum(h*w)` 로 잰 뒤 `< 1e-6` 으로 셌는데, 두 군데가 틀렸다.
+    #:
+    #:   ① 모델이 돌려준 벡터가 **단위 노름이 아니다.** fp16 정규화 뒤 노름이
+    #:      1±0.002, 4bit 는 1±0.005 다. 그래서 내적이 1을 넘고 delta 가
+    #:      **음수**가 된다 — 실측 최소 −0.00498. 각도가 실제로 벌어졌는데도
+    #:      `< 1e-6` 에 걸려 「안 움직였다」로 세어졌다.
+    #:   ② fp16 으로 더하면 1 근처 분해능이 **2⁻¹¹ ≈ 4.9e-4** 다.
+    #:      `1e-6` 이라는 문턱은 이 분해능 아래라 **잴 수 없는 값**이었다.
+    #:      실제로 저장된 delta 가 전부 2⁻¹¹ 의 배수였다(코덱스 지적 2026-08-03).
+    #:
+    #:   숫자를 못 잰 것보다 **못 재는 문턱을 적어 둔 것**이 더 나빴다.
+    h = np.asarray(enc([p["head"] for p in probes]), dtype=np.float64)
+    w = np.asarray(enc([p["with_proviso"] for p in probes]), dtype=np.float64)
+    hn = np.linalg.norm(h, axis=1)
+    wn = np.linalg.norm(w, axis=1)
+    cos = np.sum(h * w, axis=1) / (hn * wn)
+    deltas = 1.0 - np.clip(cos, -1.0, 1.0)
+    #: ★문턱을 **실제 분해능 위**에 둔다. float64 로 재므로 1e-9 는 잴 수 있다.
+    blind = int(np.sum(deltas < _BLIND_EPS))
 
     res = {
         "model": model_id + (f" (max_seq={max_seq})" if max_seq else ""),
@@ -320,6 +362,13 @@ def run(model_id: str, *, q_prefix: str, d_prefix: str, batch: int, device: str,
         "exclusion": exclusion,
         "proviso_delta_mean": round(float(np.mean(deltas)), 6),
         "proviso_delta_min": round(float(np.min(deltas)), 6),
+        #: ★필드명을 **바꾸지 않는다.** 이미 저장된 측정 21건이 이 이름으로 쓰였고,
+        #:   이름만 바꾸면 옛 결과와 새 결과를 한 표에서 못 읽는다.
+        #:   표시 이름(「벡터무변화」)과 저장 이름이 다르다는 사실은 브리핑 §0-3 에 적었다.
+        #: ★벡터 노름. 1 에서 벗어나면 코사인 계산이 어긋난다(위 주석 ①).
+        "probe_norm_min": round(float(min(hn.min(), wn.min())), 6),
+        "probe_norm_max": round(float(max(hn.max(), wn.max())), 6),
+        "blind_eps": _BLIND_EPS,
         "proviso_blind_count": blind,
         "proviso_probes": len(probes),
         "sec_per_1k": round(enc_s / len(corpus) * 1000, 1),
@@ -328,13 +377,30 @@ def run(model_id: str, *, q_prefix: str, d_prefix: str, batch: int, device: str,
     }
     _OUT.mkdir(parents=True, exist_ok=True)
     tag = _slug(model_id) + (f"@{max_seq}" if max_seq else "") + (f"@{quant}" if quant else "")
-    (_OUT / f"{tag}.json").write_text(
-        json.dumps(res, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    dst = _OUT / f"{tag}.json"
+    if probes_only and dst.exists():
+        #: ★**덮어쓰지 않는다.** 순위 지표(MRR·R@k·ranks)는 유효하므로 그대로 두고,
+        #:   탐침 관련 값만 갈아 끼운다. 통째로 쓰면 멀쩡한 측정을 날린다.
+        old = json.loads(dst.read_text(encoding="utf-8"))
+        keys = ("proviso_delta_mean", "proviso_delta_min", "proviso_blind_count",
+                "proviso_probes", "probe_norm_min", "probe_norm_max", "blind_eps")
+        old.update({k: res[k] for k in keys if k in res})
+        #: 재측정 사실을 남긴다 — 언제 무엇이 바뀌었는지 모르면 추적이 안 된다.
+        #: ★★**어떤 조건에서 다시 쟀는지 남긴다.**
+        #:   시험 삼아 CPU(float32)로 다시 쟀더니 34→47 로 늘었는데,
+        #:   계산을 고쳐서인지 **정밀도가 달라서인지 가릴 수 없었다**
+        #:   (원래 측정은 GPU fp16). 조건을 안 남기면 다음 사람도 못 가린다.
+        old["probes_remeasured"] = True
+        old["probes_device"] = dev
+        old["probes_dtype"] = dtype
+        old["probes_dtype_matches_original"] = (dtype == old.get("dtype"))
+        res = old
+    (dst).write_text(json.dumps(res, ensure_ascii=False, indent=2), encoding="utf-8")
     return res
 
 
-def compare(baseline: str, task: str = "title", n_boot: int = 2000) -> None:
+def compare(baseline: str, task: str = "title", n_boot: int = 2000,
+            dtype: str = "float16") -> None:
     """기준 모델 대비 **같은 질의에서의 차이**와 신뢰구간.
 
     ★모델별 독립 점수만 보면 "0.557 이 0.549 보다 높다"를 우열로 읽게 된다.
@@ -350,6 +416,11 @@ def compare(baseline: str, task: str = "title", n_boot: int = 2000) -> None:
     rows = {}
     for f in sorted(_OUT.glob("*.json")):
         r = json.loads(f.read_text(encoding="utf-8"))
+        #: ★정밀도가 다른 것을 **같은 구간표에 두지 않는다**(코덱스 지적).
+        #:   4bit 와 fp16 을 섞으면 "이 차이가 모델 때문인지 정밀도 때문인지"를
+        #:   읽는 사람이 가릴 수 없다.
+        if dtype and r.get("dtype") != dtype:
+            continue
         rk = (r.get(key) or {}).get("ranks")
         if rk:
             rows[r["model"]] = np.array(rk, dtype=float)
@@ -367,7 +438,9 @@ def compare(baseline: str, task: str = "title", n_boot: int = 2000) -> None:
     rng = np.random.default_rng(20260803)
     idx = rng.integers(0, len(base), size=(n_boot, len(base)))
 
-    print(f"[{task}] 기준: {baseline}  (질의 {len(base)}개 · 부트스트랩 {n_boot}회)")
+    n_cmp = sum(1 for m, rk in rows.items() if m != baseline and len(rk) == len(base))
+    print(f"[{task}] 기준: {baseline}  ({dtype or '전체'} · 질의 {len(base)}개 · "
+          f"비교 {n_cmp}개 · 부트스트랩 {n_boot}회)")
     print(f"{'모델':50} {'ΔMRR':>8} {'95% 구간':>18}  판정")
     print("-" * 92)
     out = []
@@ -382,21 +455,65 @@ def compare(baseline: str, task: str = "title", n_boot: int = 2000) -> None:
         print(f"{m:50} {mean:>+8.3f} [{lo:>+7.3f}, {hi:>+7.3f}]  {verdict}")
     print()
     print("★구간이 0 을 걸치면 **차이를 확인하지 못한 것**이지 '같다'가 아니다.")
-    print("  17개를 비교했으므로 다중비교 보정 없이 단일 비교로 읽으면 안 된다.")
+    print("  여러 개를 비교했으므로 다중비교 보정 없이 단일 비교로 읽으면 안 된다.")
 
 
-def report() -> None:
+_MD_COLS = ("모델", "차원", "최대", "MRR", "R@10", "뒷MRR", "뒷R@10",
+            "면책MRR", "벡터무변화", "잘림", "정밀도")
+
+
+def _report_md(rows: list) -> None:
+    """마크다운 표. ★열 순서·의미는 고정폭 판과 **같다.**"""
+    print("| " + " | ".join(_MD_COLS) + " |")
+    print("|---|" + "---:|" * (len(_MD_COLS) - 2) + "---|")
+    for r in rows:
+        stale = "blind_eps" not in r
+        pv = r.get("tail") or r.get("proviso") or {}
+        pm, pr = pv.get("mrr@10"), pv.get("recall@10")
+        ex = (r.get("exclusion") or {}).get("mrr@10")
+        f3 = lambda v: f"{v:.3f}" if v is not None else "—"
+        blind = ("☠재측정" if stale
+                 else f"**{r['proviso_blind_count']}**/{r['proviso_probes']}"
+                 if r.get("proviso_blind_count") else f"0/{r['proviso_probes']}")
+        print("| `{}` | {} | {} | {} | {} | {} | {} | {} | {} | {:.1%} | {} |".format(
+            r["model"], r["dim"], r["max_seq_length"],
+            f3(r["mrr@10"]), f3(r["recall@10"]), f3(pm), f3(pr), f3(ex),
+            blind, r["truncated_ratio"], r.get("dtype", "?")))
+
+
+def report(dtype: str = "", md: bool = False) -> None:
+    """측정 결과 표. `dtype` 을 주면 그 정밀도만. `md=True` 면 **마크다운 표**.
+
+    ★`--md` 는 문서에 붙이려고 있다. 고정폭 표를 마크다운 문서에 붙이면
+      `|` 가 없어 표로 안 보이고, 사람이 손으로 `|` 를 넣다가 데이터와 어긋난다.
+      **붙일 형식 그대로 뽑는다** — 손이 닿을 자리를 없앤다.
+
+    ★정밀도를 **섞어 한 표에 두지 않는다.** 브리핑 §3 은 `--dtype float16`,
+      §5-9 는 `--dtype 4bit` 로 각각 뽑아 붙인다.
+      손으로 행을 지워 표를 만들면 머리글·구분선이 데이터와 어긋난다
+      (실제로 어긋난 채 팀에 나갈 뻔했다 — 2026-08-03).
+    """
     rows = [json.loads(p.read_text(encoding="utf-8")) for p in sorted(_OUT.glob("*.json"))]
+    if dtype:
+        rows = [r for r in rows if r.get("dtype") == dtype]
     if not rows:
         print("아직 결과가 없습니다.")
         return
     rows.sort(key=lambda r: -r.get("mrr@10", 0))
+    if md:
+        _report_md(rows)
+        return
     head = (f"{'모델':50} {'차원':>5} {'최대':>6} {'MRR':>6} {'R@10':>6} "
-            f"{'뒷MRR':>7} {'뒷R@10':>8} {'면책MRR':>8} {'면책못봄':>8} {'잘림':>6} {'정밀도':>7}")
+            f"{'뒷MRR':>7} {'뒷R@10':>8} {'면책MRR':>8} {'벡터무변화':>9} {'잘림':>6} {'정밀도':>7}")
     print(head)
     print("-" * len(head))
     for r in rows:
-        flag = " ★면책못봄" if r.get("proviso_blind_count", 0) > 0 else ""
+        #: ★옛 공식(fp16 내적 · 문턱 1e-6)으로 잰 결과는 **무효 표시**한다.
+        #:   `blind_eps` 가 없으면 옛 것이다. 값을 지우지 않고 남기되,
+        #:   "재측정 전" 이라고 밝힌다 — 조용히 지우면 왜 없는지 알 수 없다.
+        stale = "blind_eps" not in r
+        flag = " ☠무효(옛공식)" if stale else (
+            " ★벡터무변화" if r.get("proviso_blind_count", 0) > 0 else "")
         pv = r.get("tail") or r.get("proviso") or {}
         pm = pv.get("mrr@10")
         pr = pv.get("recall@10")
@@ -407,15 +524,24 @@ def report() -> None:
             f"{(f'{pm:.3f}' if pm is not None else '—'):>8} "
             f"{(f'{pr:.3f}' if pr is not None else '—'):>8} "
             f"{(f'{ex:.3f}' if ex is not None else '—'):>8} "
-            f"{r['proviso_blind_count']:>3}/{r['proviso_probes']:<4} "
+            f"{(str(r['proviso_blind_count']) + '/' + str(r['proviso_probes'])) if not stale else '재측정':>8} "
             f"{r['truncated_ratio']:>6.1%} {r.get('dtype','?'):>7}{flag}"
         )
     print()
     print("뒷MRR/뒷R@10 = 조항 **뒤쪽** 문장(다만·단·그러나·이 경우…)을 질의로 준 성적.")
     print("면책MRR = 그중 **부정·면책 표현이 실제로 있는** 16개만. ★표본이 작다.")
     print("  ★앞서 60개 전부를 「면책」이라 불렀는데 실제 면책은 16개뿐이었다.")
-    print("  ★앞부분만 임베딩하는 모델은 그 문장을 본 적이 없으므로 못 찾는다.")
-    print("면책못봄 = 앞부분과 **완전히 같은 벡터**가 나온 탐침 수.")
+    #: ★"못 찾는다"고 단정하지 않는다 — 앞부분 단서만으로 맞히는 경우가 있다.
+    print("  ★앞부분만 임베딩하는 모델은 그 문장이 임베딩에 안 들어가 **불리하다**.")
+    print("    (앞부분 단서만으로 맞히는 경우가 있으므로 못 찾는다고 단정하지 않는다.)")
+    print(f"벡터무변화 = 앞부분과 「앞부분+단서」의 코사인 거리가 {_BLIND_EPS:g} 미만인 탐침 수.")
+    print("  ☠**무효(옛공식)** = 코사인을 fp16 으로 재고 문턱을 1e-6 으로 뒀던 측정.")
+    print("    벡터가 단위 노름이 아니라 거리가 **음수**로 나왔고(최소 -0.00498),")
+    print("    fp16 분해능은 2^-11≈4.9e-4 라 1e-6 은 **잴 수 없는 문턱**이었다.")
+    print("    → 그 열은 재측정 전까지 **쓰지 않는다.** 순위·MRR 은 영향 없다.")
+    #: ★「면책못봄」이라 부르던 것이다. 재는 것은 벡터가 안 움직였다는 사실뿐이고,
+    #:   "모델이 면책 문장을 못 봤다"는 **해석**은 여기서 하지 않는다.
+    print("  ★이전 이름은 「면책못봄」이었다 — 재는 것과 이름이 달라 바꿨다.")
     print("잘림 = 코퍼스 중 모델 최대 길이를 넘은 비율.")
     print("★정밀도가 다르면(fp16 vs 4bit) **같은 표에서 순위를 매기지 않는다.**")
 
@@ -436,9 +562,18 @@ def main(argv=None) -> int:
     ap.add_argument("--device", default="")
     ap.add_argument("--purge", action="store_true", help="측정 후 캐시 삭제")
     ap.add_argument("--list", action="store_true")
+    #: ★문서에 붙일 거면 `--md`. 손으로 `|` 를 넣지 않는다.
+    ap.add_argument("--md", action="store_true", help="마크다운 표로 출력")
+    #: ★탐침만 재측정(§5-10 결함 수정분). 순위 지표는 기존 값을 유지한다.
+    ap.add_argument("--probes-only", action="store_true",
+                    help="탐침만 다시 재고 기존 결과에 합친다")
     ap.add_argument("--report", action="store_true")
     ap.add_argument("--compare", default="", help="이 모델을 기준으로 짝지어 비교")
     ap.add_argument("--task", default="title", choices=["title", "tail", "exclusion"])
+    #: ★정밀도를 섞지 않는다. 빈 값이면 전부.
+    #: ★`--compare` 와 `--report` 가 함께 쓴다. 빈 문자열이면 전부(섞인다 — 권장 안 함).
+    ap.add_argument("--dtype", default="float16",
+                    help="대상 정밀도. float16(기본) | 4bit | \"\"(전부·섞임)")
     a = ap.parse_args(argv)
 
     if a.list:
@@ -451,10 +586,10 @@ def main(argv=None) -> int:
             print(f"{m:52} {gb:>5.1f}  {_rest[2]}")
         return 0
     if a.compare:
-        compare(a.compare, a.task)
+        compare(a.compare, a.task, dtype=a.dtype)
         return 0
     if a.report:
-        report()
+        report(a.dtype, md=a.md)
         return 0
     if not a.model:
         ap.error("--model 이 필요합니다 (--list 로 후보 확인)")
@@ -464,12 +599,14 @@ def main(argv=None) -> int:
     print(f"[{a.model}] {note}", flush=True)
 
     res = run(a.model, q_prefix=qp, d_prefix=dp, batch=a.batch, device=a.device,
-              no_fp16=a.no_fp16, quant=a.quant, max_seq=a.max_seq)
+              no_fp16=a.no_fp16, quant=a.quant, max_seq=a.max_seq,
+              probes_only=a.probes_only)
     print(json.dumps(res, ensure_ascii=False, indent=2))
     if res["proviso_blind_count"]:
         print(
-            f"\n★경고: 면책 탐침 {res['proviso_blind_count']}/{res['proviso_probes']} 건에서 "
-            "앞부분과 완전히 같은 벡터가 나왔습니다 — 모델이 뒷부분을 보지 않습니다."
+            f"\n★경고: 탐침 {res['proviso_blind_count']}/{res['proviso_probes']} 건에서 "
+            f"앞부분과의 코사인 거리가 {res.get('blind_eps', 0):g} 미만이었습니다 — 뒷부분이 표현을 "
+            "바꾸지 못했다는 강한 증상입니다(모델이 못 봤다는 증거는 아닙니다)."
         )
     if a.purge:
         print("[정리]", _purge(a.model))
