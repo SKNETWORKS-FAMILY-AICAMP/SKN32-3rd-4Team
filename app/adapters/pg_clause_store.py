@@ -118,7 +118,7 @@ def load_clauses(sha256: str, *, usable_only: bool = True) -> list[ClauseRow]:
                   AND o.index_generation = %s
                 ORDER BY o.page_from, o.qualified_no
                 """,
-                (sha256, ix.CURRENT_GENERATION),
+                (sha256, ix.current_generation()),
             )
             fetched = cur.fetchall()
     except Exception as exc:  # noqa: BLE001
@@ -163,7 +163,7 @@ def stats(sha256: str) -> dict:
                 ) c ON true
                 WHERE o.sha256 = %s AND o.index_generation = %s
                 """,
-                (ix.current_embed_model(), sha256, ix.CURRENT_GENERATION),
+                (ix.current_embed_model(), sha256, ix.current_generation()),
             )
             usable, uniq, recorded = cur.fetchone()
     except Exception as exc:  # noqa: BLE001
@@ -192,6 +192,10 @@ def search(sha256: str, query: str, *, limit: int = 8) -> Sequence[ClauseRow]:
         return []
     try:
         with _conn() as conn, conn.cursor() as cur:
+            #: ★**빈 결과의 이유를 구분한다.** 승인 세대·모델이 색인에 0건이면
+            #:   어떤 낱말을 넣어도 0건이다. 그걸 "못 찾았다"로 내보내면
+            #:   판정이 근거 없이 기권하고 **원인은 감춰진다**(실측 2026-08-03).
+            ix.ensure_index_matches_release(conn)
             cur.execute(
                 """
                 WITH ranked AS (
@@ -215,9 +219,14 @@ def search(sha256: str, query: str, *, limit: int = 8) -> Sequence[ClauseRow]:
                 SELECT * FROM ranked ORDER BY sim DESC LIMIT %(k)s
                 """,
                 {"q": q, "sha": sha256, "min": _MIN_SIMILARITY, "k": limit,
-                 "gen": ix.CURRENT_GENERATION, "model": ix.current_embed_model()},
+                 "gen": ix.current_generation(), "model": ix.current_embed_model()},
             )
             fetched = cur.fetchall()
+    except InfraError:
+        #: ★이미 원인을 말하고 있는 오류를 **다시 감싸지 않는다.**
+        #:   "조항 검색에 실패했습니다: 색인이 승인 릴리스와 맞지 않습니다…" 는
+        #:   질의가 실패한 것처럼 읽힌다. 실제로는 설정과 색인이 어긋난 것이다.
+        raise
     except Exception as exc:  # noqa: BLE001
         raise InfraError(f"조항 검색에 실패했습니다: {exc}") from exc
     return _rows_to_clauses([r[:8] for r in fetched])

@@ -1,0 +1,141 @@
+"""색인이 승인 릴리스와 어긋날 때 **조용히 0건을 돌려주지 않는가.**
+
+★왜 필요한가 — 실제로 그러고 있었다(실측 2026-08-03).
+
+    승인 릴리스가 가리키는 값과 DB 에 든 값이 이랬다.
+
+        승인 index_generation = 's5'
+        DB 실제              = 's5-mixed' 158,186 · 's6' 195,617   ← 's5' 는 0건
+        승인 embed_model     = ''        (embed_profile 이 비어 있음)
+        DB 실제              = 'jhgan/ko-sroberta-multitask@128' 46,385
+
+    두 필터가 **동시에** 아무것도 안 맞았다. 그런데 `search()` 는 빈 목록을
+    돌려줬다 — 호출자는 "그런 조항이 없다"로 읽는다. 근거가 없는 것과
+    필터가 안 맞는 것이 **같은 모양**으로 나갔다.
+
+    기본 저장소가 `file` 이라 판정이 당장 깨지진 않았다. 하지만
+    `CLAUSE_STORE=pg` 는 **환경변수 하나 차이**다.
+"""
+
+from __future__ import annotations
+
+import pytest
+
+from app.adapters import pgvector_clause_index as ix
+from app.core.errors import InfraError
+
+
+class _Cur:
+    """`index_state()` 가 던지는 두 질의에만 답하는 최소 커서."""
+
+    def __init__(self, gens: dict, models: dict) -> None:
+        self._gens, self._models, self._rows = gens, models, []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def execute(self, sql, *_):
+        self._rows = list(
+            (self._gens if "policy_clause_occurrence" in sql else self._models).items()
+        )
+
+    def fetchall(self):
+        return self._rows
+
+
+class _Conn:
+    def __init__(self, gens: dict, models: dict) -> None:
+        self._gens, self._models = gens, models
+
+    def cursor(self):
+        return _Cur(self._gens, self._models)
+
+
+@pytest.fixture
+def _release(monkeypatch):
+    """승인 릴리스가 무엇을 가리키는지 시험마다 정한다."""
+
+    def _set(gen: str, model: str):
+        monkeypatch.setattr(ix, "current_generation", lambda: gen)
+        monkeypatch.setattr(ix, "current_embed_model", lambda: model)
+
+    return _set
+
+
+def test_실측_상태를_그대로_재현하면_막힌다(_release):
+    """2026-08-03 실측값 그대로. **예외가 나야 한다.**"""
+    _release("s5", "")
+    conn = _Conn({"s6": 195617, "s5-mixed": 158186},
+                 {"jhgan/ko-sroberta-multitask@128": 46385})
+    with pytest.raises(InfraError) as e:
+        ix.ensure_index_matches_release(conn)
+    msg = str(e.value)
+    #: ★메시지가 **실제 숫자**를 말해야 한다. "색인 오류"만으로는 못 고친다.
+    assert "s5" in msg and "s6" in msg and "195617" in msg
+    assert "embed_profile" in msg
+
+
+def test_s5_mixed_를_s5_로_읽지_않는다(_release):
+    """★`s5-mixed` 는 **컬럼 기본값**이다 — 세대 불명이라는 뜻이다.
+
+    's5' 로 갈아 끼우면 세대 불명 158,186행이 승인 세대로 둔갑한다.
+    """
+    _release("s5", "m")
+    conn = _Conn({"s5-mixed": 158186}, {"m": 100})
+    with pytest.raises(InfraError) as e:
+        ix.ensure_index_matches_release(conn)
+    assert "기본값" in str(e.value)
+    assert ix.index_state(conn)["occurrences_for_wanted"] == 0
+
+
+def test_세대는_맞는데_모델이_없으면_막힌다(_release):
+    """한쪽만 맞아도 검색은 0건이다."""
+    _release("s6", "새모델")
+    conn = _Conn({"s6": 195617}, {"jhgan/ko-sroberta-multitask@128": 46385})
+    with pytest.raises(InfraError) as e:
+        ix.ensure_index_matches_release(conn)
+    assert "새모델" in str(e.value) and "0건" in str(e.value)
+
+
+def test_모델은_맞는데_세대가_없으면_막힌다(_release):
+    _release("s7", "m")
+    conn = _Conn({"s6": 10}, {"m": 10})
+    with pytest.raises(InfraError):
+        ix.ensure_index_matches_release(conn)
+
+
+def test_둘_다_맞으면_통과한다(_release):
+    """★막기만 하고 통과를 못 하면 그것도 고장이다."""
+    _release("s6", "m")
+    conn = _Conn({"s6": 195617}, {"m": 46385})
+    ix.ensure_index_matches_release(conn)  # 예외 없음
+    assert ix.index_state(conn)["ready"] is True
+
+
+def test_현황이_설정이_아니라_DB_를_센다(_release):
+    """`index_state()` 는 **DB 에 실제로 든 것**을 그대로 보여준다."""
+    _release("s5", "")
+    conn = _Conn({"s6": 3, "s5-mixed": 2}, {"x": 1})
+    st = ix.index_state(conn)
+    assert st["generations_in_db"] == {"s6": 3, "s5-mixed": 2}
+    assert st["embed_models_in_db"] == {"x": 1}
+    assert st["wanted_generation"] == "s5"
+    assert st["ready"] is False
+
+
+def test_검색_경로가_이_검사를_실제로_부른다():
+    """★검사를 만들어 두고 **안 부르면** 아무것도 안 막힌다.
+
+    앞서 정적 UI 차단 목록이 그랬다 — 목록만 있고 파일이 없었다.
+    """
+    import inspect
+
+    from app.adapters import pg_clause_store as st
+
+    for fn in (ix.search, st.search):
+        assert "ensure_index_matches_release" in inspect.getsource(fn), (
+            f"{fn.__module__}.{fn.__name__} 이 색인-릴리스 검사를 부르지 않습니다"
+        )

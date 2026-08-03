@@ -190,37 +190,128 @@ class ClauseHit:
         return f"{self.sha256[:12]}/{self.qualified_no}{tail}"
 
 
-#: ★★현재 세대. **조항 JSON 스키마 버전과 맞춘다.**
+#: ★★**세대·임베딩 프로필을 여기서 정하지 않는다.**
 #:
-#:   검색은 이 세대의 발생행만 본다. 옛 세대는 지우지 않고 남겨 두되
-#:   **사용자 경로에는 안 보인다.** 지우면 6시간짜리 임베딩을 버리고,
-#:   그냥 두면 오염된 옛 근거가 계속 올라온다 — 가르는 것이 답이다.
-CURRENT_GENERATION = "s6"
-
-#: ★★**어느 모델로 만든 벡터인가.** 모델이 바뀌면 벡터 공간이 통째로 다르다 —
-#:   섞이면 거리 비교가 무의미해지고, 그런데도 **아무 오류도 안 난다.**
+#:   전에는 `CURRENT_GENERATION = "s6"` 처럼 상수를 박아 두었다. 그런데 세대를
+#:   정하는 곳이 파일 저장소·적재·검색 **셋**이었고 서로 어긋났다(실측 2026-08-03) —
+#:   파일 저장소는 `s5`, 검색은 `s6`. 같은 질문에 두 경로가 다른 조항을 준다.
 #:
-#:   실측 사고(2026-08-03): 지금 설정된 모델은 `max_seq_length = 128` 이다.
-#:   우리 조각은 448토큰 예산이라 **표본 6,000조각 중 89.1%가 잘렸고
-#:   전체 토큰의 59.8%가 버려졌다.** 면책은 문장 끝에 오므로
-#:   ("…보상합니다. 다만 … 보상하지 않습니다") 우리가 절대 놓치면 안 되는
-#:   부분이 구조적으로 사라진다.
+#:   이제 `app/core/release.py` 한 곳에서 읽는다.
+#:   ★`index_generation` 은 설정에 따로 없다. `clause_tag` 에서 **파생**한다 —
+#:     중복 필드를 두면 다시 어긋난다(코덱스).
 #:
-#:   ★모델을 아직 **고르지 않았다.**
-#:     `docs/reports/2026-08-02_1800_임베딩모델_후보_20선_코덱스합의.md` 결론:
-#:     "200~500개 실손보험 질의로 재보기 전에는 아무것도 확정하지 않는다."
-#:
-#:   ★모델 ID 를 **여기 적지 않는다.** 레지스트리(설정)가 정한다 —
-#:     하드코딩하면 설정을 바꿔도 태그가 안 따라와 벡터 공간이 조용히 섞인다.
-#:     (`tests/test_model_registry.py::test_llm_reg_002` 가 이걸 막는다)
+#:   ★import 시점에 읽지 않는다. 부를 때마다 읽는다 —
+#:     승인 릴리스를 바꿨는데 프로세스가 옛 값을 붙들고 있으면 전환이 안 된다.
 LEGACY_EMBED_MODEL = "legacy-truncated-128"
 
 
-def current_embed_model() -> str:
-    """지금 설정된 임베딩 모델 이름. 벡터 행에 그대로 박는다."""
-    from app.core.config import get_settings
+def generation_of(clause_tag: str) -> str:
+    """조항 태그에서 세대를 파생한다. shadow 적재가 쓴다."""
+    import re as _re
 
-    return get_settings().ST_EMBEDDING_MODEL
+    m = _re.match(r"^(s\d+)_", clause_tag or "")
+    if not m:
+        raise ValueError(f"세대를 읽을 수 없는 조항 태그입니다: {clause_tag!r}")
+    return m.group(1)
+
+
+def current_generation() -> str:
+    """검색·적재가 볼 세대. 승인 릴리스에서 파생한다."""
+    from app.core import release
+
+    #: ★`current()` 다. `pinned()` 블록 안이면 그 스냅샷을 쓴다 —
+    #:   세대와 모델이 서로 다른 릴리스에서 오는 일을 막는다.
+    return release.current().index_generation
+
+
+def current_embed_model() -> str:
+    """벡터를 만든 프로필 이름.
+
+    ★**승인된 프로필이 없으면 빈 문자열**이다. 아무거나 골라 쓰지 않는다 —
+      지금 모델은 미확정이고(128토큰 절단 사고), 잘린 벡터가 근거로 올라온다.
+
+    ★그러나 **"검색 0건"이 정직한 상태는 아니다.**
+
+        앞서 여기 "빈 문자열이면 검색이 0건이 되고 그게 정직하다"고 적혀 있었다.
+        틀렸다. 0건을 그냥 돌려주면 호출자는 **"그런 조항이 없다"** 로 읽는다.
+        "근거가 없다"와 "필터가 아무것도 안 맞는다"는 **다른 사실**이고,
+        섞이면 판정이 근거 없이 기권하면서 원인은 감춰진다(CLAUDE.md §0).
+
+        그래서 검색 경로가 `ensure_index_matches_release()` 로 **먼저 막는다.**
+        빈 문자열은 여기서 그대로 두되, 그 상태로 질의가 나가지는 않는다.
+    """
+    from app.core import release
+
+    return release.current().embed_profile.key
+
+
+def index_state(conn) -> dict:
+    """색인이 **실제로 무엇을 담고 있나.** 설정이 아니라 DB 를 센다.
+
+    ★`release.ensure_ready()` 는 **디스크**만 본다. 산출물이 온전해도
+      색인에 안 들어가 있으면 검색은 0건이다 — 그 구멍을 여기서 막는다.
+    """
+    gen, model = current_generation(), current_embed_model()
+    with conn.cursor() as cur:
+        cur.execute("SELECT index_generation, count(*) FROM policy_clause_occurrence "
+                    "GROUP BY 1 ORDER BY 2 DESC")
+        gens = dict(cur.fetchall())
+        cur.execute("SELECT embed_model, count(*) FROM policy_clause_chunk "
+                    "GROUP BY 1 ORDER BY 2 DESC")
+        models = dict(cur.fetchall())
+    return {
+        "wanted_generation": gen,
+        "wanted_embed_model": model,
+        "generations_in_db": gens,
+        "embed_models_in_db": models,
+        "occurrences_for_wanted": gens.get(gen, 0),
+        "chunks_for_wanted": models.get(model, 0),
+        "ready": bool(gen) and bool(model)
+        and gens.get(gen, 0) > 0 and models.get(model, 0) > 0,
+    }
+
+
+def ensure_index_matches_release(conn) -> None:
+    """★**필터가 안 맞는 것**과 **근거가 없는 것**을 구분하게 한다.
+
+    실측 2026-08-03 — 승인 릴리스는 `index_generation='s5'` 를 가리키는데
+    DB 에는 `s5-mixed` 158,186 · `s6` 195,617 뿐이었다(`s5` 는 0건).
+    `embed_model` 은 승인 프로필이 비어 `''` 이고 DB 에는
+    `jhgan/ko-sroberta-multitask@128` 46,385 조각이 있었다.
+
+    **두 필터가 동시에 아무것도 안 맞았다.** 그런데 `search()` 는 빈 목록을
+    돌려줬다 — 호출자는 "그런 조항이 없다"로 읽는다. 원인이 감춰진다.
+
+    ★`s5-mixed` 는 **컬럼 기본값**이다(세대 컬럼을 나중에 붙였다).
+      "s5 로 적재했다"는 뜻이 **아니라 세대 불명**이라는 뜻이다.
+      그래서 `s5` 로 갈아 끼우지 않는다 — 모르는 것을 안다고 하면 안 된다.
+    """
+    st = index_state(conn)
+    if st["ready"]:
+        return
+    lines = [f"색인이 승인 릴리스와 맞지 않습니다."]
+    if not st["wanted_embed_model"]:
+        lines.append(
+            "  · 승인된 임베딩 프로필이 **없습니다**(`embed_profile` 이 비었습니다). "
+            "모델을 정하고 `config/accepted_extraction.json` 에 적으세요."
+        )
+    elif not st["chunks_for_wanted"]:
+        lines.append(
+            f"  · 조각: 승인 모델 {st['wanted_embed_model']!r} 로 적재된 것이 **0건**입니다. "
+            f"DB 에 있는 것 — {st['embed_models_in_db'] or '없음'}"
+        )
+    if not st["occurrences_for_wanted"]:
+        lines.append(
+            f"  · 발생: 승인 세대 {st['wanted_generation']!r} 로 적재된 것이 **0건**입니다. "
+            f"DB 에 있는 것 — {st['generations_in_db'] or '없음'}"
+        )
+        if "s5-mixed" in st["generations_in_db"]:
+            lines.append(
+                "    ★`s5-mixed` 는 세대 컬럼을 나중에 붙이며 들어간 **기본값**입니다. "
+                "세대 불명이라는 뜻이지 s5 라는 뜻이 아닙니다 — 갈아 끼우지 마세요."
+            )
+    lines.append("  → `python -m scripts.index.build_clause_index` 로 다시 적재하세요.")
+    raise InfraError("\n".join(lines))
 
 
 def ensure_schema(conn) -> None:
@@ -454,12 +545,14 @@ def upsert_chunks(conn, rows, *, model: str | None = None) -> int:
     return n
 
 
-def upsert_occurrences(conn, rows, *, generation: str = CURRENT_GENERATION) -> int:
+def upsert_occurrences(conn, rows, *, generation: str | None = None) -> int:
     """조항이 **어느 문서 어디에** 실렸는지. 같은 자리는 한 번만.
 
     ★`rows` 는 `(hash, sha, insurer, qualified_no, section, title, page_from, page_to)`
       또는 뒤에 `source_kind` 를 하나 더 붙인 9튜플.
     """
+    #: ★import 시점 기본값을 두지 않는다(코덱스). 부를 때 정한다.
+    generation = generation or current_generation()
     n = 0
     with conn.cursor() as cur:
         for r in rows:
@@ -492,6 +585,11 @@ def search(
     if sha256s is not None and not sha256s:
         #: 빈 목록은 "쓸 수 있는 약관이 없다"이다. 전역 검색으로 바꿔치지 않는다.
         return []
+    #: ★★**필터가 안 맞는 것을 "결과 없음"으로 내보내지 않는다.**
+    #:   승인 세대·모델이 색인에 0건이면 이 질의는 무엇을 물어도 빈 목록이다.
+    #:   그대로 돌려주면 호출자가 "그런 조항이 없다"로 읽는다 — 원인이 감춰진다.
+    #:   실측 2026-08-03: 세대 's5' 0건 · 모델 '' 0건인데 조용히 [] 였다.
+    ensure_index_matches_release(conn)
     #: ★조각을 **먼저** 고르고, 그다음에 발생을 붙인다.
     #:
     #:   앞서는 발생을 조인한 뒤 `LIMIT` 을 걸었다. 한 조항이 최대 **170개 문서**에
@@ -548,7 +646,7 @@ def search(
 
     q = np.asarray(query_vec, dtype=np.float32)
     params = {"q": q, "k": limit, "shas": sha256s,
-              "gen": CURRENT_GENERATION, "model": current_embed_model()}
+              "gen": current_generation(), "model": current_embed_model()}
     with conn.cursor() as cur:
         cur.execute(sql, params)
         return [ClauseHit(*row) for row in cur.fetchall()]
@@ -585,7 +683,7 @@ def stats(conn) -> dict:
         "occurrences": occ,
         "documents": docs,
         #: ★검색이 실제로 보는 세대. 합계와 나란히 놓아야 오염이 눈에 띈다.
-        "current_generation": CURRENT_GENERATION,
+        "current_generation": current_generation(),
         "current_embed_model": current_embed_model(),
         "by_embed_model": by_model,
         "by_generation": by_gen,
