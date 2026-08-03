@@ -133,7 +133,8 @@
 
 ### coverage_review (사전검토 요청)
 
-> **명명 근거**: 원래 이름은 `case`였으나 PostgreSQL 예약어(`CASE WHEN...END`)와 충돌해 `coverage_review`로 변경했다. `스키마.case`처럼 항상 스키마를 지정해서 부르면 문법 오류 없이 동작하지만(qualified name 문법 규칙 예외), `SET search_path` 이후 스키마 없이 짧게 참조하거나 ORM/마이그레이션 툴이 unqualified 쿼리를 생성하면 그 즉시 구문 오류가 난다. "항상 스키마를 붙인다"는 규율이 100% 지켜져야만 안전한 이름이라 실무 리스크가 크다고 판단해 교체했다.
+> **명명 근거**: 원래 이름은 `case`였으나 PostgreSQL 예약어(`CASE WHEN...END`)와 충돌해 `coverage_review`로 변경했다.   
+
 | 컬럼 | 타입 | 제약 | 설명 |
 |---|---|---|---|
 | `coverage_review_id` | VARCHAR | PK, NOT NULL | 보험 분석 건 ID |
