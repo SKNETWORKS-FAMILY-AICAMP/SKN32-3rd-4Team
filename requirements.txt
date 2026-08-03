@@ -1,0 +1,6 @@
+pdfplumber              # PDF -> 텍스트 추출 (data_preprocessing/pdf_to_text.py 전용)
+openai                  # LLM 호출 (explain/explain_term/explain_cohort)
+python-dotenv           # .env에서 OPENAI_API_KEY 로드
+sentence-transformers   # [임시] 테스트용 임베딩 모델 실행기 - AI1 모델 확정 시 다른 모듈로 교체될 수 있음
+faiss-cpu               # [임시] 테스트용 벡터 검색 - AI1이 다른 벡터 저장 방식(예: 실제 벡터DB) 선택 시 교체될 수 있음
+numpy                   # faiss 입력 배열 변환
