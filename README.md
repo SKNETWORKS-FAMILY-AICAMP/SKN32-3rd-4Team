@@ -1,121 +1,174 @@
-# 올바른 보험비서 — KCD 질병기호 × 실손보험 약관 사전판정
+# 올바른 보험비서
 
-팀 **비서단**. 커머스 실습(`_unified_mall`)에서 출발해 보험 도메인으로 옮기는 중이다.
+> KCD 질병기호와 실손보험 약관을 근거로 가입 전 보장 가능성을 확인하는 RAG 기반 보험 상담 플랫폼
 
-RAG 기반 문서 질의응답을 코어로, 커머스 승인 루프·AI 에이전트(ReAct+CoT)·MCP·A2A·RBAC 관리자와
-음성/화상 상담·얼굴 로그인 2차 인증까지 통합한 **로컬 우선(API 키 없이 기본 동작)** 플랫폼이다.
+`올바른 보험비서`는 보험 약관에서 관련 조항을 검색하고, 가입자의 질병기호·보험사·상품 세대를 함께 대조해 판단 근거와 확인이 필요한 항목을 제공하는 팀 프로젝트입니다. 근거가 없거나 데이터 상태가 불완전하면 그럴듯한 답을 만들지 않고 명시적으로 중단하는 **무폴백(fail-closed)** 원칙을 적용합니다.
 
-설계 원칙은 **개념적 Clean Architecture + 무폴백**: 오류를 그럴듯한 가짜 결과로 대체하지 않고
-정의된 타입(`ConfigError`/`InfraError`/`LLMOutputError`/`ValidationErr`)으로 명시적으로 실패시킨다.
+## 현재 릴리스
 
-> 📐 **시스템 아키텍처 설계 보고서**(다이어그램 포함): [`docs/architecture.md`](docs/architecture.md)
-> 📸 화면 갤러리: [`docs/index.html`](docs/index.html) · 📁 계획·이력·리포트: [`docs/`](docs/)
-
----
-
-## 1. 빠른 시작
-
-```bash
-pip install -r requirements.txt
-python -m scripts.manage migrate      # 테이블 생성(기동 시 자동 생성하지 않음)
-python -m scripts.manage seed         # 상품·재고 시드
-python -m scripts.manage ingest       # 문서 임베딩 → FAISS 인덱스
-```
-
-준비 상태는 `GET /api/health/ready`로 확인한다(미준비면 명시적으로 알린다 — 자동 폴백 없음).
-
----
-
-## 2. 배정된 사이트 — 주소와 사용법
-
-고객 사이트와 운영 도구는 **서로 다른 프로세스·포트**로 물리 분리돼 있다. 실무에서 관리자
-대시보드를 VPN·사내망 뒤에 두는 패턴의 축소판이다.
-
-| 사이트 | 실행 | 주소 | 무엇이 있나 |
-|---|---|---|---|
-| **고객 웹** | `python -m scripts.run_customer_server` | http://127.0.0.1:8080 | 스토어·AI 상담·화상 상담·마이페이지 |
-| **운영/관리자** | `python -m scripts.run_admin_server` | http://127.0.0.1:8081 | 관리자 대시보드 + 운영 도구 전체 |
-| 개발 전체(편의) | `python scripts/run_dev_server.py` | http://127.0.0.1:8080 | 위 둘을 합친 앱(테스트·개발용) |
-
-> ⚠️ 고객 웹과 개발 전체 앱은 **같은 8080 포트**를 쓴다. 둘을 동시에 띄우지 말 것.
-
-### 2-1. 고객 웹 (8080) — 일반 사용자용
-
-| 페이지 | 주소 | 사용법 |
-|---|---|---|
-| 스토어(랜딩) | `/` 또는 `/static/shop.html` | 상품 목록 → 장바구니 담기 → **주문 미리보기** → 승인하면 주문 확정 |
-| AI 상담 | `/static/index.html` | 질문 입력 → ReAct 에이전트가 도구를 호출하며 단계(Thought/Action/Observation) 표시 |
-| 화상 상담 | `/static/video.html` | 카메라 켜고 말하면 STT→상담→TTS 음성 답변. 카메라 없이 텍스트로도 진행 가능 |
-| 마이페이지 | `/static/mypage.html` | 얼굴 등록/해제(로그인 2차 인증용) |
-
-이 포트에서는 관리자 API와 운영 페이지가 **물리적으로 없다**(404). 라우터 자체를 싣지 않는다.
-
-### 2-2. 운영/관리자 (8081) — 내부용
-
-| 페이지 | 주소 | 사용법 |
-|---|---|---|
-| 관리자 대시보드(랜딩) | `/` 또는 `/static/admin.html` | 주문·이벤트·인덱스·지식갭 조회, **요약 보고서 PDF** 생성/저장/인쇄 |
-| 얼굴인식 벤치마크 | `/static/facebench.html` | 3개 백엔드(AdaFace/LVFace/insightface) 코사인·지연 실측 비교 (관리자 전용) |
-
-> ★**2026-08-03 정리.** 이 표에 `RAG 실험실`·`MCP 도구`·`주문 관리` 세 줄이 더 있었는데
-> **`mcp.html`·`orders.html` 은 파일이 애초에 없었다.** 문서가 없는 화면을 현행처럼 적고 있었다.
-> `rag.html`·`rag.js` 는 커머스 RAG 화면이라 `legacy/_unified_mall/app/static/` 으로 격리했다.
-> 재발 방지로 `tests/test_static_ui.py` 에 **링크 실재 검사**를 넣었다(죽은 링크 12개를 잡았다).
-
-**관리자 계정**: 관리자 승격은 **CLI 전용**이다(권한상승 사고 방지 — UI 버튼 없음).
-
-```bash
-python -m scripts.manage promote <username>    # USER → ADMIN
-python -m scripts.manage demote <username>     # ADMIN → USER (마지막 관리자는 거부)
-```
-
-### 2-3. 함께 쓰는 외부 서비스
-
-| 서비스 | 기본 주소 | 실행 | 필요한 때 |
-|---|---|---|---|
-| 로컬 LLM(Gemma, OpenAI 호환) | http://127.0.0.1:8000/v1 | `python scripts/local_model_server.py` | 에이전트·RAG 답변 생성 |
-| PostgreSQL + pgvector | 127.0.0.1:5433 (`mall_vec`) | `python -m scripts.pg` | hybrid·graph RAG 백엔드 |
-| MCP 서버(stdio) | 표준입출력 | `python -m app.mcp.server` | MCP 클라이언트 연동 |
-
-OpenAI/Gemini 키를 쓰려면 `.env`에 설정한다(`.env.example` 참고). **기본값은 로컬이라 키가 없어도 동작한다.**
-
----
-
-## 3. 테스트
-
-```bash
-pytest -m "not llm and not ml and not mcp and not pg"   # CI 기본(외부 의존 없음)
-pytest -m "ml"                                          # 무거운 로컬 모델(얼굴·음성·감성)
-pytest -m "mcp"                                         # MCP stdio 왕복
-pytest -m "pg"                                          # 실 PostgreSQL 필요
-```
-
-마커별로 외부 의존을 분리해 뒀다. CI(GitHub Actions)는 첫 번째 조합만 돌린다.
-
----
-
-## 4. 주요 기능
-
-- **RAG**: FAISS · pgvector(Hybrid RRF) · GraphRAG(PG 재귀 CTE) · LLM 리랭커 — 모두 같은 `RetrieverPort` 뒤에서 교체
-- **커머스**: 읽기전용 미리보기 → 명시 승인, `Idempotency-Key` 필수, 조건부 원자 재고 차감
-- **에이전트**: 수동 ReAct 루프 + LangChain 자동 에이전트 + CoT 자기검증(미지지 초안 차단)
-- **MCP**: FastMCP stdio 10개 도구, REST와 유스케이스·프리젠터 공유(parity)
-- **A2A**: 전문 에이전트 카드 발견 + 위임(order/catalog/knowledge/recommend)
-- **보안**: role은 JWT에 넣지 않고 매 요청 DB 조회(강등 즉시 반영), 관리자 라우터 fail-closed,
-  얼굴 2차 인증(pre2fa 챌린지 일회성 소비), 업로드 크기 상한
-- **부가**: 음성 상담(STT/TTS), 화상 상담, 관리자 요약 보고서 PDF
-
-한계는 숨기지 않고 [`docs/architecture.md` §9](docs/architecture.md)에 기록한다.
-
----
-
-## 5. 저장소 구조
-
-| 경로 | 용도 |
+| 항목 | 적용 상태 |
 |---|---|
-| `app/` | 애플리케이션(계층: application / adapters / routers / ml / mcp / a2a) |
-| `tests/` | 테스트 + 요구사항↔테스트 매트릭스 |
-| `scripts/` | 실행·운영 스크립트(서버 기동, DB 관리, 데모, 캡처) |
-| `docs/` | **모든 문서** — 아키텍처·계획(`plans/`)·이력(`history/`)·리포트(`reports/`)·화면 갤러리 |
-| `data/` | 시드 데이터·문서 코퍼스·평가셋 |
-| `legacy/` | 대체·폐기된 코드 보존 |
+| 활성 릴리스 | `r2026-08-04-clause-s7.1-arctic-ko-ocr-approved` |
+| 임베딩 | `dragonkue/snowflake-arctic-embed-l-v2.0-ko` · 1,024차원 |
+| 리랭커 | `Qwen/Qwen3-Reranker-4B` |
+| 승인 OCR 표 facts | 850 occurrences · 75 chunks · 179 documents |
+| 검색 인덱스 | PostgreSQL + pgvector HNSW |
+| 검증 | 사람 승인 패턴만 검색·인용에 포함, 미승인 후보 격리 |
+
+상세 승인 정보와 해시는 [`config/accepted_s7_1_facts.json`](config/accepted_s7_1_facts.json)에서 확인할 수 있습니다.
+
+## 주요 기능
+
+- **약관 사전판정**: KCD 코드, 보험사, 가입 시점과 약관 세대를 조합해 관련 보장·면책 조항 검색
+- **근거 중심 RAG**: 조각으로 검색하고 부모 조항 전체를 복원해 예외 문구 누락 방지
+- **Hybrid Retrieval**: pgvector 의미 검색과 `pg_trgm` 어휘 검색을 RRF로 결합
+- **리랭킹**: Qwen3-Reranker-4B로 검색 후보를 재정렬
+- **OCR 표 복원**: 일반 텍스트 추출이 놓친 자기부담금 등 표 정보를 후보로 복구하고 사람 승인 후 반영
+- **운영 안전성**: release·임베딩 모델·인덱스 세대 불일치 시 요청 차단
+- **상담 채널**: 텍스트, 음성·화상 상담, 얼굴 로그인 2차 인증
+- **관리자 도구**: 인덱스 상태, 지식 갭, 이벤트, 검증 큐와 PDF 운영 보고서
+
+## 화면
+
+프론트엔드는 별도 Node 빌드 없이 FastAPI가 제공하는 정적 웹으로 구성되어 있습니다.
+
+| 화면 | 파일 | 용도 |
+|---|---|---|
+| 보험 사전판정 | [`app/static/insurance.html`](app/static/insurance.html) | 보험사·상품·질병기호 입력과 판정 결과 확인 |
+| 관리자 대시보드 | [`app/static/admin.html`](app/static/admin.html) | 인덱스·검증·운영 현황 관리 |
+| 얼굴인식 벤치마크 | [`app/static/facebench.html`](app/static/facebench.html) | 얼굴 모델 정확도·지연 비교 |
+| 마이페이지 | [`app/static/mypage.html`](app/static/mypage.html) | 사용자 정보와 얼굴 인증 관리 |
+
+### 실행 주소
+
+| 사이트 | 실행 명령 | 주소 |
+|---|---|---|
+| 고객 웹 | `python -m scripts.run_customer_server` | <http://127.0.0.1:8080> |
+| 관리자 웹 | `python -m scripts.run_admin_server` | <http://127.0.0.1:8081> |
+| 통합 개발 서버 | `python scripts/run_dev_server.py` | <http://127.0.0.1:8080> |
+| API 직접 실행 | `python -m uvicorn app.main:app --host 127.0.0.1 --port 8000` | <http://127.0.0.1:8000> |
+
+고객 웹과 통합 개발 서버는 같은 8080 포트를 사용하므로 동시에 실행하지 않습니다.
+
+## 빠른 시작
+
+### 1. 설치
+
+```bash
+git clone -b develop https://github.com/SKNETWORKS-FAMILY-AICAMP/SKN32-3rd-4Team.git
+cd SKN32-3rd-4Team
+python -m venv .venv
+```
+
+Windows PowerShell:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+macOS/Linux:
+
+```bash
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+### 2. 환경 설정
+
+```bash
+cp .env.example .env
+```
+
+기본 구성은 로컬 우선입니다. OpenAI 또는 Gemini를 사용할 때만 `.env`에 해당 API 키를 설정합니다.
+
+### 3. 데이터 준비
+
+```bash
+python -m scripts.manage migrate
+python -m scripts.manage seed
+python -m scripts.manage ingest
+```
+
+PostgreSQL + pgvector 인덱스 A를 사용할 경우:
+
+```bash
+python -m scripts.pg
+python -m scripts.index.build_clause_index
+```
+
+### 4. 서버 실행과 준비 상태 확인
+
+```bash
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+```bash
+curl http://127.0.0.1:8000/api/health/ready
+```
+
+`ready=true`, `clause_index.ready=true`가 확인되어야 검색·판정 요청을 처리합니다.
+
+## AI 파이프라인
+
+```text
+보험사·상품·가입시점·KCD 입력
+            ↓
+약관 판본 및 세대 확정
+            ↓
+Arctic-ko dense 검색 + pg_trgm lexical 검색
+            ↓
+RRF 후보 결합 → Qwen3-Reranker-4B 재정렬
+            ↓
+부모 조항 복원 + 인용 가능성·신선도 검증
+            ↓
+판정 근거 / 확인 필요 / 판정 불가 상태 반환
+```
+
+OCR 및 표 추출 결과는 즉시 답변에 섞지 않습니다. 원본 위치와 축·금액 관계를 보존한 candidate fact로 저장하고, 사람 승인과 회귀 검증을 통과한 facts만 임베딩·검색·인용 대상으로 승격합니다.
+
+## 테스트
+
+외부 모델·DB 없이 실행하는 기본 테스트:
+
+```bash
+pytest -m "not llm and not ml and not mcp and not pg"
+```
+
+기능별 테스트:
+
+```bash
+pytest -m ml    # 얼굴·음성·감성 모델
+pytest -m mcp   # MCP stdio 왕복
+pytest -m pg    # 실제 PostgreSQL/pgvector
+```
+
+현재 요구사항과 테스트 연결은 [`tests/requirements_matrix.yaml`](tests/requirements_matrix.yaml), 팀 간 데이터·API 계약은 [`docs/handoff/README.md`](docs/handoff/README.md)에서 확인합니다.
+
+## 저장소 구조
+
+```text
+app/
+├─ application/     유스케이스와 포트
+├─ adapters/        pgvector·파일·LLM·리랭커 어댑터
+├─ core/            도메인 규칙, release, eligibility
+├─ routers/         FastAPI REST API
+├─ static/          고객·관리자 프론트엔드
+├─ mcp/             MCP 서버
+└─ ml/              음성·얼굴·의도 모델
+config/             승인 release와 모델·추출 설정
+data/               평가셋, 카탈로그, manifest
+docs/handoff/       팀 간 계약과 운영 인수인계
+scripts/            실행, DB, 인덱스, 추출·평가 도구
+tests/              회귀·보안·계약 테스트
+```
+
+## 설계 원칙
+
+1. **근거 없이는 판정하지 않는다.**
+2. **문서 판본과 보험 세대를 자동으로 바꿔치기하지 않는다.**
+3. **미승인 OCR·표 후보는 serving과 citation에서 차단한다.**
+4. **모델·인덱스·release가 다르면 readiness를 실패시킨다.**
+5. **평가 결과와 사람 승인 계보를 재현 가능한 해시로 보존한다.**
+
+모델 후보와 활성 프로필은 [`model_registry.yaml`](model_registry.yaml), 활성 추출 릴리스는 [`config/accepted_extraction.json`](config/accepted_extraction.json)을 기준으로 합니다.
