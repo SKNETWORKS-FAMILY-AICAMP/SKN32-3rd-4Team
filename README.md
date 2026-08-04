@@ -125,38 +125,38 @@ OCR 표 정보 850건만 검색 인덱스에 반영했으며, 미승인 후보�
 
 ## 7. 주요 기능
 
-| 기능 | 설명 | 상태 |
-|---|---|---|
-| 세대별·보험사별 약관 RAG | 가입 상품과 계약일에 해당하는 약관 판본 안에서 관련 조항 검색 | 구현 |
-| 질병명 → 질병코드 매칭 | KCD 코드를 모르는 사용자를 위한 병명·코드 검색 | 구현 |
-| 보장 사전판정 | 질병기호, 상품 세대, 보장·면책 조항을 조합해 판정 상태 제공 | 구현 |
-| 근거·인용 검증 | 검색 조각의 부모 조항을 복원하고 인용 가능성과 문서 신선도 검사 | 구현 |
-| Hybrid Retrieval | Arctic-ko dense 검색과 pg_trgm lexical 검색을 RRF로 결합 | 구현 |
-| Qwen3 리랭킹 | Qwen3-Reranker-4B로 top-k 후보 재정렬 | 구현 |
-| OCR 표 복원 | 자기부담금 등 표 후보를 복구하고 사람 승인된 facts만 검색에 반영 | 구현 |
-| 관리자 대시보드 | 인덱스 상태, 문의·이벤트, 지식갭, 검증 큐, PDF 보고서 | 구현 |
-| 음성·화상 상담 | STT/TTS 상담과 얼굴 로그인 2차 인증 | 구현 |
-| 장해 지급률·지연이자 후보 | B8/F4 후보 8,622 facts를 shadow로 검증 | 사람 승인 대기 |
+| 기능 | 설명 |
+|---|---|
+| 세대별·보험사별 약관 RAG | 가입 상품과 계약일에 해당하는 약관 판본 안에서 관련 조항 검색 |
+| 질병명 → 질병코드 매칭 | KCD 코드를 모르는 사용자를 위한 병명·코드 검색 |
+| 보장 사전판정 | 질병기호, 상품 세대, 보장·면책 조항을 조합해 판정 상태 제공 |
+| 근거·인용 검증 | 검색 조각의 부모 조항을 복원하고 인용 가능성과 문서 신선도 검사 |
+| Hybrid Retrieval | Arctic-ko dense 검색과 pg_trgm lexical 검색을 RRF로 결합 |
+| Qwen3 리랭킹 | Qwen3-Reranker-4B로 top-k 후보 재정렬 |
+| OCR 표 복원 | 자기부담금 등 표 후보를 복구하고 사람 승인된 facts만 검색에 반영 |
+| 관리자 대시보드 | 인덱스 상태, 문의·이벤트, 지식갭, 검증 큐, PDF 보고서 |
+| 음성·화상 상담 | STT/TTS 상담과 얼굴 로그인 2차 인증 |
+| 장해 지급률·지연이자 후보 | B8/F4 후보 8,622 facts를 shadow로 검증 |
 
 <br/>
 
 ## 8. 기술 스택
 
-| 영역 | 기술 | 적용 상태 |
-|---|---|---|
-| 언어 | Python 3.12 | 적용 |
-| 백엔드 | FastAPI, Pydantic, SQLAlchemy | 적용 |
-| RAG 오케스트레이션 | LangChain, LangGraph, 자체 포트·어댑터 계층 | 적용 |
-| 임베딩 | `dragonkue/snowflake-arctic-embed-l-v2.0-ko` | 적용 |
-| 리랭커 | `Qwen/Qwen3-Reranker-4B` | 적용 |
-| 벡터 검색 | PostgreSQL + pgvector HNSW, FAISS | 적용 |
-| 어휘 검색 | PostgreSQL `pg_trgm` | 적용 |
-| 정형 DB | PostgreSQL, SQLite 개발 환경 | 적용 |
-| PDF·OCR 전처리 | PyMuPDF 기반 구조 추출 + 선별 OCR 파이프라인 | 적용 |
-| 프론트엔드 | HTML, CSS, Vanilla JavaScript | 적용 |
-| 인증·보안 | JWT, RBAC, 얼굴 2차 인증, fail-closed gate | 적용 |
-| 테스트·CI | pytest, GitHub Actions | 적용 |
-| LLM | 로컬 OpenAI 호환 모델, OpenAI/Gemini 선택 구성 | 적용 |
+| 영역 | 기술 |
+|---|---|
+| 언어 | Python 3.12 |
+| 백엔드 | FastAPI, Pydantic, SQLAlchemy |
+| RAG 오케스트레이션 | LangChain, LangGraph, 자체 포트·어댑터 계층 |
+| 임베딩 | `dragonkue/snowflake-arctic-embed-l-v2.0-ko` |
+| 리랭커 | `Qwen/Qwen3-Reranker-4B` |
+| 벡터 검색 | PostgreSQL + pgvector HNSW, FAISS |
+| 어휘 검색 | PostgreSQL `pg_trgm` |
+| 정형 DB | PostgreSQL, SQLite 개발 환경 |
+| PDF·OCR 전처리 | PyMuPDF 기반 구조 추출 + 선별 OCR 파이프라인 |
+| 프론트엔드 | HTML, CSS, Vanilla JavaScript |
+| 인증·보안 | JWT, RBAC, 얼굴 2차 인증, fail-closed gate |
+| 테스트·CI | pytest, GitHub Actions |
+| LLM | 로컬 OpenAI 호환 모델, OpenAI/Gemini 선택 구성 |
 
 <br/>
 
