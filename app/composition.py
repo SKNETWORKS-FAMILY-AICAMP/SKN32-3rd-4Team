@@ -149,9 +149,12 @@ def build_precheck():
     #:   ★산출물이 반쪽이면 판정이 **"그 약관엔 그런 조항이 없다"** 고 답한다.
     #:     그건 근거 없음이 아니라 **틀린 답**이다.
     rel = release.current()
-    rel.ensure_ready()
-
     kind = _clause_store_kind()
+
+    #: PG 배포는 본문을 인덱스에 보관하므로 로컬 문서별 JSON이 없다.
+    #: 파일 저장소일 때만 산출물 존재·개수 검사를 수행한다.
+    if kind == "file":
+        rel.ensure_ready()
 
     if kind == "pg":
         from app.adapters import pg_clause_store
