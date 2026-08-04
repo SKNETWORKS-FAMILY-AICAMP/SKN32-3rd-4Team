@@ -8,6 +8,21 @@ from app.adapters import file_glossary_source as source
 from app.core.errors import InfraError
 
 
+@pytest.fixture(autouse=True)
+def _restore_glossary_cache():
+    """★모듈 전역 캐시를 **끝나고도** 비운다.
+
+    `monkeypatch` 는 `_PASSAGES`·`_META`·환경변수를 되돌려 주지만
+    `source._cache` 는 모듈 전역이라 되돌리지 않는다.
+    시작 전에만 비웠더니 tmp 픽스처의 가짜 1행이 캐시에 남아,
+    뒤에 도는 `tests/test_terms_api.py::test_실제_색인이_있으면_동작한다` 가
+    실제 색인(구절 2,739개)을 못 보고 `found=False` 로 깨졌다(2026-08-04 실측).
+    단독 실행은 통과하고 전량 실행만 깨져서 원인이 늦게 잡힌다.
+    """
+    yield
+    source._reset_for_tests()
+
+
 def _jsonl(path, rows):
     path.write_text("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows), encoding="utf-8")
 

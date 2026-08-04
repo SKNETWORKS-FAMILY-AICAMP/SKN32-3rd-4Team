@@ -18,7 +18,7 @@ def get_chat_client(settings: Settings | None = None) -> OpenAI:
 
     - local: llama-cpp-python OpenAI 호환 서버로 접속 (외부 토큰 0)
     - openai: 키 없으면 ConfigError (데모/폴백 없음)
-    - gemini: Phase 3.5(LangChain)에서 지원 → 현재는 ConfigError
+    - gemini: OpenAI 호환 클라이언트가 아니므로 `get_langchain_chat`을 사용
     """
     settings = settings or get_settings()
     provider = settings.LLM_PROVIDER
@@ -28,15 +28,24 @@ def get_chat_client(settings: Settings | None = None) -> OpenAI:
             raise ConfigError("LOCAL_BASE_URL이 비어 있습니다. 로컬 Gemma 서버 주소를 설정하세요.")
         if not (settings.LOCAL_MODEL and settings.LOCAL_MODEL.strip()):
             raise ConfigError("LOCAL_MODEL이 비어 있습니다.")
-        return OpenAI(base_url=settings.LOCAL_BASE_URL, api_key=settings.LOCAL_API_KEY)
+        return OpenAI(
+            base_url=settings.LOCAL_BASE_URL,
+            api_key=settings.LOCAL_API_KEY,
+            timeout=settings.LLM_REQUEST_TIMEOUT_SECONDS,
+            max_retries=0,
+        )
 
     if provider == "openai":
         if not settings.has_openai_key():
             raise ConfigError("OPENAI_API_KEY가 설정되지 않았습니다. .env에 키를 넣으세요.")
-        return OpenAI(api_key=settings.OPENAI_API_KEY)
+        return OpenAI(
+            api_key=settings.OPENAI_API_KEY,
+            timeout=settings.LLM_REQUEST_TIMEOUT_SECONDS,
+            max_retries=0,
+        )
 
     if provider == "gemini":
-        raise ConfigError("gemini 프로바이더는 Phase 3.5(LangChain)에서 지원 예정입니다.")
+        raise ConfigError("Gemini는 OpenAI 호환 클라이언트가 아닙니다. get_langchain_chat()을 사용하세요.")
 
     raise ConfigError(f"알 수 없는 LLM_PROVIDER: {provider}")
 
@@ -82,9 +91,31 @@ def get_langchain_chat(settings: Settings | None = None):
             model=_require(settings.GEMINI_MODEL, "GEMINI_MODEL"),
             api_key=settings.GOOGLE_API_KEY,
             temperature=0,
+            request_timeout=settings.LLM_REQUEST_TIMEOUT_SECONDS,
+            retries=0,
         )
 
     raise ConfigError(f"알 수 없는 LLM_PROVIDER: {provider}")
+
+
+def get_gemini_client(settings: Settings | None = None):
+    """공식 google-genai 동기 클라이언트.
+
+    MCP stdio 자식 프로세스에서 LangChain 채팅 클라이언트의 백그라운드 런타임이
+    종료를 붙드는 문제가 있어 단순 생성 경로는 공식 동기 SDK를 사용한다.
+    """
+    settings = settings or get_settings()
+    if not settings.has_google_key():
+        raise ConfigError("GOOGLE_API_KEY가 설정되지 않았습니다.")
+    from google import genai
+    from google.genai import types
+
+    return genai.Client(
+        api_key=settings.GOOGLE_API_KEY,
+        http_options=types.HttpOptions(
+            timeout=int(settings.LLM_REQUEST_TIMEOUT_SECONDS * 1000)
+        ),
+    )
 
 
 def get_active_model(settings: Settings | None = None) -> str:

@@ -111,6 +111,39 @@ def test_API_가_걸러도_분모를_잃지_않는다():
         app.dependency_overrides.clear()
 
 
+def test_고객_입력도우미가_약관범위를_단일_상병코드로_제공하지_않는다():
+    """C30~C39는 약관의 분류 범위이지 환자 진단서의 단일 코드가 아니다."""
+    if not _CATALOG.exists():
+        pytest.skip("카탈로그 미생성")
+    from fastapi.testclient import TestClient
+
+    from app.main import create_app
+
+    c = TestClient(create_app("customer"))
+    ranged = c.get("/v1/catalog/codes?q=C30~C39").json()
+    item = next(x for x in ranged["items"] if x["code"] == "C30~C39")
+    assert item["input_allowed"] is False
+
+    exact = c.get("/v1/catalog/codes?q=N39.3").json()
+    item = next(x for x in exact["items"] if x["code"] == "N39.3")
+    assert item["input_allowed"] is True
+
+
+def test_약관범위를_직접_제출해도_판정하지_않고_422로_설명한다():
+    """오래 캐시된 클라이언트나 외부 API 호출도 범위를 판정으로 흘리지 않는다."""
+    from fastapi.testclient import TestClient
+
+    from app.main import create_app
+
+    r = TestClient(create_app("customer")).post(
+        "/v1/prechecks",
+        json={"insurer": "테스트", "enrolled_on": "20260804", "kcd_codes": ["C30~C39"]},
+    )
+    assert r.status_code == 422
+    assert "약관의 코드 범위" in r.json()["detail"]
+    assert "C34.1" in r.json()["detail"]
+
+
 def test_목록이_없으면_없다고_말한다():
     """★빈 목록으로 때우면 「등장하는 코드가 없다」로 읽힌다 — 전혀 다른 뜻이다.
 

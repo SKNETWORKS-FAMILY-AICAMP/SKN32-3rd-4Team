@@ -1,0 +1,21 @@
+# source: https://www.myangel.co.kr/robots.txt
+# fetched_at: 2026-07-31T01:07:08+00:00
+# http: HTTP 200
+# sha256: 57b860a30c5973fad5fb5949e9abbb203a564ec7f22d3c2f60b31eb330371305
+# ---- 이하 원문(수정 없음) ----
+# robots.txt
+User-agent: *
+
+Disallow: /MyTyli/
+Disallow: /indvins/
+Disallow: /inscntr/
+Disallow: /mytyli/
+Disallow: /insrtanty/
+Disallow: /authsc/
+Disallow: /lonpcnd/
+
+# NOTE:
+# The 'noindex' directive in robots.txt is no longer supported by Google.
+# To prevent pages from appearing in search results, return:
+#   <meta name="robots" content="noindex,nofollow">
+# or an X-Robots-Tag: noindex HTTP header on those pages.

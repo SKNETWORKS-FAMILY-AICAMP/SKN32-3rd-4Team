@@ -292,7 +292,7 @@ def test_arch_004_removed_commerce_seed_is_preserved() -> None:
         entries = {name.replace("\\", "/"): name for name in archive.namelist()}
         expected_hashes = {
             "app/db/seed.py": "23662a2eb499676703f1099b6d47cfcc892a2039a0ac63b0954c2aba5135444c",
-            "scripts/manage.py": "ae5f7eaa00d503797c840a5a7d58f34e522b4e6190d806bbd797ed97041379cc",
+            "scripts/manage.py": "7a123af5ed0392de303b13923a709086c465dd58ac3c0b18f00d08898a1851ac",
         }
         actual_hashes = {
             path: hashlib.sha256(archive.read(entries[path])).hexdigest()

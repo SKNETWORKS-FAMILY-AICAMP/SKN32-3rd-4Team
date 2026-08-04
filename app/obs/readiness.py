@@ -39,6 +39,13 @@ def check_readiness() -> dict[str, object]:
     }
     clause = _clause_index_state()
     out["clause_index"] = clause
+    from app.core.candidate_fact_registry import check_candidate_fact_sources
+
+    candidates = check_candidate_fact_sources()
+    out["candidate_fact_sources"] = candidates
+    if not candidates.get("ready"):
+        out["ready"] = False
+        out["hint"] = "candidate fact 산출물 무결성 검증에 실패했습니다."
     #: ★**지금 쓰는 저장소가 요구하는 것만** 준비 조건에 넣는다.
     #:
     #:   `CLAUSE_STORE=file` 이면 인덱스 A 가 비어도 판정은 돈다 —
@@ -51,6 +58,21 @@ def check_readiness() -> dict[str, object]:
     if _clause_store_kind() == "pg" and not clause.get("ready"):
         out["ready"] = False
         out["hint"] = clause.get("hint") or "인덱스 A 가 준비되지 않았습니다."
+    from app.adapters.demo_submission_store import backend_name as demo_backend
+
+    if demo_backend() == "postgres":
+        from app.adapters.pg_demo_submission_store import readiness as demo_readiness
+
+        demo = demo_readiness()
+    else:
+        demo = {"backend": "file", "ready": True}
+    out["demo_store"] = demo
+    if not demo.get("ready"):
+        out["ready"] = False
+        out["hint"] = (
+            "합성 PostgreSQL 저장소가 준비되지 않았습니다. "
+            "insurance_demo DB에 demo migration을 적용하세요."
+        )
     return out
 
 

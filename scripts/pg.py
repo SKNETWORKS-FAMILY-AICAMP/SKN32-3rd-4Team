@@ -8,6 +8,8 @@ Windows에서 큰 PATH로 띄우면 쿼리 백엔드가 0xC0000142(DLL init 실�
     python -m scripts.pg stop
     python -m scripts.pg status
     python -m scripts.pg init      # DB + 확장만 (보험 인덱스용 부트스트랩)
+    python -m scripts.pg init-demo # 별도 insurance_demo DB + 합성 스키마
+    python -m scripts.pg init-agent # 별도 insurance_agent DB + 외부 에이전트 보안 스키마
     python -m scripts.pg setup     # DB/확장/스키마 생성 + corpus 적재(커머스 실습 문서)
 """
 
@@ -24,6 +26,8 @@ _ENV = Path(os.environ.get("PGV_ENV", r"C:/Users/playdata2/anaconda3/envs/pgv"))
 _BIN = _ENV / "Library" / "bin"
 _PORT = "5433"
 _DBNAME = "mall_vec"
+_DEMO_DBNAME = "insurance_demo"
+_AGENT_DBNAME = "insurance_agent"
 
 
 def _clean_env() -> dict:
@@ -74,7 +78,7 @@ def cmd_status() -> None:
         sys.exit(1)
 
 
-def _ensure_database() -> None:
+def _ensure_database(dbname: str = _DBNAME) -> None:
     """`mall_vec` 데이터베이스를 만든다(멱등).
 
     ★없었다 — `start` 는 클러스터만 만들고 `setup` 은 `mall_vec` 에 바로 붙었다.
@@ -86,14 +90,14 @@ def _ensure_database() -> None:
 
     admin = f"host=127.0.0.1 port={_PORT} user=postgres dbname=postgres"
     with psycopg.connect(admin, connect_timeout=5, autocommit=True) as conn:
-        got = conn.execute(
-            "SELECT 1 FROM pg_database WHERE datname = %s", (_DBNAME,)
-        ).fetchone()
-        if got:
-            print(f"[setup] 데이터베이스 {_DBNAME} 이미 있음")
+        try:
+            #: CREATE DATABASE에는 IF NOT EXISTS가 없다. 바로 시도하고 동시 생성도
+            #: DuplicateDatabase로 같은 멱등 성공으로 취급한다.
+            conn.execute(f'CREATE DATABASE "{dbname}"')
+        except psycopg.errors.DuplicateDatabase:
+            print(f"[setup] 데이터베이스 {dbname} 이미 있음")
             return
-        conn.execute(f'CREATE DATABASE "{_DBNAME}"')
-        print(f"[setup] 데이터베이스 {_DBNAME} 생성")
+        print(f"[setup] 데이터베이스 {dbname} 생성")
 
 
 def _ensure_extensions() -> None:
@@ -124,6 +128,32 @@ def cmd_init() -> None:
     print("[init] 완료. 인덱스 A 적재: python -m scripts.index.build_clause_index")
 
 
+def cmd_init_demo() -> None:
+    """별도 합성 DB 생성 + demo 마이그레이션 적용."""
+    _ensure_database(_DEMO_DBNAME)
+    dsn = f"postgresql://postgres@127.0.0.1:{_PORT}/{_DEMO_DBNAME}"
+    r = subprocess.run(
+        [sys.executable, "-m", "scripts.db.apply", "--dsn", dsn, "--track", "demo"],
+        cwd=_PROJECT,
+    )
+    if r.returncode:
+        raise SystemExit(r.returncode)
+    print("[init-demo] 합성 PostgreSQL 준비 완료")
+
+
+def cmd_init_agent() -> None:
+    """별도 등록 에이전트 DB 생성 + 인증·감사 마이그레이션 적용."""
+    _ensure_database(_AGENT_DBNAME)
+    dsn = f"postgresql://postgres@127.0.0.1:{_PORT}/{_AGENT_DBNAME}"
+    r = subprocess.run(
+        [sys.executable, "-m", "scripts.db.apply", "--dsn", dsn, "--track", "agent"],
+        cwd=_PROJECT,
+    )
+    if r.returncode:
+        raise SystemExit(r.returncode)
+    print("[init-agent] 외부 에이전트 PostgreSQL 준비 완료")
+
+
 def cmd_setup() -> None:
     from app.adapters.pgvector_index import ensure_schema, get_conn, ingest_corpus
 
@@ -140,13 +170,18 @@ def main(argv: list[str] | None = None) -> None:
     import argparse
 
     p = argparse.ArgumentParser(description="userspace pgvector 관리")
-    p.add_argument("command", choices=["start", "stop", "status", "init", "setup"])
+    p.add_argument(
+        "command",
+        choices=["start", "stop", "status", "init", "init-demo", "init-agent", "setup"],
+    )
     args = p.parse_args(argv)
     {
         "start": cmd_start,
         "stop": cmd_stop,
         "status": cmd_status,
         "init": cmd_init,
+        "init-demo": cmd_init_demo,
+        "init-agent": cmd_init_agent,
         "setup": cmd_setup,
     }[args.command]()
 

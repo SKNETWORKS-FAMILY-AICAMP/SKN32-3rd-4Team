@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query, status
 
+from app.core.domain import kcd_ranges as kcd
 from app.core.domain.precheck_result import PrecheckInput, PrecheckOutcome
 from app.core.errors import InfraError, ValidationErr
 from app.core.usecases import precheck
@@ -169,10 +170,24 @@ def _confirmation_coverage() -> str:
 
 
 def _to_input(body: PrecheckRequest) -> PrecheckInput:
+    normalized_codes: list[str] = []
+    for raw in body.kcd_codes:
+        code = (raw or "").strip().upper()
+        if kcd.CodeRef.parse(code) is None:
+            if any(sep in code for sep in ("~", "∼", "～", "-")):
+                raise ValidationErr(
+                    f"{code}는 개별 질병기호가 아니라 약관의 코드 범위입니다. "
+                    "진료비 세부내역서나 진단서에 적힌 단일 코드(예: C34.1)를 입력하세요."
+                )
+            raise ValidationErr(
+                f"{code or '(빈 값)'}의 형식이 올바르지 않습니다. "
+                "단일 질병기호(예: F32, S72.0)를 입력하세요."
+            )
+        normalized_codes.append(code)
     return PrecheckInput(
         insurer=body.insurer,
         enrolled_on=body.enrolled_on,
-        kcd_codes=tuple(body.kcd_codes),
+        kcd_codes=tuple(normalized_codes),
         product_name=body.product_name,
         client_ref=body.client_ref,
     )
@@ -237,6 +252,20 @@ def _to_dto(o: PrecheckOutcome) -> PrecheckResult:
 
 @router.post("/prechecks", response_model=PrecheckResult)
 def create_precheck(body: PrecheckRequest) -> PrecheckResult:
+    return _create_precheck(body, record_knowledge_gap=True)
+
+
+def create_precheck_for_registered_agent(body: PrecheckRequest) -> PrecheckResult:
+    """보호 기계 채널용. KCD 원문을 knowledge-gap 로그에 복제하지 않는다."""
+
+    return _create_precheck(body, record_knowledge_gap=False)
+
+
+def _create_precheck(
+    body: PrecheckRequest,
+    *,
+    record_knowledge_gap: bool,
+) -> PrecheckResult:
     """가입일·질병기호로 보장 여부를 미리 본다.
 
     ★근거 조항을 못 대면 `verdict="needs_expert"` 로 답한다(HTTP 200).
@@ -258,7 +287,7 @@ def create_precheck(body: PrecheckRequest) -> PrecheckResult:
         #:   ★`documents_not_confirmed` 는 **넣지 않는다.** 그건 지식이 없는 게 아니라
         #:     확정 작업이 밀린 것이고, 넣으면 같은 문장으로 큐가 넘쳐
         #:     진짜 보강 대상이 묻힌다. 그 현황은 `support-manifest` 가 이미 말한다.
-        if dto.abstained and dto.reason_code == "no_evidence":
+        if record_knowledge_gap and dto.abstained and dto.reason_code == "no_evidence":
             from app.obs.knowledge_gaps import record_gap_safe
 
             record_gap_safe(
@@ -309,7 +338,7 @@ def create_precheck(body: PrecheckRequest) -> PrecheckResult:
         agent_stream.publish(
             "agent.precheck",
             client_ref=body.client_ref or "-",
-            detail={"insurer": body.insurer, "codes": list(body.kcd_codes)[:3],
+            detail={"insurer": body.insurer, "code_count": len(body.kcd_codes),
                     "verdict": dto.verdict, "abstained": dto.abstained,
                     "trace_id": dto.trace_id},
         )
@@ -451,7 +480,7 @@ def submit_observation(body: ExternalCaseSubmission) -> dict:
         "agent.observe",
         client_ref=body.client_ref,
         track="verified_real",
-        detail={"outcome": body.outcome, "codes": list(body.kcd_codes)[:3],
+        detail={"outcome": body.outcome, "code_count": len(body.kcd_codes),
                 "duplicate": res.duplicate},
     )
     return {
@@ -598,7 +627,13 @@ def catalog_codes(
     merged: dict[str, dict] = {}
     for x in data.get("items") or []:
         cur = merged.setdefault(x["range"], {
-            "code": x["range"], "chapter": x.get("chapter", ""), "policies": 0,
+            "code": x["range"],
+            "chapter": x.get("chapter", ""),
+            "policies": 0,
+            # 약관에는 C30~C39 같은 범위도 등장하지만, 개인의 진단서에 적힌
+            # 상병코드는 C34.1 같은 단일 코드다. 범위를 입력 도우미가 그대로
+            # 판정 입력에 넣으면 정상적인 단일 코드 검증에서 실패한다.
+            "input_allowed": kcd.CodeRef.parse(x["range"]) is not None,
         })
         cur["policies"] = max(cur["policies"], x.get("documents", 0))
     items = list(merged.values())

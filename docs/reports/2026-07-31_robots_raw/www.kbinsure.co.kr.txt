@@ -1,0 +1,7 @@
+# source: https://www.kbinsure.co.kr/robots.txt
+# fetched_at: 2026-07-31T01:06:25+00:00
+# http: HTTP 200
+# sha256: cb426cdb35b78f7c7cee1ae88d78b57c861b9595a82b1fd8d98eefdc04f615dc
+# ---- 이하 원문(수정 없음) ----
+﻿User-agent: Yeti
+Allow:/

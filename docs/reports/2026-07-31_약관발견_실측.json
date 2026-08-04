@@ -1,0 +1,163 @@
+{
+  "checked_at": "2026-07-31T05:10:00+00:00",
+  "user_agent": "BarobomResearchBot/0.1 (+contact: set-before-deploy; purpose: insurance-terms-research)",
+  "max_pages_per_host": 6,
+  "results": [
+    {
+      "insurer": "삼성화재",
+      "host": "www.samsungfire.com",
+      "robots": "HTTP 200 → allow",
+      "pages_fetched": 3,
+      "total_links": 62,
+      "pdf_links": 0,
+      "hinted_links": 4,
+      "sample_pdfs": [],
+      "verdict": "얕은 탐색으로는 미발견",
+      "note": "약관은 검색 폼·POST 뒤에 있을 가능성이 크다."
+    },
+    {
+      "insurer": "메리츠화재",
+      "host": "www.meritzfire.com",
+      "robots": "HTTP 200 → allow",
+      "pages_fetched": 1,
+      "total_links": 0,
+      "pdf_links": 0,
+      "hinted_links": 0,
+      "sample_pdfs": [],
+      "verdict": "정적 크롤링 불가 추정",
+      "note": "첫 페이지에 링크가 거의 없다(JS 렌더링 가능성)."
+    },
+    {
+      "insurer": "DB손해보험",
+      "host": "www.idbins.com",
+      "robots": "HTTP 200 → allow",
+      "pages_fetched": 1,
+      "total_links": 3,
+      "pdf_links": 0,
+      "hinted_links": 0,
+      "sample_pdfs": [],
+      "verdict": "정적 크롤링 불가 추정",
+      "note": "첫 페이지에 링크가 거의 없다(JS 렌더링 가능성)."
+    },
+    {
+      "insurer": "현대해상",
+      "host": "www.hi.co.kr",
+      "robots": "HTTP 200 → allow",
+      "pages_fetched": 1,
+      "total_links": 2,
+      "pdf_links": 0,
+      "hinted_links": 0,
+      "sample_pdfs": [],
+      "verdict": "정적 크롤링 불가 추정",
+      "note": "첫 페이지에 링크가 거의 없다(JS 렌더링 가능성)."
+    },
+    {
+      "insurer": "KB손해보험",
+      "host": "www.kbinsure.co.kr",
+      "robots": "HTTP 200 → allow",
+      "pages_fetched": 1,
+      "total_links": 1,
+      "pdf_links": 0,
+      "hinted_links": 0,
+      "sample_pdfs": [],
+      "verdict": "정적 크롤링 불가 추정",
+      "note": "첫 페이지에 링크가 거의 없다(JS 렌더링 가능성)."
+    },
+    {
+      "insurer": "한화손해보험",
+      "host": "www.hwgeneralins.com",
+      "robots": "HTTP 200 → allow",
+      "pages_fetched": 1,
+      "total_links": 4,
+      "pdf_links": 0,
+      "hinted_links": 0,
+      "sample_pdfs": [],
+      "verdict": "정적 크롤링 불가 추정",
+      "note": "첫 페이지에 링크가 거의 없다(JS 렌더링 가능성)."
+    },
+    {
+      "insurer": "흥국화재",
+      "host": "www.heungkukfire.co.kr",
+      "robots": "HTTP 200 → allow",
+      "pages_fetched": 1,
+      "total_links": 6,
+      "pdf_links": 0,
+      "hinted_links": 0,
+      "sample_pdfs": [],
+      "verdict": "정적 크롤링 불가 추정",
+      "note": "첫 페이지에 링크가 거의 없다(JS 렌더링 가능성)."
+    },
+    {
+      "insurer": "롯데손해보험",
+      "host": "www.lotteins.co.kr",
+      "robots": "HTTP 200 → allow",
+      "pages_fetched": 1,
+      "total_links": 0,
+      "pdf_links": 0,
+      "hinted_links": 0,
+      "sample_pdfs": [],
+      "verdict": "정적 크롤링 불가 추정",
+      "note": "첫 페이지에 링크가 거의 없다(JS 렌더링 가능성)."
+    },
+    {
+      "insurer": "NH농협손해보험",
+      "host": "www.nhfire.co.kr",
+      "robots": "HTTP 200 → allow",
+      "pages_fetched": 1,
+      "total_links": 0,
+      "pdf_links": 0,
+      "hinted_links": 0,
+      "sample_pdfs": [],
+      "verdict": "정적 크롤링 불가 추정",
+      "note": "첫 페이지에 링크가 거의 없다(JS 렌더링 가능성)."
+    },
+    {
+      "insurer": "삼성생명",
+      "host": "www.samsunglife.com",
+      "robots": "HTTP 200 → allow",
+      "pages_fetched": 1,
+      "total_links": 0,
+      "pdf_links": 0,
+      "hinted_links": 0,
+      "sample_pdfs": [],
+      "verdict": "정적 크롤링 불가 추정",
+      "note": "첫 페이지에 링크가 거의 없다(JS 렌더링 가능성)."
+    },
+    {
+      "insurer": "흥국생명",
+      "host": "www.heungkuklife.co.kr",
+      "robots": "HTTP 200 → allow",
+      "pages_fetched": 1,
+      "total_links": 6,
+      "pdf_links": 0,
+      "hinted_links": 0,
+      "sample_pdfs": [],
+      "verdict": "정적 크롤링 불가 추정",
+      "note": "첫 페이지에 링크가 거의 없다(JS 렌더링 가능성)."
+    },
+    {
+      "insurer": "동양생명",
+      "host": "www.myangel.co.kr",
+      "robots": "HTTP 200 → allow",
+      "pages_fetched": 1,
+      "total_links": 10,
+      "pdf_links": 0,
+      "hinted_links": 0,
+      "sample_pdfs": [],
+      "verdict": "정적 크롤링 불가 추정",
+      "note": "첫 페이지에 링크가 거의 없다(JS 렌더링 가능성)."
+    },
+    {
+      "insurer": "NH농협생명",
+      "host": "www.nhlife.co.kr",
+      "robots": "HTTP 200 → allow",
+      "pages_fetched": 1,
+      "total_links": 2,
+      "pdf_links": 0,
+      "hinted_links": 0,
+      "sample_pdfs": [],
+      "verdict": "정적 크롤링 불가 추정",
+      "note": "첫 페이지에 링크가 거의 없다(JS 렌더링 가능성)."
+    }
+  ]
+}

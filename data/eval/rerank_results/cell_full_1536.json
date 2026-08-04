@@ -1,0 +1,3951 @@
+{
+ "schema_version": "rerank-attachpoints-v1",
+ "candidates": "s7_1_arctic_ko_top20_rerank_fulltext.json",
+ "candidate_queries": 417,
+ "retriever_model": "dragonkue/snowflake-arctic-embed-l-v2.0-ko",
+ "query_prefix": "query: ",
+ "reranker_model": "Qwen/Qwen3-Reranker-4B",
+ "warmup_seconds": 36.7,
+ "settings": {
+  "device": "cuda",
+  "dtype": "float16",
+  "max_length": 1536,
+  "batch_size": 1
+ },
+ "results": [
+  {
+   "attach_point": "clause",
+   "score_field": "full_text",
+   "n_queries": 417,
+   "slices": {
+    "exclusion": {
+     "n": 228,
+     "dense": {
+      "n": 228,
+      "hit@1": 0.530702,
+      "hit@5": 0.842105,
+      "hit@10": 0.903509,
+      "hit@20": 0.934211,
+      "mrr@10": 0.667902,
+      "mrr": 0.670072
+     },
+     "reranked": {
+      "n": 228,
+      "hit@1": 0.679825,
+      "hit@5": 0.916667,
+      "hit@10": 0.929825,
+      "hit@20": 0.934211,
+      "mrr@10": 0.781177,
+      "mrr": 0.781542
+     }
+    },
+    "non_exclusion": {
+     "n": 189,
+     "dense": {
+      "n": 189,
+      "hit@1": 0.428571,
+      "hit@5": 0.518519,
+      "hit@10": 0.534392,
+      "hit@20": 0.534392,
+      "mrr@10": 0.469062,
+      "mrr": 0.469062
+     },
+     "reranked": {
+      "n": 189,
+      "hit@1": 0.47619,
+      "hit@5": 0.534392,
+      "hit@10": 0.534392,
+      "hit@20": 0.534392,
+      "mrr@10": 0.503086,
+      "mrr": 0.503086
+     }
+    },
+    "retrievable": {
+     "n": 314,
+     "dense": {
+      "n": 314,
+      "hit@1": 0.643312,
+      "hit@5": 0.923567,
+      "hit@10": 0.977707,
+      "hit@20": 1.0,
+      "mrr@10": 0.767307,
+      "mrr": 0.768883
+     },
+     "reranked": {
+      "n": 314,
+      "hit@1": 0.780255,
+      "hit@5": 0.987261,
+      "hit@10": 0.996815,
+      "hit@20": 1.0,
+      "mrr@10": 0.870037,
+      "mrr": 0.870303
+     }
+    },
+    "task:exclusion_alt": {
+     "n": 106,
+     "dense": {
+      "n": 106,
+      "hit@1": 0.160377,
+      "hit@5": 0.735849,
+      "hit@10": 0.867925,
+      "hit@20": 0.924528,
+      "mrr@10": 0.411149,
+      "mrr": 0.415029
+     },
+     "reranked": {
+      "n": 106,
+      "hit@1": 0.471698,
+      "hit@5": 0.886792,
+      "hit@10": 0.915094,
+      "hit@20": 0.924528,
+      "mrr@10": 0.642531,
+      "mrr": 0.643318
+     }
+    },
+    "task:exclusion_own": {
+     "n": 106,
+     "dense": {
+      "n": 106,
+      "hit@1": 0.886792,
+      "hit@5": 0.962264,
+      "hit@10": 0.962264,
+      "hit@20": 0.962264,
+      "mrr@10": 0.924528,
+      "mrr": 0.924528
+     },
+     "reranked": {
+      "n": 106,
+      "hit@1": 0.90566,
+      "hit@5": 0.962264,
+      "hit@10": 0.962264,
+      "hit@20": 0.962264,
+      "mrr@10": 0.933962,
+      "mrr": 0.933962
+     }
+    },
+    "task:tail": {
+     "n": 60,
+     "dense": {
+      "n": 60,
+      "hit@1": 0.483333,
+      "hit@5": 0.616667,
+      "hit@10": 0.616667,
+      "hit@20": 0.633333,
+      "mrr@10": 0.532222,
+      "mrr": 0.533611
+     },
+     "reranked": {
+      "n": 60,
+      "hit@1": 0.516667,
+      "hit@5": 0.633333,
+      "hit@10": 0.633333,
+      "hit@20": 0.633333,
+      "mrr@10": 0.570833,
+      "mrr": 0.570833
+     }
+    },
+    "task:title": {
+     "n": 145,
+     "dense": {
+      "n": 145,
+      "hit@1": 0.427586,
+      "hit@5": 0.503448,
+      "hit@10": 0.524138,
+      "hit@20": 0.524138,
+      "mrr@10": 0.464962,
+      "mrr": 0.464962
+     },
+     "reranked": {
+      "n": 145,
+      "hit@1": 0.468966,
+      "hit@5": 0.524138,
+      "hit@10": 0.524138,
+      "hit@20": 0.524138,
+      "mrr@10": 0.495402,
+      "mrr": 0.495402
+     }
+    }
+   },
+   "per_query": [
+    {
+     "query_id": "title-0000",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0001",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0002",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 8,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0003",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0004",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0005",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0006",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0007",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0008",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0009",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0010",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0011",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0012",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0013",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0014",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0015",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0016",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0017",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0018",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 4,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "title-0019",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0020",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0021",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0022",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0023",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0024",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0025",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "title-0026",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0027",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0028",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0029",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0030",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0031",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0032",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0033",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0034",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0035",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0036",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0037",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0038",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0039",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0040",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0041",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0042",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0043",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0044",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0045",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "title-0046",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0047",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0048",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0049",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0050",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0051",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "title-0052",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0053",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "title-0054",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0055",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0056",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0057",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0058",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0059",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0060",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0061",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0062",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0063",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0064",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0065",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0066",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0067",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0068",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0069",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0070",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0071",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0072",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0073",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0074",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0075",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0076",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0077",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0078",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0079",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0080",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0081",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0082",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0083",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0084",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0085",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0086",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0087",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0088",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0089",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0090",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 10,
+     "reranked_rank": 3
+    },
+    {
+     "query_id": "title-0091",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0092",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0093",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0094",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0095",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 3,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0096",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0097",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0098",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0099",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0100",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0101",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0102",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0103",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0104",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0105",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0106",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0107",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0108",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0109",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0110",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0111",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0112",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0113",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "title-0114",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0115",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0116",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0117",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0118",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0119",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0120",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0121",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0122",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 9,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0123",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0124",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0125",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0126",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0127",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0128",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0129",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0130",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0131",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0132",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0133",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0134",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0135",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0136",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0137",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0138",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0139",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0140",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0141",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "title-0142",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "title-0143",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "title-0144",
+     "task": "title",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "tail-0000",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "tail-0001",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 5,
+     "reranked_rank": 4
+    },
+    {
+     "query_id": "tail-0002",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "tail-0003",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "tail-0004",
+     "task": "tail",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "tail-0005",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "tail-0006",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "tail-0007",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "tail-0008",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "tail-0009",
+     "task": "tail",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "tail-0010",
+     "task": "tail",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "tail-0011",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "tail-0012",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "tail-0013",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "tail-0014",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "tail-0015",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "tail-0016",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "tail-0017",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "tail-0018",
+     "task": "tail",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "tail-0019",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "tail-0020",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "tail-0021",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "tail-0022",
+     "task": "tail",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "tail-0023",
+     "task": "tail",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "tail-0024",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "tail-0025",
+     "task": "tail",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "tail-0026",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "tail-0027",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "tail-0028",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "tail-0029",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "tail-0030",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "tail-0031",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "tail-0032",
+     "task": "tail",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 12,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "tail-0033",
+     "task": "tail",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "tail-0034",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "tail-0035",
+     "task": "tail",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 5,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "tail-0036",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "tail-0037",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 5,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "tail-0038",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "tail-0039",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "tail-0040",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "tail-0041",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "tail-0042",
+     "task": "tail",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "tail-0043",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "tail-0044",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "tail-0045",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "tail-0046",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "tail-0047",
+     "task": "tail",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "tail-0048",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 3,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "tail-0049",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "tail-0050",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "tail-0051",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "tail-0052",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "tail-0053",
+     "task": "tail",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "tail-0054",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "tail-0055",
+     "task": "tail",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "tail-0056",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "tail-0057",
+     "task": "tail",
+     "is_exclusion": false,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "tail-0058",
+     "task": "tail",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "tail-0059",
+     "task": "tail",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0000",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0001",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0002",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0003",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 4,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "exclusion_own-0004",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0005",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 3,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "exclusion_own-0006",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0007",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0008",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0009",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 8,
+     "reranked_rank": 3
+    },
+    {
+     "query_id": "exclusion_own-0010",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0011",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 17,
+     "reranked_rank": 6
+    },
+    {
+     "query_id": "exclusion_own-0012",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "exclusion_alt-0013",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "exclusion_own-0014",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0015",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0016",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0017",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 4
+    },
+    {
+     "query_id": "exclusion_own-0018",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0019",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 8,
+     "reranked_rank": 4
+    },
+    {
+     "query_id": "exclusion_own-0020",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0021",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "exclusion_own-0022",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0023",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0024",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "exclusion_alt-0025",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0026",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "exclusion_alt-0027",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0028",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0029",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 3,
+     "reranked_rank": 3
+    },
+    {
+     "query_id": "exclusion_own-0030",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0031",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 5,
+     "reranked_rank": 3
+    },
+    {
+     "query_id": "exclusion_own-0032",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0033",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0034",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0035",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 6,
+     "reranked_rank": 3
+    },
+    {
+     "query_id": "exclusion_own-0036",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0037",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 3,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "exclusion_own-0038",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0039",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0040",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0041",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 3,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "exclusion_own-0042",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0043",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0044",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0045",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 3,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "exclusion_own-0046",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0047",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0048",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0049",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 9,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "exclusion_own-0050",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0051",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 4,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "exclusion_own-0052",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0053",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 10,
+     "reranked_rank": 8
+    },
+    {
+     "query_id": "exclusion_own-0054",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0055",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0056",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0057",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 3,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "exclusion_own-0058",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0059",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0060",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0061",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0062",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0063",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "exclusion_own-0064",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0065",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0066",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0067",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 3,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "exclusion_own-0068",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0069",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0070",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0071",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 5,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "exclusion_own-0072",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0073",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 9,
+     "reranked_rank": 5
+    },
+    {
+     "query_id": "exclusion_own-0074",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0075",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0076",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0077",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0078",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0079",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "exclusion_own-0080",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0081",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0082",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "exclusion_alt-0083",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "exclusion_own-0084",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0085",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "exclusion_own-0086",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "exclusion_alt-0087",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0088",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0089",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 4,
+     "reranked_rank": 3
+    },
+    {
+     "query_id": "exclusion_own-0090",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0091",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0092",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0093",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0094",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0095",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 3,
+     "reranked_rank": 3
+    },
+    {
+     "query_id": "exclusion_own-0096",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0097",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 6,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "exclusion_own-0098",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "exclusion_alt-0099",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0100",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0101",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0102",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0103",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 3,
+     "reranked_rank": 4
+    },
+    {
+     "query_id": "exclusion_own-0104",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "exclusion_alt-0105",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0106",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0107",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 4,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0108",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0109",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "exclusion_own-0110",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0111",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 3,
+     "reranked_rank": 4
+    },
+    {
+     "query_id": "exclusion_own-0112",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0113",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 3,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "exclusion_own-0114",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "exclusion_alt-0115",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0116",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0117",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 12,
+     "reranked_rank": 3
+    },
+    {
+     "query_id": "exclusion_own-0118",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0119",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0120",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0121",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0122",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "exclusion_alt-0123",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 5,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0124",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0125",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 3,
+     "reranked_rank": 3
+    },
+    {
+     "query_id": "exclusion_own-0126",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0127",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0128",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0129",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 9,
+     "reranked_rank": 4
+    },
+    {
+     "query_id": "exclusion_own-0130",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0131",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 7,
+     "reranked_rank": 3
+    },
+    {
+     "query_id": "exclusion_own-0132",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0133",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0134",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0135",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "exclusion_own-0136",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0137",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0138",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0139",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0140",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0141",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 4,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "exclusion_own-0142",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0143",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 4,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "exclusion_own-0144",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0145",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 3,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "exclusion_own-0146",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0147",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0148",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0149",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 9,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "exclusion_own-0150",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0151",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0152",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0153",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0154",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0155",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0156",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0157",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 10,
+     "reranked_rank": 4
+    },
+    {
+     "query_id": "exclusion_own-0158",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0159",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 9,
+     "reranked_rank": 3
+    },
+    {
+     "query_id": "exclusion_own-0160",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0161",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 18,
+     "reranked_rank": 12
+    },
+    {
+     "query_id": "exclusion_own-0162",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0163",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "exclusion_own-0164",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0165",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0166",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0167",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 17,
+     "reranked_rank": 6
+    },
+    {
+     "query_id": "exclusion_own-0168",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0169",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 3,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "exclusion_own-0170",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0171",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0172",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0173",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0174",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0175",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0176",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "exclusion_alt-0177",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": false,
+     "dense_rank": null,
+     "reranked_rank": null
+    },
+    {
+     "query_id": "exclusion_own-0178",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0179",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 3,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0180",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0181",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0182",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0183",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0184",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0185",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 6,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0186",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0187",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 3,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "exclusion_own-0188",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0189",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 3,
+     "reranked_rank": 4
+    },
+    {
+     "query_id": "exclusion_own-0190",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0191",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0192",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0193",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 6,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "exclusion_own-0194",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0195",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 3,
+     "reranked_rank": 3
+    },
+    {
+     "query_id": "exclusion_own-0196",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0197",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 3,
+     "reranked_rank": 2
+    },
+    {
+     "query_id": "exclusion_own-0198",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0199",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0200",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0201",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 12,
+     "reranked_rank": 5
+    },
+    {
+     "query_id": "exclusion_own-0202",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0203",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0204",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0205",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0206",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0207",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 2,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_own-0208",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0209",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 3,
+     "reranked_rank": 3
+    },
+    {
+     "query_id": "exclusion_own-0210",
+     "task": "exclusion_own",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 1,
+     "reranked_rank": 1
+    },
+    {
+     "query_id": "exclusion_alt-0211",
+     "task": "exclusion_alt",
+     "is_exclusion": true,
+     "scope_mode": "document",
+     "gold_in_candidates": true,
+     "dense_rank": 14,
+     "reranked_rank": 2
+    }
+   ],
+   "dense": {
+    "n": 417,
+    "hit@1": 0.484412,
+    "hit@5": 0.695444,
+    "hit@10": 0.736211,
+    "hit@20": 0.752998,
+    "mrr@10": 0.577781,
+    "mrr": 0.578967
+   },
+   "reranked": {
+    "n": 417,
+    "hit@1": 0.58753,
+    "hit@5": 0.743405,
+    "hit@10": 0.7506,
+    "hit@20": 0.752998,
+    "mrr@10": 0.655136,
+    "mrr": 0.655336
+   },
+   "failures": 0,
+   "failure_examples": [],
+   "latency_ms": {
+    "p50": 3092.2,
+    "p95": 4189.4,
+    "mean": 3107.7
+   }
+  }
+ ]
+}

@@ -20,9 +20,10 @@ class AppError(Exception):
     http_status: int = 500
     error_code: str = "app_error"
 
-    def __init__(self, message: str):
+    def __init__(self, message: str, *, headers: dict[str, str] | None = None):
         super().__init__(message)
         self.message = message
+        self.headers = headers or {}
 
 
 class ConfigError(AppError):
@@ -59,6 +60,9 @@ class AuthErr(AppError):
     http_status = 401
     error_code = "auth_error"
 
+    def __init__(self, message: str):
+        super().__init__(message, headers={"WWW-Authenticate": "Bearer"})
+
 
 class ForbiddenErr(AppError):
     """권한 없음 (타인 리소스 접근 등)."""
@@ -81,6 +85,18 @@ class ConflictErr(AppError):
     error_code = "conflict"
 
 
+class RateLimitErr(AppError):
+    """등록 에이전트 요청 한도 초과."""
+
+    http_status = 429
+    error_code = "rate_limit_exceeded"
+
+    def __init__(self, message: str, *, retry_after_seconds: int = 60):
+        retry_after = max(1, int(retry_after_seconds))
+        super().__init__(message, headers={"Retry-After": str(retry_after)})
+        self.retry_after_seconds = retry_after
+
+
 def register_exception_handlers(app: Any) -> None:
     """AppError 계열을 정의된 HTTP 상태 + 구조화 본문으로 매핑한다.
 
@@ -94,4 +110,5 @@ def register_exception_handlers(app: Any) -> None:
         return JSONResponse(
             status_code=exc.http_status,
             content={"ok": False, "error_code": exc.error_code, "message": exc.message},
+            headers=exc.headers,
         )

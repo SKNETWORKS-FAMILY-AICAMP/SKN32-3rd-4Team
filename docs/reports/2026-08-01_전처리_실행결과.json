@@ -1,0 +1,25 @@
+{
+ "extractor_tag": "s2_pymupdf-1.28.0",
+ "targets": 1703,
+ "pages_built": 1702,
+ "pages_skipped": 0,
+ "clauses_built": 1702,
+ "clauses_skipped": 0,
+ "elapsed_sec": 16274.3,
+ "failures": [
+  {
+   "sha": "d3a70c7693fd",
+   "slug": "hyundaimarine",
+   "stage": "pages",
+   "why": "UnicodeEncodeError: 'utf-8' codec can't encode character '\\udfb3' in position 15992: surrogates not allowed",
+   "trace": "Traceback (most recent call last):\n  File \"C:\\Users\\playdata2\\Documents\\llm_workspace\\_unified_mall_3\\scripts\\extract\\run_all.py\", line 135, in main\n    page_out.write_text(\n  File \"C:\\Users\\playdata2\\anaconda3\\Lib\\pathlib.py\", line 1048, in write_text\n    return f.write(data)\n           ^^^^^^^^^^^^^\nUnicodeEncodeError: 'utf-8' codec can't encode character '\\udfb3' in position 15992: surrogates not allowed\n"
+  },
+  {
+   "sha": "d3a70c7693fd",
+   "slug": "hyundaimarine",
+   "stage": "clauses",
+   "why": "JSONDecodeError: Expecting value: line 1 column 1 (char 0)",
+   "trace": "Traceback (most recent call last):\n  File \"C:\\Users\\playdata2\\Documents\\llm_workspace\\_unified_mall_3\\scripts\\extract\\run_all.py\", line 153, in main\n    json.loads(page_out.read_text(encoding=\"utf-8\"))\n  File \"C:\\Users\\playdata2\\anaconda3\\Lib\\json\\__init__.py\", line 346, in loads\n    return _default_decoder.decode(s)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\playdata2\\anaconda3\\Lib\\json\\decoder.py\", line 337, in decode\n    obj, end = self.raw_decode(s, idx=_w(s, 0).end())\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\njson.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)\n"
+  }
+ ]
+}

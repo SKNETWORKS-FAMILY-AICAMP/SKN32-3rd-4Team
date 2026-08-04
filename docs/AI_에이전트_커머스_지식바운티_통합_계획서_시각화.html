@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 에이전트 커머스·지식 바운티 통합 계획서</title>
+<style>
+:root{
+  --ink:#10243e;--muted:#5d6b7c;--blue:#1769e0;--blue2:#0e4ca8;--cyan:#11a9c7;
+  --mint:#dff7ef;--sky:#eaf3ff;--cream:#fff8e8;--rose:#fff0f2;--line:#d8e4f2;
+  --white:#fff;--shadow:0 18px 50px rgba(18,61,112,.10);--radius:18px;
+}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:#fff;color:var(--ink);font-family:Inter,Pretendard,"Noto Sans KR","Malgun Gothic",system-ui,sans-serif;line-height:1.65}
+a{color:var(--blue);text-decoration:none}.wrap{display:grid;grid-template-columns:280px minmax(0,1fr);min-height:100vh}
+.sidebar{position:sticky;top:0;height:100vh;border-right:1px solid var(--line);background:#fff;padding:24px 18px;overflow:auto}
+.brand{display:flex;align-items:center;gap:10px;font-weight:900;font-size:17px;margin:0 4px 24px}.brand-dot{width:14px;height:14px;border-radius:5px;background:linear-gradient(135deg,var(--blue),var(--cyan));box-shadow:0 0 0 6px var(--sky)}
+.nav{display:grid;gap:5px}.nav a{padding:9px 11px;border-radius:10px;color:#334861;font-size:13px;font-weight:700}.nav a:hover,.nav a.active{background:var(--sky);color:var(--blue)}
+.side-note{margin-top:18px;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--cream);font-size:12px;color:#5e553b}
+main{min-width:0}.hero{padding:72px clamp(24px,6vw,88px) 56px;background:radial-gradient(circle at 85% 0%,#dff8ff 0,transparent 34%),radial-gradient(circle at 10% 100%,#e7eeff 0,transparent 35%),#fff;border-bottom:1px solid var(--line)}
+.kicker{display:inline-flex;gap:8px;align-items:center;padding:7px 11px;border:1px solid #b9d4fb;border-radius:999px;color:var(--blue2);font-size:12px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;background:#fff}.hero h1{font-size:clamp(34px,5.3vw,72px);line-height:1.08;letter-spacing:-.045em;margin:22px 0 18px;max-width:1040px}.hero h1 span{color:var(--blue)}
+.hero p{font-size:clamp(16px,1.8vw,21px);color:var(--muted);max-width:900px}.hero-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:34px}.metric{border:1px solid var(--line);border-radius:16px;padding:17px;background:rgba(255,255,255,.88);box-shadow:var(--shadow)}.metric b{display:block;font-size:24px;color:var(--blue)}.metric span{font-size:12px;color:var(--muted)}
+section{padding:62px clamp(24px,6vw,88px);border-bottom:1px solid var(--line);scroll-margin-top:16px}.section-head{display:flex;gap:18px;align-items:flex-start;margin-bottom:28px}.num{font-weight:1000;color:var(--blue);font-size:14px;letter-spacing:.1em}.section-head h2{font-size:clamp(27px,3vw,42px);line-height:1.18;letter-spacing:-.035em;margin:0}.section-head p{color:var(--muted);max-width:800px;margin:10px 0 0}
+.grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.grid-4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.card{border:1px solid var(--line);border-radius:var(--radius);padding:22px;background:#fff;box-shadow:0 8px 26px rgba(18,61,112,.055)}.card h3{margin:0 0 10px;font-size:19px}.card p{margin:0;color:var(--muted)}.card.blue{background:var(--sky)}.card.mint{background:var(--mint)}.card.cream{background:var(--cream)}.card.rose{background:var(--rose)}
+.tag{display:inline-block;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:900;background:var(--sky);color:var(--blue)}.callout{border-left:5px solid var(--blue);background:var(--sky);padding:18px 20px;border-radius:0 14px 14px 0;font-weight:750}
+.diagram{border:1px solid var(--line);border-radius:22px;padding:22px;background:#fff;box-shadow:var(--shadow);overflow:auto}.diagram svg{width:100%;min-width:720px;height:auto;display:block}.caption{font-size:12px;color:var(--muted);margin-top:10px}
+.flow{display:flex;align-items:stretch;gap:9px;flex-wrap:wrap}.flow .step{flex:1 1 130px;padding:14px;border:1px solid var(--line);border-radius:13px;background:#fff;font-size:13px;font-weight:800;text-align:center}.flow .arrow{display:grid;place-items:center;color:var(--blue);font-weight:1000}
+table{width:100%;border-collapse:separate;border-spacing:0;border:1px solid var(--line);border-radius:15px;overflow:hidden;background:#fff;font-size:13px}th,td{padding:13px 14px;border-bottom:1px solid var(--line);vertical-align:top;text-align:left}th{background:var(--sky);font-size:12px;color:var(--blue2)}tr:last-child td{border-bottom:0}.good{color:#087b58;font-weight:900}.bad{color:#b13a45;font-weight:900}.warn{color:#956a00;font-weight:900}
+.compare-wrap{display:grid;grid-template-columns:1fr 1fr;gap:18px}.compare{border-radius:20px;border:1px solid var(--line);overflow:hidden}.compare header{padding:18px 20px;font-size:20px;font-weight:950}.compare.clean header{background:var(--mint)}.compare.raw header{background:var(--rose)}.compare ul{margin:0;padding:18px 22px 22px 42px}.compare li{margin:7px 0}
+.model-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.model{padding:17px;border:1px solid var(--line);border-radius:16px;position:relative;overflow:hidden}.model:before{content:"";position:absolute;inset:0 auto 0 0;width:5px;background:var(--blue)}.model h3{margin:0 0 6px}.model small{color:var(--muted)}
+.timeline{display:grid;gap:10px}.week{display:grid;grid-template-columns:64px 180px 1fr 160px;gap:12px;align-items:center}.week .w{font-weight:950;color:var(--blue)}.bar{height:14px;border-radius:999px;background:#edf3fb;overflow:hidden}.bar i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--blue),var(--cyan))}.gate{font-size:12px;color:var(--muted)}
+.heatmap{display:grid;grid-template-columns:130px repeat(4,1fr);border:1px solid var(--line);border-radius:16px;overflow:hidden}.heatmap div{padding:12px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);font-size:12px}.heatmap .head{font-weight:900;background:var(--sky)}.risk1{background:#e4f8ef}.risk2{background:#fff8d8}.risk3{background:#ffe8cc}.risk4{background:#ffd9dd}
+.code{background:#10243e;color:#eaf3ff;border-radius:16px;padding:17px;overflow:auto;font:12px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace}.checklist{columns:2;column-gap:26px}.check{break-inside:avoid;margin:8px 0;padding-left:27px;position:relative}.check:before{content:"✓";position:absolute;left:0;top:0;color:#0c9468;font-weight:1000}
+.tabs{display:flex;gap:8px;margin-bottom:15px}.tab-btn{border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 13px;font-weight:850;color:var(--ink);cursor:pointer}.tab-btn.active{background:var(--blue);color:#fff;border-color:var(--blue)}.tab-panel{display:none}.tab-panel.active{display:block}
+footer{padding:42px clamp(24px,6vw,88px);background:#10243e;color:#d9e8ff}footer a{color:#8fd8ff}.refs{columns:2;column-gap:30px;font-size:12px}.refs li{margin:7px 0;break-inside:avoid}
+.mobile-head{display:none;position:sticky;top:0;z-index:30;background:#fff;border-bottom:1px solid var(--line);padding:12px 16px;align-items:center;justify-content:space-between}.menu-btn{border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px 11px;font-weight:900}
+@media(max-width:1040px){.wrap{display:block}.sidebar{position:fixed;z-index:50;left:-310px;width:290px;transition:.25s;box-shadow:20px 0 60px rgba(0,0,0,.16)}.sidebar.open{left:0}.mobile-head{display:flex}.hero-grid,.grid-4,.model-grid{grid-template-columns:repeat(2,1fr)}.week{grid-template-columns:50px 140px 1fr}.week .gate{grid-column:2/4}.compare-wrap,.grid-3{grid-template-columns:1fr}.refs{columns:1}}
+@media(max-width:700px){.hero{padding-top:48px}.hero-grid,.grid-2,.grid-4,.model-grid{grid-template-columns:1fr}.checklist{columns:1}.week{grid-template-columns:45px 1fr}.bar,.gate{grid-column:2}.heatmap{grid-template-columns:95px repeat(4,1fr)}.heatmap div{padding:8px 5px;font-size:10px}.section-head{display:block}.compare-wrap{grid-template-columns:1fr}}
+@media print{.sidebar,.mobile-head{display:none!important}.wrap{display:block}section,.hero{padding:28px 32px;break-inside:auto}.card,.diagram,.compare,table{break-inside:avoid;box-shadow:none}.nav{display:none}a{color:inherit}.hero h1{font-size:38px}footer{background:#fff;color:#000}.refs{columns:1}}
+</style>
+</head>
+<body>
+<div class="mobile-head"><b>AI 통합 계획서</b><button class="menu-btn" onclick="document.querySelector('.sidebar').classList.toggle('open')">목차</button></div>
+<div class="wrap">
+<aside class="sidebar">
+  <div class="brand"><span class="brand-dot"></span>Agent Commerce Plan</div>
+  <nav class="nav">
+    <a href="#summary">01 최종 판단</a><a href="#scope">02 통합 범위</a><a href="#modern">03 기술 최신화</a>
+    <a href="#architecture">04 목표 아키텍처</a><a href="#clean">05 Clean 비교</a><a href="#models">06 모델 전략</a>
+    <a href="#rag">07 RAG</a><a href="#bounty">08 지식 바운티</a><a href="#channels">09 상담 채널</a>
+    <a href="#screens">10 화면·관리자</a><a href="#security">11 보안</a><a href="#roadmap">12 로드맵</a>
+    <a href="#tests">13 테스트</a><a href="#deliverables">14 제출물</a><a href="#sources">15 출처</a>
+  </nav>
+  <div class="side-note"><b>문서 기준</b><br>2026-07-18 공식 문서 재검증<br>기존 프로젝트 통합형<br>모듈러 모놀리스 권장</div>
+</aside>
+<main>
+<header class="hero">
+  <span class="kicker">Research-backed integration plan · v3.0</span>
+  <h1>기존 프로젝트를 <span>AI 네이티브 커머스·지식 플랫폼</span>으로 통합한다</h1>
+  <p>LangChain·MCP·멀티에이전트·쇼핑몰·Tool 기능을 버리지 않고, RAG·음성·화상·관리자·보안·모델 라우팅을 하나의 제품 흐름으로 연결하는 실행 계획이다.</p>
+  <div class="hero-grid">
+    <div class="metric"><b>4</b><span>채택 모델군: GPT·Gemini·Qwen3.6·Gemma 4</span></div>
+    <div class="metric"><b>3</b><span>상담 채널: 텍스트·음성·화상</span></div>
+    <div class="metric"><b>8주</b><span>기존 코드 기반 통합 릴리스 기준</span></div>
+    <div class="metric"><b>1 Core</b><span>REST/MCP/UI가 공유하는 Application Use Case</span></div>
+  </div>
+</header>
+
+<section id="summary">
+  <div class="section-head"><div class="num">01</div><div><h2>최종 판단: 한 번의 통합 버전으로 구현 가능</h2><p>기반 기능이 이미 있으므로 “기능을 새로 전부 만든다”가 아니라 “경계를 재정의하고 흐름을 연결한다”가 핵심이다.</p></div></div>
+  <div class="callout">진행 권고: <b>GO</b>. 단, 검색·추천 데모가 아니라 <b>근거 기반 상담 → 정보 부족 감지 → 지식 바운티 → 검증 → 구매 승인 → 주문 → 관리자 보고서</b>까지 닫힌 루프를 완성한다.</div>
+  <div class="grid-3" style="margin-top:18px">
+    <div class="card blue"><span class="tag">REUSE</span><h3>기존 기능 유지</h3><p>쇼핑몰, 로그인, 장바구니, Tool, LangChain, MCP, Agent 코드를 baseline test로 고정하고 감싼다.</p></div>
+    <div class="card mint"><span class="tag">MODERNIZE</span><h3>구식 결합 제거</h3><p>모델 SDK와 LangChain 객체가 라우터·DB·주문 로직에 직접 섞이지 않게 Ports/Adapters로 이동한다.</p></div>
+    <div class="card cream"><span class="tag">PROVE</span><h3>사업 가설 검증</h3><p>지식 바운티가 상품 추천 정확도와 설명 가능성을 실제로 개선하는지 정량 평가한다.</p></div>
+  </div>
+</section>
+
+<section id="scope">
+  <div class="section-head"><div class="num">02</div><div><h2>필수 기술을 한 제품 흐름으로 묶는다</h2><p>부트캠프 요구사항을 별도 미니 프로젝트로 나누지 않고, 하나의 사용자 시나리오 안에서 모두 사용한다.</p></div></div>
+  <div class="diagram">
+  <svg viewBox="0 0 1160 500" role="img" aria-label="통합 사용자 흐름">
+    <defs><marker id="arr" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#1769e0"/></marker></defs>
+    <rect x="28" y="35" width="210" height="85" rx="18" fill="#eaf3ff" stroke="#1769e0"/><text x="133" y="70" text-anchor="middle" font-size="18" font-weight="800" fill="#10243e">사용자 채널</text><text x="133" y="98" text-anchor="middle" font-size="13" fill="#5d6b7c">텍스트 · 음성 · 화상</text>
+    <rect x="295" y="35" width="220" height="85" rx="18" fill="#dff7ef" stroke="#0c9468"/><text x="405" y="70" text-anchor="middle" font-size="18" font-weight="800" fill="#10243e">대화 오케스트레이터</text><text x="405" y="98" text-anchor="middle" font-size="13" fill="#5d6b7c">의도 · 권한 · 모델 라우팅</text>
+    <rect x="575" y="35" width="250" height="85" rx="18" fill="#fff8e8" stroke="#c9991a"/><text x="700" y="70" text-anchor="middle" font-size="18" font-weight="800" fill="#10243e">RAG + Structured Data</text><text x="700" y="98" text-anchor="middle" font-size="13" fill="#5d6b7c">Vector · SQL · API · 출처</text>
+    <rect x="885" y="35" width="245" height="85" rx="18" fill="#fff0f2" stroke="#c94d5a"/><text x="1007" y="70" text-anchor="middle" font-size="18" font-weight="800" fill="#10243e">커머스 실행</text><text x="1007" y="98" text-anchor="middle" font-size="13" fill="#5d6b7c">검색 · 카트 · 승인 · 주문</text>
+    <line x1="238" y1="78" x2="290" y2="78" stroke="#1769e0" stroke-width="3" marker-end="url(#arr)"/><line x1="515" y1="78" x2="570" y2="78" stroke="#1769e0" stroke-width="3" marker-end="url(#arr)"/><line x1="825" y1="78" x2="880" y2="78" stroke="#1769e0" stroke-width="3" marker-end="url(#arr)"/>
+    <rect x="190" y="195" width="250" height="100" rx="20" fill="#fff" stroke="#1769e0" stroke-width="2"/><text x="315" y="230" text-anchor="middle" font-size="18" font-weight="850" fill="#10243e">정보 부족 감지</text><text x="315" y="258" text-anchor="middle" font-size="13" fill="#5d6b7c">호환성 · 실사용 · 최신성</text>
+    <rect x="515" y="180" width="470" height="130" rx="24" fill="#eaf3ff" stroke="#1769e0" stroke-width="2"/><text x="750" y="214" text-anchor="middle" font-size="20" font-weight="900" fill="#10243e">Knowledge Bounty Network</text>
+    <rect x="548" y="235" width="118" height="52" rx="12" fill="#fff" stroke="#9ec3f8"/><text x="607" y="266" text-anchor="middle" font-size="13" font-weight="800">Provider A</text>
+    <rect x="684" y="235" width="118" height="52" rx="12" fill="#fff" stroke="#9ec3f8"/><text x="743" y="266" text-anchor="middle" font-size="13" font-weight="800">Provider B</text>
+    <rect x="820" y="235" width="130" height="52" rx="12" fill="#fff" stroke="#9ec3f8"/><text x="885" y="266" text-anchor="middle" font-size="13" font-weight="800">Validator</text>
+    <line x1="440" y1="245" x2="510" y2="245" stroke="#1769e0" stroke-width="3" marker-end="url(#arr)"/>
+    <rect x="260" y="380" width="650" height="78" rx="20" fill="#dff7ef" stroke="#0c9468" stroke-width="2"/><text x="585" y="412" text-anchor="middle" font-size="20" font-weight="900" fill="#10243e">검증 지식 반영 → 추천 재랭킹 → 사용자 승인 → 주문 → 포인트</text><text x="585" y="440" text-anchor="middle" font-size="13" fill="#5d6b7c">모든 쓰기 행동은 Application Policy와 감사 로그를 통과</text>
+    <line x1="750" y1="310" x2="750" y2="375" stroke="#1769e0" stroke-width="3" marker-end="url(#arr)"/>
+  </svg>
+  <div class="caption">그림 1. 상담, RAG, 커머스, 멀티에이전트를 하나의 사용자 가치 흐름으로 통합한다.</div></div>
+</section>
+
+<section id="modern">
+  <div class="section-head"><div class="num">03</div><div><h2>부트캠프 기술을 2026 운영 기준으로 최신화</h2><p>개념은 유지하되, 프레임워크를 제품 중심으로 재배치한다.</p></div></div>
+  <table>
+    <thead><tr><th>기술</th><th>기존 사용</th><th>최신화 적용</th><th>피해야 할 것</th></tr></thead>
+    <tbody>
+      <tr><td><b>LangChain</b></td><td>모든 단계를 체인으로 연결</td><td>Loader/Prompt/Model Adapter 등 선택 사용</td><td>도메인이 LangChain 타입에 종속</td></tr>
+      <tr><td><b>LangGraph</b></td><td>복잡해 보이는 모든 흐름</td><td>승인·반복·재개·바운티 상태에만 적용</td><td>단순 QA를 그래프로 과설계</td></tr>
+      <tr><td><b>MCP</b></td><td>Tool을 노출하는 데모</td><td>Streamable HTTP, OAuth scope, confirmation, audit</td><td>Tool 내부에서 DB·결제 직접 실행</td></tr>
+      <tr><td><b>RAG</b></td><td>Vector top-k 후 답변</td><td>Hybrid + Rerank + ACL + 버전 + 문장별 출처</td><td>가격·재고를 임베딩 문서에서 추정</td></tr>
+      <tr><td><b>Voice/Video</b></td><td>STT→LLM→TTS</td><td>Realtime/Live + fallback + 프레임 샘플링</td><td>고FPS 전체 영상을 무조건 전송</td></tr>
+      <tr><td><b>얼굴 로그인</b></td><td>얼굴 이미지 DB 비교</td><td>WebAuthn/Passkey 기기 생체인증</td><td>서버에 얼굴 템플릿 저장</td></tr>
+    </tbody>
+  </table>
+  <div class="card cream" style="margin-top:16px"><h3>Gemma 4 최신성 검증 주의</h3><p>공식 Google 자료에서 확인된 Gemma 4 12B 공개는 2026-06-03이다. 2026-07-18 당일의 별도 공식 모델 릴리스는 확인되지 않았으므로, 외부 게시물의 “오늘 업데이트”는 모델 카드·체크섬·런타임 changelog 확인 전 운영 기준으로 사용하지 않는다.</p></div>
+</section>
+
+<section id="architecture">
+  <div class="section-head"><div class="num">04</div><div><h2>목표 아키텍처: 모듈러 모놀리스 + Ports/Adapters</h2><p>배포는 단순하게 유지하면서 팀이 독립적으로 개발할 수 있는 경계를 만든다.</p></div></div>
+  <div class="diagram">
+  <svg viewBox="0 0 1120 660" role="img" aria-label="클린 아키텍처 계층">
+    <rect x="40" y="40" width="1040" height="580" rx="34" fill="#f7fbff" stroke="#b7d2f4" stroke-width="2"/>
+    <rect x="85" y="88" width="950" height="485" rx="30" fill="#eaf3ff" stroke="#83b2ef" stroke-width="2"/>
+    <rect x="145" y="140" width="830" height="380" rx="28" fill="#dff7ef" stroke="#58b996" stroke-width="2"/>
+    <rect x="230" y="205" width="660" height="250" rx="26" fill="#fff8e8" stroke="#d5aa3e" stroke-width="2"/>
+    <text x="560" y="80" text-anchor="middle" font-size="22" font-weight="900" fill="#10243e">Interfaces</text>
+    <text x="560" y="120" text-anchor="middle" font-size="14" fill="#5d6b7c">FastAPI · WebSocket · MCP · Worker · UI</text>
+    <text x="560" y="174" text-anchor="middle" font-size="22" font-weight="900" fill="#10243e">Adapters</text>
+    <text x="560" y="198" text-anchor="middle" font-size="14" fill="#5d6b7c">OpenAI · Gemini · Qwen · Gemma · pgvector · Cafe24 · WebAuthn</text>
+    <text x="560" y="248" text-anchor="middle" font-size="22" font-weight="900" fill="#10243e">Application</text>
+    <text x="560" y="277" text-anchor="middle" font-size="14" fill="#5d6b7c">Use Cases · Ports · DTO · Transactions · Policies</text>
+    <rect x="360" y="315" width="400" height="95" rx="20" fill="#fff" stroke="#d5aa3e"/><text x="560" y="350" text-anchor="middle" font-size="22" font-weight="950" fill="#10243e">Domain</text><text x="560" y="382" text-anchor="middle" font-size="14" fill="#5d6b7c">Product · Order · Evidence · Bounty · User</text>
+    <text x="560" y="556" text-anchor="middle" font-size="14" font-weight="800" fill="#1769e0">의존성은 바깥에서 안쪽으로만 향한다</text>
+  </svg>
+  <div class="caption">그림 2. LangChain·MCP·모델 SDK는 바깥쪽 Adapter에 위치한다. 주문·권한·포인트 정책은 안쪽에 남는다.</div></div>
+  <div class="grid-4" style="margin-top:16px">
+    <div class="card"><h3>Domain</h3><p>프레임워크 없는 비즈니스 규칙</p></div><div class="card"><h3>Application</h3><p>유스케이스와 인터페이스 계약</p></div><div class="card"><h3>Adapters</h3><p>모델·DB·Vector·외부 API 구현</p></div><div class="card"><h3>Interfaces</h3><p>REST·MCP·Realtime·Worker</p></div>
+  </div>
+</section>
+
+<section id="clean">
+  <div class="section-head"><div class="num">05</div><div><h2>Clean Architecture 적용 여부가 팀 작업을 어떻게 바꾸는가</h2><p>초기 속도만 보면 미적용이 빠르지만, 모델 4개·채널 3개·주문·바운티가 합쳐지는 순간 결과가 역전된다.</p></div></div>
+  <div class="tabs"><button class="tab-btn active" data-tab="team">팀 협업</button><button class="tab-btn" data-tab="code">코드 구조</button><button class="tab-btn" data-tab="time">시간 변화</button></div>
+  <div id="tab-team" class="tab-panel active">
+    <div class="compare-wrap">
+      <article class="compare clean"><header>적용 버전</header><ul><li>Backend는 Order Use Case를 개발</li><li>AI팀은 Model/Retriever Adapter를 개발</li><li>Agent팀은 같은 Use Case를 LangGraph/MCP에서 호출</li><li>Frontend는 OpenAPI DTO로 독립 작업</li><li>Fake Port로 외부 API 없이 테스트</li><li>모델 교체가 주문 코드에 전파되지 않음</li></ul></article>
+      <article class="compare raw"><header>미적용 버전</header><ul><li>모두 agent.py와 shop.py를 수정</li><li>Router가 LangChain·DB·주문을 직접 호출</li><li>MCP와 REST 로직이 복제</li><li>프론트 JSON이 모델 출력에 따라 변경</li><li>테스트마다 실제 LLM·DB가 필요</li><li>merge conflict 때문에 순차 작업</li></ul></article>
+    </div>
+  </div>
+  <div id="tab-code" class="tab-panel">
+    <div class="grid-2"><pre class="code"># 적용
+router
+  -> ApproveOrderUseCase
+      -> OrderRepository Port
+      -> PaymentGateway Port
+
+MCP tool
+  -> same ApproveOrderUseCase</pre><pre class="code"># 미적용
+@router.post('/buy')
+async def buy(...):
+  result = agent.invoke(...)
+  db.execute(...)
+  payment.approve(...)
+  points += 100</pre></div>
+  </div>
+  <div id="tab-time" class="tab-panel">
+    <table><thead><tr><th>시점</th><th>적용</th><th>미적용</th></tr></thead><tbody><tr><td>1주차</td><td class="warn">계약 설계 비용</td><td class="good">빠른 화면</td></tr><tr><td>3주차</td><td class="good">병렬 개발 가속</td><td class="warn">중복·충돌 시작</td></tr><tr><td>통합</td><td class="good">Adapter contract로 예측 가능</td><td class="bad">회귀 원인 분리 어려움</td></tr><tr><td>모델 업데이트</td><td class="good">한 Adapter 수정</td><td class="bad">전체 조건문 수정</td></tr></tbody></table>
+  </div>
+</section>
+
+<section id="models">
+  <div class="section-head"><div class="num">06</div><div><h2>4개 모델을 경쟁시키지 않고 역할로 배치</h2><p>하나의 모델에 모든 일을 맡기지 않는다. 데이터 민감도, 실시간성, 비용, 멀티모달, 도구 신뢰성에 따라 라우팅한다.</p></div></div>
+  <div class="model-grid">
+    <div class="model"><h3>OpenAI GPT</h3><small>복잡한 계획·최종 검증·고위험 설명</small></div>
+    <div class="model"><h3>Google Gemini</h3><small>긴 문서·멀티모달·Live 음성/카메라</small></div>
+    <div class="model"><h3>Qwen3.6</h3><small>self-hosted 민감 RAG·Provider·대량 처리</small></div>
+    <div class="model"><h3>Gemma 4</h3><small>self-hosted 멀티모달·로컬 프레임 이해</small></div>
+  </div>
+  <div class="diagram" style="margin-top:18px">
+  <svg viewBox="0 0 1120 430" role="img" aria-label="모델 라우터">
+    <defs><marker id="arr2" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#1769e0"/></marker></defs>
+    <rect x="35" y="155" width="200" height="105" rx="20" fill="#eaf3ff" stroke="#1769e0"/><text x="135" y="195" text-anchor="middle" font-size="19" font-weight="900">Task Context</text><text x="135" y="222" text-anchor="middle" font-size="12">민감도·채널·비용·도구</text>
+    <rect x="340" y="125" width="250" height="165" rx="25" fill="#dff7ef" stroke="#0c9468" stroke-width="2"/><text x="465" y="170" text-anchor="middle" font-size="22" font-weight="950">Model Router</text><text x="465" y="202" text-anchor="middle" font-size="13">정책 + health + 평가점수</text><text x="465" y="229" text-anchor="middle" font-size="13">timeout · fallback · budget</text>
+    <line x1="235" y1="207" x2="335" y2="207" stroke="#1769e0" stroke-width="3" marker-end="url(#arr2)"/>
+    <rect x="710" y="25" width="170" height="70" rx="16" fill="#fff" stroke="#1769e0"/><text x="795" y="68" text-anchor="middle" font-size="17" font-weight="900">GPT</text>
+    <rect x="920" y="115" width="170" height="70" rx="16" fill="#fff" stroke="#1769e0"/><text x="1005" y="158" text-anchor="middle" font-size="17" font-weight="900">Gemini</text>
+    <rect x="920" y="245" width="170" height="70" rx="16" fill="#fff" stroke="#0c9468"/><text x="1005" y="288" text-anchor="middle" font-size="17" font-weight="900">Qwen3.6</text>
+    <rect x="710" y="335" width="170" height="70" rx="16" fill="#fff" stroke="#0c9468"/><text x="795" y="378" text-anchor="middle" font-size="17" font-weight="900">Gemma 4</text>
+    <line x1="590" y1="170" x2="705" y2="65" stroke="#1769e0" stroke-width="2.5" marker-end="url(#arr2)"/><line x1="590" y1="195" x2="915" y2="150" stroke="#1769e0" stroke-width="2.5" marker-end="url(#arr2)"/><line x1="590" y1="225" x2="915" y2="280" stroke="#1769e0" stroke-width="2.5" marker-end="url(#arr2)"/><line x1="590" y1="250" x2="705" y2="370" stroke="#1769e0" stroke-width="2.5" marker-end="url(#arr2)"/>
+  </svg><div class="caption">그림 3. 모델 이름은 설정으로 주입하고 공통 계약으로 측정한다. `latest` alias 대신 검증된 버전을 pin한다.</div></div>
+</section>
+
+<section id="rag">
+  <div class="section-head"><div class="num">07</div><div><h2>RAG는 문서 검색이 아니라 근거 관리 시스템</h2><p>내부·외부 문서, SQL/API 현재 데이터, 권한, 버전, 출처를 하나의 Evidence Bundle로 조합한다.</p></div></div>
+  <div class="grid-2">
+    <div class="card blue"><h3>Ingestion</h3><div class="flow"><div class="step">원문 보존</div><div class="arrow">→</div><div class="step">구조 파싱</div><div class="arrow">→</div><div class="step">청킹</div><div class="arrow">→</div><div class="step">임베딩</div></div><p style="margin-top:12px">버전·ACL·수집시각·checksum·합성 여부를 필수 메타데이터로 저장한다.</p></div>
+    <div class="card mint"><h3>Query</h3><div class="flow"><div class="step">Hybrid</div><div class="arrow">→</div><div class="step">Rerank</div><div class="arrow">→</div><div class="step">근거 Gate</div><div class="arrow">→</div><div class="step">Citation</div></div><p style="margin-top:12px">근거가 부족하면 답을 만들지 않고 재검색·질문·바운티 중 하나로 분기한다.</p></div>
+  </div>
+  <div class="diagram" style="margin-top:18px">
+  <svg viewBox="0 0 1120 350" role="img" aria-label="RAG 하이브리드 구조">
+    <defs><marker id="arr3" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#1769e0"/></marker></defs>
+    <rect x="25" y="130" width="150" height="72" rx="15" fill="#eaf3ff" stroke="#1769e0"/><text x="100" y="173" text-anchor="middle" font-weight="900">질문 + 권한</text>
+    <rect x="240" y="48" width="175" height="65" rx="15" fill="#fff" stroke="#1769e0"/><text x="327" y="87" text-anchor="middle" font-weight="850">Vector Search</text>
+    <rect x="240" y="142" width="175" height="65" rx="15" fill="#fff" stroke="#1769e0"/><text x="327" y="181" text-anchor="middle" font-weight="850">Keyword Search</text>
+    <rect x="240" y="236" width="175" height="65" rx="15" fill="#fff" stroke="#1769e0"/><text x="327" y="275" text-anchor="middle" font-weight="850">SQL / API</text>
+    <rect x="495" y="115" width="170" height="100" rx="18" fill="#dff7ef" stroke="#0c9468"/><text x="580" y="155" text-anchor="middle" font-weight="900">Merge + Rerank</text><text x="580" y="183" text-anchor="middle" font-size="12">ACL · 최신성 · 중복</text>
+    <rect x="745" y="115" width="160" height="100" rx="18" fill="#fff8e8" stroke="#c9991a"/><text x="825" y="155" text-anchor="middle" font-weight="900">Evidence Gate</text><text x="825" y="183" text-anchor="middle" font-size="12">충분 / 부족</text>
+    <rect x="960" y="48" width="135" height="65" rx="15" fill="#dff7ef" stroke="#0c9468"/><text x="1027" y="86" text-anchor="middle" font-weight="850">답변 + 출처</text>
+    <rect x="960" y="236" width="135" height="65" rx="15" fill="#fff0f2" stroke="#c94d5a"/><text x="1027" y="275" text-anchor="middle" font-weight="850">재질문/바운티</text>
+    <line x1="175" y1="166" x2="235" y2="81" stroke="#1769e0" stroke-width="2.5" marker-end="url(#arr3)"/><line x1="175" y1="166" x2="235" y2="174" stroke="#1769e0" stroke-width="2.5" marker-end="url(#arr3)"/><line x1="175" y1="166" x2="235" y2="268" stroke="#1769e0" stroke-width="2.5" marker-end="url(#arr3)"/>
+    <line x1="415" y1="80" x2="490" y2="145" stroke="#1769e0" stroke-width="2.5" marker-end="url(#arr3)"/><line x1="415" y1="174" x2="490" y2="165" stroke="#1769e0" stroke-width="2.5" marker-end="url(#arr3)"/><line x1="415" y1="268" x2="490" y2="190" stroke="#1769e0" stroke-width="2.5" marker-end="url(#arr3)"/><line x1="665" y1="165" x2="740" y2="165" stroke="#1769e0" stroke-width="2.5" marker-end="url(#arr3)"/><line x1="905" y1="145" x2="955" y2="81" stroke="#1769e0" stroke-width="2.5" marker-end="url(#arr3)"/><line x1="905" y1="185" x2="955" y2="268" stroke="#1769e0" stroke-width="2.5" marker-end="url(#arr3)"/>
+  </svg><div class="caption">그림 4. 가격·재고·주문 상태는 SQL/API, 정책·매뉴얼은 RAG로 처리한다.</div></div>
+</section>
+
+<section id="bounty">
+  <div class="section-head"><div class="num">08</div><div><h2>지식 바운티는 멀티에이전트 시뮬레이션으로 시작</h2><p>외부 고객 AI가 없어도 Provider별 분리 데이터와 hidden ground truth로 네트워크 가설을 검증한다.</p></div></div>
+  <div class="flow"><div class="step">질문·보상</div><div class="arrow">→</div><div class="step">Capability Routing</div><div class="arrow">→</div><div class="step">분리된 Local RAG</div><div class="arrow">→</div><div class="step">검증·도전</div><div class="arrow">→</div><div class="step">포인트·지식 반영</div></div>
+  <div class="grid-3" style="margin-top:18px">
+    <div class="card"><h3>Requester</h3><p>질문, 필요한 증거 형식, 기한, 포인트를 정의한다.</p></div>
+    <div class="card"><h3>Provider</h3><p>허용된 로컬 자료만 사용해 답변·출처·해시를 제출한다.</p></div>
+    <div class="card"><h3>Validator</h3><p>근거 지원, 정합성, 최신성, 중복, 재현성을 평가한다.</p></div>
+  </div>
+  <pre class="code" style="margin-top:18px">OPEN → ROUTED → COLLECTING → VALIDATING → CHALLENGE_WINDOW → SETTLED
+                                            ↘ REJECTED / EXPIRED / CANCELLED</pre>
+</section>
+
+<section id="channels">
+  <div class="section-head"><div class="num">09</div><div><h2>텍스트·음성·화상은 하나의 대화 코어를 공유</h2><p>채널별로 비즈니스 로직을 복제하지 않고 입력·출력 Adapter만 바꾼다.</p></div></div>
+  <div class="grid-3">
+    <div class="card blue"><h3>텍스트</h3><p>SSE/WebSocket 스트리밍, 출처 카드, Tool 상태, 구매 승인 UI.</p></div>
+    <div class="card mint"><h3>음성</h3><p>Realtime/Live, barge-in, transcript, STT-LLM-TTS fallback.</p></div>
+    <div class="card cream"><h3>화상</h3><p>카메라 미리보기, 동의 기반 프레임 샘플링, 제품·문서 이해.</p></div>
+  </div>
+  <div class="callout" style="margin-top:16px">얼굴을 보고 대화하는 기능과 얼굴 인증은 분리한다. 상담용 카메라 프레임은 모델 입력이고, 로그인은 WebAuthn/Passkey의 기기 생체인증을 사용한다.</div>
+</section>
+
+<section id="screens">
+  <div class="section-head"><div class="num">10</div><div><h2>사용자 화면과 관리자 대시보드</h2><p>관리자는 데이터·모델·비용·근거·주문·바운티의 전체 수명주기를 볼 수 있어야 한다.</p></div></div>
+  <div class="grid-2">
+    <div class="card"><h3>사용자</h3><p>/chat · /voice · /video · /shop · /cart · /orders · /bounties · /profile/security</p><hr style="border:0;border-top:1px solid var(--line);margin:16px 0"><p>핵심: 출처, 가격 관측시각, 추천 이유, 승인 단계, 카메라·마이크 표시.</p></div>
+    <div class="card"><h3>관리자</h3><p>/admin/documents · /conversations · /orders · /agents · /models · /evaluations · /reports · /audit</p><hr style="border:0;border-top:1px solid var(--line);margin:16px 0"><p>핵심: RAG 품질, 모델 지연·비용, 바운티 통과율, 주문 전환, 실패 ingest.</p></div>
+  </div>
+  <div class="grid-4" style="margin-top:16px"><div class="metric"><b>95%+</b><span>근거 지원 주장 목표</span></div><div class="metric"><b>0</b><span>승인 없는 주문</span></div><div class="metric"><b>0</b><span>권한 밖 문서 노출</span></div><div class="metric"><b>100%</b><span>보고서 버전·필터 기록</span></div></div>
+</section>
+
+<section id="security">
+  <div class="section-head"><div class="num">11</div><div><h2>보안은 Tool 경계와 데이터 분류에서 시작</h2><p>모델의 지능보다 “무엇을 읽고 무엇을 바꿀 수 있는가”가 더 중요하다.</p></div></div>
+  <div class="heatmap">
+    <div class="head">영향 / 가능성</div><div class="head">낮음</div><div class="head">보통</div><div class="head">높음</div><div class="head">매우 높음</div>
+    <div class="head">낮음</div><div class="risk1">UI 오류</div><div class="risk1">캐시 miss</div><div class="risk2">일시 지연</div><div class="risk2">모델 fallback</div>
+    <div class="head">보통</div><div class="risk1">보고서 오탈자</div><div class="risk2">검색 누락</div><div class="risk3">비용 급증</div><div class="risk3">잘못된 추천</div>
+    <div class="head">높음</div><div class="risk2">문서 버전 충돌</div><div class="risk3">PII 노출</div><div class="risk4">권한 우회</div><div class="risk4">주문 오실행</div>
+    <div class="head">매우 높음</div><div class="risk3">Provider 담합</div><div class="risk4">Prompt Injection</div><div class="risk4">결제 중복</div><div class="risk4">관리자 계정 탈취</div>
+  </div>
+  <div class="grid-3" style="margin-top:18px"><div class="card"><h3>읽기 통제</h3><p>ACL, scope, 민감도 라우팅, Provider 데이터 격리.</p></div><div class="card"><h3>쓰기 통제</h3><p>명시 승인, idempotency, transaction, audit log.</p></div><div class="card"><h3>생체 통제</h3><p>Passkey 공개키만 저장, 얼굴 원본·템플릿 비저장.</p></div></div>
+</section>
+
+<section id="roadmap">
+  <div class="section-head"><div class="num">12</div><div><h2>8주 통합 로드맵</h2><p>하나의 최종 릴리스로 진행하되, 매주 실패를 조기에 발견하는 Gate를 둔다.</p></div></div>
+  <div class="timeline">
+    <div class="week"><div class="w">W0</div><b>현행 감사</b><div class="bar"><i style="width:18%"></i></div><div class="gate">기존 smoke test</div></div>
+    <div class="week"><div class="w">W1</div><b>경계·DTO</b><div class="bar"><i style="width:30%"></i></div><div class="gate">Use Case 호출 전환</div></div>
+    <div class="week"><div class="w">W2</div><b>RAG 고도화</b><div class="bar"><i style="width:42%"></i></div><div class="gate">평가 baseline</div></div>
+    <div class="week"><div class="w">W3</div><b>4-model Router</b><div class="bar"><i style="width:54%"></i></div><div class="gate">contract test</div></div>
+    <div class="week"><div class="w">W4</div><b>커머스 통합</b><div class="bar"><i style="width:66%"></i></div><div class="gate">승인 없는 주문 0</div></div>
+    <div class="week"><div class="w">W5</div><b>지식 바운티</b><div class="bar"><i style="width:76%"></i></div><div class="gate">ground truth 평가</div></div>
+    <div class="week"><div class="w">W6</div><b>음성·화상·Passkey</b><div class="bar"><i style="width:85%"></i></div><div class="gate">브라우저 E2E</div></div>
+    <div class="week"><div class="w">W7</div><b>관리자·보고서</b><div class="bar"><i style="width:93%"></i></div><div class="gate">재현 가능한 지표</div></div>
+    <div class="week"><div class="w">W8</div><b>안정화·제출</b><div class="bar"><i style="width:100%"></i></div><div class="gate">DoD 100%</div></div>
+  </div>
+</section>
+
+<section id="tests">
+  <div class="section-head"><div class="num">13</div><div><h2>테스트는 “답이 그럴듯한가”가 아니라 시스템 계약을 검증</h2><p>RAG 품질, 모델 계약, 주문 안전, 에이전트 어뷰징을 분리해서 측정한다.</p></div></div>
+  <table><thead><tr><th>계층</th><th>테스트</th><th>대표 실패</th><th>기준</th></tr></thead><tbody>
+    <tr><td>Domain</td><td>가격·포인트·상태 전이</td><td>음수 잔액, 잘못된 전이</td><td>모든 경계값 통과</td></tr>
+    <tr><td>RAG</td><td>Recall·Citation·Faithfulness·Abstention</td><td>구버전·근거 없는 답</td><td>핵심 supported claim 95%+</td></tr>
+    <tr><td>Model</td><td>4개 모델 공통 schema/tool</td><td>빈 tool call, malformed JSON</td><td>재시도 후 schema 100%</td></tr>
+    <tr><td>MCP</td><td>scope·confirmation·timeout</td><td>쓰기 우회</td><td>bypass 0</td></tr>
+    <tr><td>Commerce</td><td>승인·멱등성·재고 재확인</td><td>중복 주문</td><td>0건</td></tr>
+    <tr><td>Bounty</td><td>ground truth·담합·복제</td><td>가짜 근거 보상</td><td>차단률 기록·기준 통과</td></tr>
+    <tr><td>Browser</td><td>텍스트·음성·화상·Passkey</td><td>권한 미해제</td><td>E2E 완주</td></tr>
+  </tbody></table>
+</section>
+
+<section id="deliverables">
+  <div class="section-head"><div class="num">14</div><div><h2>제출물과 기능 매핑</h2><p>모든 제출물은 실제 코드·평가·시연과 연결한다.</p></div></div>
+  <div class="checklist">
+    <div class="check">수집 데이터·라이선스·전처리 문서</div><div class="check">RAG 아키텍처 및 데이터 흐름</div><div class="check">Clean Architecture 적용/미적용 비교</div><div class="check">GPT·Gemini·Qwen3.6·Gemma4 모델 보고서</div><div class="check">Vector DB·Hybrid Retrieval 코드</div><div class="check">LangChain·LangGraph·MCP 통합 코드</div><div class="check">텍스트 상담 챗봇</div><div class="check">음성 상담 챗봇</div><div class="check">화상 상담 챗봇</div><div class="check">사용자·관리자 화면</div><div class="check">Passkey 2차 인증</div><div class="check">관리자 보고서 저장·인쇄</div><div class="check">테스트 계획·결과 발표자료</div><div class="check">통합 시연영상</div>
+  </div>
+  <div class="card blue" style="margin-top:20px"><h3>최종 데모 한 줄</h3><p>사용자가 카메라와 음성으로 부품 조건을 전달하면, RAG·상품 DB·지식 바운티가 근거를 보강하고, 사용자가 승인한 상품만 주문되며, 관리자는 전체 근거·비용·성능 보고서를 인쇄한다.</p></div>
+</section>
+
+<footer id="sources">
+  <h2>공식 조사 출처</h2>
+  <ol class="refs">
+    <li><a href="https://platform.openai.com/docs/models">OpenAI Models</a></li><li><a href="https://platform.openai.com/docs/guides/migrate-to-responses">OpenAI Responses API</a></li><li><a href="https://platform.openai.com/docs/guides/realtime">OpenAI Realtime</a></li>
+    <li><a href="https://ai.google.dev/gemini-api/docs/models">Gemini Models</a></li><li><a href="https://ai.google.dev/gemini-api/docs/live">Gemini Live API</a></li><li><a href="https://ai.google.dev/gemini-api/docs/function-calling">Gemini Function Calling</a></li>
+    <li><a href="https://github.com/QwenLM/Qwen3.6">Qwen3.6 official repository</a></li><li><a href="https://developers.googleblog.com/gemma-4-12b-the-developer-guide/">Gemma 4 12B guide</a></li>
+    <li><a href="https://docs.langchain.com/oss/python/langgraph/overview">LangGraph overview</a></li><li><a href="https://docs.langchain.com/oss/python/langchain/agents">LangChain Agents</a></li>
+    <li><a href="https://modelcontextprotocol.io/specification/2025-11-25">MCP Specification</a></li><li><a href="https://modelcontextprotocol.io/specification/2025-11-25/basic/security_best_practices">MCP Security</a></li>
+    <li><a href="https://a2a-protocol.org/latest/">A2A Protocol</a></li><li><a href="https://developers.cafe24.com/">Cafe24 Developers</a></li><li><a href="https://www.w3.org/TR/webauthn-3/">WebAuthn Level 3</a></li><li><a href="https://fidoalliance.org/passkeys/">FIDO Passkeys</a></li><li><a href="https://github.com/pgvector/pgvector">pgvector</a></li><li><a href="https://opentelemetry.io/docs/">OpenTelemetry</a></li><li><a href="https://owasp.org/www-project-top-10-for-large-language-model-applications/">OWASP LLM Top 10</a></li>
+  </ol>
+  <p style="margin-top:26px;font-size:12px">작성 기준일 2026-07-18 · 기존 부트캠프 RAG/MCP/LangGraph/ReAct 자료와 기존 MVP 계획서를 재검토하여 통합함.</p>
+</footer>
+</main></div>
+<script>
+const side=document.querySelector('.sidebar');document.querySelectorAll('.nav a').forEach(a=>a.addEventListener('click',()=>side.classList.remove('open')));
+const sections=[...document.querySelectorAll('main section, footer')];const links=[...document.querySelectorAll('.nav a')];
+const observer=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting){links.forEach(l=>l.classList.toggle('active',l.getAttribute('href')==='#'+e.target.id));}})},{rootMargin:'-25% 0px -65% 0px'});sections.forEach(s=>observer.observe(s));
+document.querySelectorAll('.tab-btn').forEach(btn=>btn.addEventListener('click',()=>{document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));btn.classList.add('active');document.getElementById('tab-'+btn.dataset.tab).classList.add('active');}));
+</script>
+</body></html>

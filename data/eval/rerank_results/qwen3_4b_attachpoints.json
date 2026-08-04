@@ -1,0 +1,85 @@
+{
+ "schema_version": "rerank-attachpoints-v1",
+ "candidates": "s7_1_arctic_ko_top20_rerank_fulltext.json",
+ "candidate_queries": 417,
+ "retriever_model": "dragonkue/snowflake-arctic-embed-l-v2.0-ko",
+ "query_prefix": "query: ",
+ "reranker_model": "Qwen/Qwen3-Reranker-4B",
+ "warmup_seconds": 212.0,
+ "settings": {
+  "device": "cuda",
+  "dtype": "float16",
+  "max_length": 768,
+  "batch_size": 1
+ },
+ "results": [
+  {
+   "attach_point": "clause",
+   "n_queries": 417,
+   "dense": {
+    "n": 417,
+    "hit@1": 0.484412,
+    "hit@5": 0.695444,
+    "hit@10": 0.736211,
+    "hit@20": 0.752998,
+    "mrr@10": 0.577781,
+    "mrr": 0.578967
+   },
+   "reranked": {
+    "n": 417,
+    "hit@1": 0.585132,
+    "hit@5": 0.731415,
+    "hit@10": 0.741007,
+    "hit@20": 0.7506,
+    "mrr@10": 0.648131,
+    "mrr": 0.648878
+   },
+   "failures": 1,
+   "failure_examples": [
+    {
+     "query_id": "tail-0042",
+     "error": "RuntimeError: reranker returned constant scores; checkpoint/scoring adapter mismatch"
+    }
+   ],
+   "latency_ms": {
+    "p50": 2717.5,
+    "p95": 3406.6,
+    "mean": 2664.9
+   }
+  },
+  {
+   "attach_point": "rag",
+   "n_queries": 417,
+   "dense": {
+    "n": 417,
+    "hit@1": 0.484412,
+    "hit@5": 0.695444,
+    "hit@10": 0.736211,
+    "hit@20": 0.752998,
+    "mrr@10": 0.577781,
+    "mrr": 0.578967
+   },
+   "reranked": {
+    "n": 417,
+    "hit@1": 0.585132,
+    "hit@5": 0.731415,
+    "hit@10": 0.741007,
+    "hit@20": 0.7506,
+    "mrr@10": 0.648088,
+    "mrr": 0.648835
+   },
+   "failures": 1,
+   "failure_examples": [
+    {
+     "query_id": "tail-0042",
+     "error": "RuntimeError: reranker returned constant scores; checkpoint/scoring adapter mismatch"
+    }
+   ],
+   "latency_ms": {
+    "p50": 2714.7,
+    "p95": 3418.2,
+    "mean": 2669.0
+   }
+  }
+ ]
+}

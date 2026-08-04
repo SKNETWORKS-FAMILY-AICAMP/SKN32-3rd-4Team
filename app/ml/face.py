@@ -216,6 +216,11 @@ def _embed(aligned: np.ndarray, backend: str | None = None) -> np.ndarray:
     return feat / norm
 
 
+#: MiniFASNet 출력 축 순서: [2D-spoof, live, 3D-spoof]. **1 이 live 다.**
+#: 원본 Silent-Face 구현도 `argmax == 1` 일 때만 real 로 판정한다.
+_LIVE_CLASS = 1
+
+
 def _liveness_prob(bgr: np.ndarray, bbox: np.ndarray) -> float:
     """live 클래스 확률(0~1). 값이 클수록 실제 촬영일 가능성이 높다."""
     import cv2
@@ -234,7 +239,23 @@ def _liveness_prob(bgr: np.ndarray, bbox: np.ndarray) -> float:
     out = sess.run(None, {sess.get_inputs()[0].name: blob})[0][0]
     e = np.exp(out - out.max())
     prob = e / e.sum()
-    return float(prob[0])  # [live, print, replay]
+
+    #: ★★**클래스 순서를 틀리고 있었다 — 얼굴 등록이 아무도 안 됐다(2026-08-04).**
+    #:
+    #:   전에는 `prob[0]` 을 live 로 읽고 주석에 `[live, print, replay]` 라 적어 두었다.
+    #:   MiniFASNet(Silent-Face) 의 실제 출력은 **`[2D-spoof, live, 3D-spoof]`** 이고,
+    #:   원본 구현도 `label == 1` 일 때만 real 로 판정한다.
+    #:
+    #:   실측 — 실제 사람 얼굴 5장:
+    #:       p0 = 0.0001 ~ 0.0033   (우리가 live 라고 읽던 값)
+    #:       p1 = 0.62   ~ 0.996    (진짜 live 값)
+    #:   임계값이 0.50 이므로 **어떤 실제 얼굴도 통과할 수 없었다.** 등록 100% 실패.
+    #:
+    #:   ★테스트가 왜 못 잡았나 — `relax_liveness` fixture 가 임계값을 **0.0 으로 낮춰**
+    #:     `p0 >= 0.0` 을 항상 참으로 만들었다. 임계값을 낮춰 초록불을 만드는 것이
+    #:     정확히 이 결함을 가렸다. 그래서 아래 `_LIVE_CLASS` 를 상수로 꺼내고,
+    #:     "실제 얼굴은 **기본 임계값에서** 통과해야 한다"를 시험으로 고정한다.
+    return float(prob[_LIVE_CLASS])
 
 
 def _get_new_box(src_w: int, src_h: int, bbox_xywh, scale: float):

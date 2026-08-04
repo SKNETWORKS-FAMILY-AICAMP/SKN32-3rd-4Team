@@ -43,7 +43,10 @@ _BASE = _ROOT / "data" / "cohort"
 #:   그 사실을 응답에 명시한다"고 한 그 경로다. **집계에는 들어가되
 #:   등급을 따로 세어 응답에 싣는다**(`by_verification`) — 합치기만 하면
 #:   "n=5" 가 "5건 발행처 확인됨"으로 읽힌다.
-_COUNTED = {"document_backed", "confirmed", "admin_attested"}
+_COUNTED = {
+    "document_backed", "confirmed", "admin_attested",
+    "synthetic_consistency", "synthetic_admin_review",
+}
 
 #: 폴더 이름 — `DataSource` 값과 1:1. 섞이지 않게 물리적으로 나눈다.
 _DIR = {
