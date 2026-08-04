@@ -1,7 +1,7 @@
 """SQLAlchemy ORM 모델 (커머스 코어 — 실습 잔재).
 
-카탈로그 엔티티는 Product(실데이터 products.csv 기준). 주문 시점 단가/상품명은
-OrderItem에 스냅샷으로 저장한다.
+Product·Inventory·OrderItem은 아직 인증 모델과 같은 파일에 남은 레거시 커머스 스키마다.
+커머스 CSV와 시더는 활성 경로에서 격리됐으며 보험 런타임의 DB 준비에는 쓰지 않는다.
 """
 
 from __future__ import annotations

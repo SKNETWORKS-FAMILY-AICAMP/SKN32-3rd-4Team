@@ -126,7 +126,7 @@ scripts/
 ├─ extract/             PDF·조항·표 전처리
 ├─ index/               청킹·임베딩·pgvector 적재
 ├─ eval/                검색·OCR·리랭커 평가
-└─ manage.py            DB migration·seed·ingest 관리
+└─ manage.py            DB migration·ingest·운영 관리
 tests/                  회귀·보안·계약 테스트
 ```
 
@@ -218,7 +218,6 @@ cp .env.example .env
 
 # 3. DB 준비
 python -m scripts.manage migrate
-python -m scripts.manage seed
 
 # 4. 기본 문서 인덱스
 python -m scripts.manage ingest
