@@ -16,22 +16,9 @@ ChatComplete = Callable[[str], str]
 
 
 def _default_chat_complete(prompt: str) -> str:
-    from openai import APIConnectionError
+    from app.adapters.llm_gateway import LlmGateway
 
-    from app.core.errors import InfraError
-    from app.core.llm_clients import get_active_model, get_chat_client
-
-    client = get_chat_client()
-    try:
-        resp = client.chat.completions.create(
-            model=get_active_model(),
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.2,
-            max_tokens=200,
-        )
-    except APIConnectionError as exc:
-        raise InfraError("LLM 서버에 연결할 수 없습니다.") from exc
-    return resp.choices[0].message.content or ""
+    return LlmGateway().complete(prompt, max_tokens=200, temperature=0.2)
 
 
 def summarize_text(text: str, chat_complete: ChatComplete | None = None) -> str:

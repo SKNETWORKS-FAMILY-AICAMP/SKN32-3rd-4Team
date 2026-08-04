@@ -163,3 +163,35 @@ def test_색인이_없으면_503(monkeypatch):
     monkeypatch.setattr(composition, "build_glossary", lambda: _Broken())
     r = TestClient(create_app("full")).post("/v1/chat", json={"message": "통원 뜻"})
     assert r.status_code == 503
+
+
+def test_설정한_llm이_승인_원문을_설명한다(monkeypatch):
+    from types import SimpleNamespace
+
+    from app import composition
+    from app.main import create_app
+    from app.routers import chat as chat_router
+
+    class _Model:
+        def complete(self, prompt, **kwargs):
+            assert "통원" in prompt and "의료기관에 입원하지 않고" in prompt
+            return "통원은 입원하지 않고 의료기관을 방문해 치료받는 것을 뜻합니다."
+
+    monkeypatch.setattr(composition, "build_glossary", lambda: _SRC)
+    monkeypatch.setattr(chat_router, "_model", lambda: _Model())
+    monkeypatch.setattr(
+        chat_router,
+        "get_settings",
+        lambda: SimpleNamespace(LLM_CHAT_ENABLED=True, LLM_PROVIDER="openai"),
+    )
+    monkeypatch.setattr(chat_router, "get_active_model", lambda: "configured-model")
+
+    r = TestClient(create_app("full")).post("/v1/chat", json={"message": "통원 뜻"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["llm"] == {
+        "used": True,
+        "provider": "openai",
+        "model": "configured-model",
+    }
+    assert "입원하지 않고" in body["message"]

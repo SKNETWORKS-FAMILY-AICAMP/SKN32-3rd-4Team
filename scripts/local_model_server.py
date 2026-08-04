@@ -10,7 +10,7 @@ llama_cpp.server는 starlette_context(starlette 1.x)를 요구해 앱의 fastapi
 
 환경변수:
     GEMMA_GGUF_PATH  : GGUF 모델 경로 (기본: HF 캐시 경로)
-    LOCAL_MODEL_PORT : 포트 (기본 8000)
+    LOCAL_MODEL_PORT : 포트 (기본 8002 — 앱 개발 서버 8000과 분리)
     N_CTX            : 컨텍스트 (기본 4096)
 """
 
@@ -56,7 +56,7 @@ GGUF_PATH = (
     or _discover_gguf()
     or ""  # 아래 존재 검사에서 명시적으로 실패한다(무폴백)
 )
-PORT = int(os.environ.get("LOCAL_MODEL_PORT", "8000"))
+PORT = int(os.environ.get("LOCAL_MODEL_PORT", "8002"))
 # 이 머신은 여유 RAM이 ~5GB로 빠듯하다. 컴퓨트 버퍼는 배치에 비례하므로 작게 잡는다
 # (debug_notes 2026-07-12_2028 / RAM 제약 노트 참조).
 N_CTX = int(os.environ.get("N_CTX", "1024"))
@@ -89,6 +89,12 @@ def get_llm() -> Llama:
 @app.get("/v1/models")
 def list_models() -> dict:
     return {"object": "list", "data": [{"id": "gemma-4-e4b", "object": "model"}]}
+
+
+@app.get("/healthz")
+def healthz() -> dict:
+    """프로세스와 모델 로드가 끝났음을 확인한다."""
+    return {"ready": _llm is not None, "model": "gemma-4-e4b"}
 
 
 @app.post("/v1/chat/completions")

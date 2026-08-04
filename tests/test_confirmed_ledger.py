@@ -134,6 +134,22 @@ def test_판매시점을_모르면_확정해도_못_쓴다(_manifest, _ledger, t
     assert mpr.load_versions() == []
 
 
+def _manifest_or_skip(client):
+    """지원범위 응답. **산출물이 없으면 건너뛴다.**
+
+    ★★신규 클론·팀 CI 에는 `data/structured/` 가 없다(gitignore 대상).
+      그러면 `/v1/support-manifest` 가 503 으로 「승인된 조항 산출물이 없습니다」라고
+      **정확히** 답한다 — 그건 이 시험이 볼 대상이 아니다.
+
+      실측 2026-08-04 — 이 처리를 안 해서 팀 트리에서 이 시험이 깨졌다.
+      **환경 부재를 코드 결함으로 보고하면 그게 거짓 실패**다.
+    """
+    r = client.get("/v1/support-manifest")
+    if r.status_code != 200:
+        pytest.skip(f"지원범위를 낼 수 없는 환경(HTTP {r.status_code}) — 산출물 부재")
+    return r.json()
+
+
 def test_확정_범위를_숨기지_않는다():
     """★10건 확정을 **전량**으로 읽게 두지 않는다.
 
@@ -145,7 +161,7 @@ def test_확정_범위를_숨기지_않는다():
 
     from app.main import app
 
-    m = TestClient(app).get("/v1/support-manifest").json()
+    m = _manifest_or_skip(TestClient(app))
     conf = m.get("confirmation") or {}
     assert "confirmed" in conf and "collected" in conf, "확정 건수의 분모가 없습니다"
     if conf.get("confirmed"):
@@ -179,7 +195,7 @@ def test_확정이_부분이면_판정_응답이_그_사실을_말한다():
     from app.main import app
 
     c = TestClient(app)
-    m = c.get("/v1/support-manifest").json()
+    m = _manifest_or_skip(c)
     conf = m.get("confirmation") or {}
     if not conf.get("confirmed"):
         pytest.skip("확정 0건 — 판본을 고르는 경로 자체가 없다")
@@ -210,10 +226,79 @@ def test_확정_범위_이름이_늘어도_문장에서_빠지지_않는다():
 
     from app.main import app
 
-    m = TestClient(app).get("/v1/support-manifest").json()
+    m = _manifest_or_skip(TestClient(app))
     scopes = (m.get("confirmation") or {}).get("scopes") or {}
     if not scopes:
         pytest.skip("확정 0건")
     head = " ".join(m["notes"])
     for name, n in scopes.items():
         assert str(n) in head.replace(",", ""), f"범위 {name}({n}건)이 안내 문구에 없습니다"
+
+
+def test_판매종료를_모르면_그_사실을_말한다():
+    """★★**「종료일 미상」이 「계속 판매 중」으로 취급되고 있었다** — 조용한 폴백이다.
+
+    `resolve()` 의 조건은 `not v.sale_end or enrolled_on <= v.sale_end` 다.
+    `sale_end` 가 비면 무조건 통과한다.
+
+    실측 2026-08-04 — 확정 850건 중 **445건(52.4%)이 종료일 미상**이고
+    그중 54건은 2018년 이전 판매개시다. 가장 늦은 판본을 고르므로 옛 것이
+    최신을 이기지는 않지만, 「그 시점에 정말 팔고 있었나」는 확인된 사실이 아니다.
+    막지는 않되 **말은 해야 한다**(CLAUDE.md §0).
+    """
+    from fastapi.testclient import TestClient
+
+    from app.adapters import manifest_policy_resolver as mpr
+    from app.main import app
+
+    vs = mpr.load_versions()
+    if not vs:
+        pytest.skip("확정 0건")
+    c = TestClient(app)
+    MARK = "판매 종료 시점을 모릅니다"
+
+    noend = [v for v in vs if not (v.sale_end or "").strip()]
+    if noend:
+        v = noend[0]
+        j = c.post("/v1/prechecks", json={
+            "insurer": v.insurer, "enrolled_on": v.sale_start,
+            "kcd_codes": ["F20.0"], "product_name": v.product_name}).json()
+        if j.get("applied_policy") and not (j["applied_policy"].get("sale_end") or "").strip():
+            assert any(MARK in w for w in (j.get("warnings") or [])), (
+                "판매 종료일을 모르는데 응답이 아무 말도 하지 않습니다")
+
+    withend = [v for v in vs if (v.sale_end or "").strip()]
+    if withend:
+        v = withend[0]
+        j = c.post("/v1/prechecks", json={
+            "insurer": v.insurer, "enrolled_on": v.sale_start,
+            "kcd_codes": ["F20.0"], "product_name": v.product_name}).json()
+        if j.get("applied_policy") and (j["applied_policy"].get("sale_end") or "").strip():
+            assert not any(MARK in w for w in (j.get("warnings") or [])), (
+                "종료일을 아는데 불필요한 경고가 붙습니다")
+
+
+def test_확정_원장은_식별과_인용가능성을_구분한다():
+    """★`parse_status` 는 **식별 실패가 아니다**(코덱스 지적 2026-08-04).
+
+    「이 파일이 무엇인가」와 「조항을 근거로 댈 수 있는가」는 다른 층이다.
+    실측 — `suspect` 52건 중 51건이 인용 가능 조항 10개 이상이다.
+    식별은 되므로 원장에 넣되, `extraction_blocked` 로 **표시**한다.
+    런타임은 그걸 보고 `document_not_reliable` 로 정확한 사유를 말한다.
+    """
+    import json
+    import pathlib
+
+    led = pathlib.Path("config/confirmed_documents.jsonl")
+    if not led.exists():
+        pytest.skip("원장 없음")
+    rows = [json.loads(x) for x in led.read_text(encoding="utf-8").splitlines() if x.strip()]
+    if not rows:
+        pytest.skip("원장 0건")
+    #: 필드가 있어야 한다 — 없으면 층 구분이 사라진 것이다.
+    assert all("extraction_blocked" in r for r in rows), (
+        "원장에 extraction_blocked 가 없습니다 — 식별과 인용가능성이 다시 섞였습니다")
+    blocked = [r for r in rows if r.get("extraction_blocked")]
+    for r in blocked:
+        assert r["evidence"] == "extraction_blocked", (
+            f"인용 불가인데 근거 등급이 {r['evidence']!r} 입니다: {r['sha256'][:12]}")

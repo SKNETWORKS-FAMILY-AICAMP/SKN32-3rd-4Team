@@ -89,11 +89,21 @@
     box-shadow: var(--shadow);
   }
 
+  /* ★두 창 모두 `min-height: 0` 이 **필요하다**. 그리드 아이템의 기본 최소 크기는
+       `auto`(=내용 높이)라, 내용이 늘면 창이 스크롤되는 대신 **행 트랙이 늘어난다**.
+       늘어난 행은 고정 높이인 `.workspace` 를 넘고 `overflow: hidden` 이 잘라낸다.
+
+       실측(2026-08-04, 1440x900): 채팅 12개를 넣자 행이 802 → 1427.6px 로 늘고
+       `.chat-scroll` 넘침 0(스크롤 없음) · 입력창 바닥이 y=1504(workspace 바닥 880) 로
+       화면 밖에 잘렸다. `.profile-pane` 은 스크롤 컨테이너라 자기 최소 크기는 0 이지만
+       **행을 chat-pane 과 공유**해서, 행이 부풀면 같이 늘어나 있던 스크롤(넘침 161)까지
+       0 이 됐다. 그래서 한쪽만 고치면 안 된다. */
   .profile-pane {
     position: relative;
     z-index: 2;
     display: flex;
     flex-direction: column;
+    min-height: 0;
     overflow-y: auto;
     border-right: 1px solid var(--line-soft);
     background: #fbfbf9;
@@ -178,7 +188,16 @@
   .scope-card summary { color: #696963; font-size: 12px; font-weight: 700; cursor: pointer; }
   #scopeBody { margin-top: 10px; color: var(--muted); font-size: 12px; }
 
-  .chat-pane { position: relative; min-width: 0; display: flex; flex-direction: column; background: var(--surface); }
+  /* ★`min-height: 0` — 위 `.profile-pane` 주석의 이유가 그대로 여기에 해당한다.
+       이쪽이 근본 원인이다(`overflow: visible` 이라 자동 최소 크기가 그대로 걸린다). */
+  .chat-pane {
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+  }
   .chat-head {
     min-height: 92px;
     display: flex;
@@ -241,6 +260,23 @@
     color: #fff;
   }
   .msg.bot { align-self: flex-start; }
+  .precheck-chat-details {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line-soft);
+  }
+  .precheck-chat-line { margin-top: 8px; }
+  .precheck-chat-warning { margin-top: 8px; color: #8a5b16; }
+  .chat-detail-link {
+    margin-top: 12px;
+    padding: 8px 12px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--black);
+    color: #fff;
+    font-size: 12px;
+    cursor: pointer;
+  }
   .cite { margin: 12px 0 0; padding: 10px 0 4px 12px; border-left: 2px solid #b8b8b2; font-size: 12px; }
   .cite .loc { margin-top: 4px; color: var(--muted); font: 11px/1.4 ui-monospace, monospace; }
   .quote { white-space: pre-wrap; }
@@ -253,6 +289,22 @@
     scrollbar-width: none;
   }
   .quick-prompts::-webkit-scrollbar { display: none; }
+
+  /* ★스크롤바를 숨겨 놨는데 칩이 4개뿐이라 **스크롤되는 줄 몰랐다**.
+     칩을 늘리는 김에 오른쪽에 페이드를 둬 "더 있다"를 보이게 한다.
+     `.is-scrollable` 은 실제로 넘칠 때만 JS 가 붙인다 — 안 넘치는데
+     페이드가 있으면 없는 것을 있다고 말하는 셈이다. */
+  .quick-wrap { position: relative; }
+  .quick-wrap.is-scrollable::after {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 12px;
+    width: 46px;
+    background: linear-gradient(to right, rgba(255,255,255,0), var(--surface) 72%);
+    pointer-events: none;
+    content: "";
+  }
   .chip-btn {
     flex: 0 0 auto;
     padding: 8px 12px;
@@ -446,7 +498,12 @@
       <form class="insurance-form" id="insuranceForm">
         <div class="field">
           <label for="productName">상품명</label>
-          <input class="control" id="productName" placeholder="예) 다이렉트실손의료보험" autocomplete="off">
+          <input class="control" id="productName" list="products"
+                 placeholder="보험사를 먼저 고르세요" autocomplete="off" disabled>
+          <datalist id="products"></datalist>
+          <p class="precheck-help" id="productHint">
+            보험사를 고르면 확정된 약관에서 상품명을 찾아 드립니다.
+          </p>
         </div>
         <div class="field">
           <label for="insurer">보험사명</label>
@@ -462,6 +519,21 @@
           <p class="precheck-title"><strong>보장 여부 확인</strong></p>
           <p class="precheck-help">질병코드를 입력하면 가입 약관을 기준으로 확인합니다.</p>
           <input class="control" id="codes" placeholder="예) F32, S82" autocomplete="off" aria-label="질병코드" required>
+          <button class="chip-btn" type="button" id="codeListOpen" style="margin-top:6px">
+            약관에 등장한 질병코드 보기
+          </button>
+          <div id="codeListPanel" class="detail-card" hidden style="margin-top:8px">
+            <p class="precheck-help" style="margin:0 0 6px">
+              진료비 세부내역서·진단서에 적힌 <strong>상병코드</strong>를 그대로 넣는 것이 가장 정확합니다.
+              아래는 약관에 실제로 언급된 코드이며 <strong>목록에 없는 코드도 입력하실 수 있습니다.</strong>
+              <strong>C30~C39 같은 약관 범위는 선택할 수 없고, C34.1 같은 개별 코드를 입력해야 합니다.</strong>
+            </p>
+            <input class="control" id="codeListQuery" placeholder="코드 검색 (예: F0)"
+                   autocomplete="off" aria-label="질병코드 검색" style="margin-bottom:6px">
+            <p class="precheck-help" id="codeListSummary" style="margin:0 0 6px">불러오는 중…</p>
+            <div id="codeListBody" style="max-height:200px;overflow-y:auto"></div>
+            <button class="chip-btn" type="button" id="codeListClose" style="margin-top:6px">닫기</button>
+          </div>
           <label class="consent" for="consent">
             <input type="checkbox" id="consent">
             <span>입력한 질병코드가 제 진료 기록과 맞음을 확인했습니다.</span>
@@ -504,14 +576,18 @@
         <div id="chatLog" class="chatlog" aria-live="polite"></div>
       </div>
 
-      <div class="quick-prompts" aria-label="추천 질문">
-        <button class="chip-btn" type="button" data-q="도수치료가 뭐야">도수치료가 뭐야</button>
-        <button class="chip-btn" type="button" data-q="통원 뜻">통원 뜻</button>
-        <button class="chip-btn" type="button" data-q="본인부담금">본인부담금</button>
-        <button class="chip-btn" type="button" data-q="도수치료 보장되나요?">도수치료 보장되나요?</button>
+      <div class="quick-wrap" id="quickWrap">
+        <div class="quick-prompts" id="quickPrompts" aria-label="추천 질문">
+          <!-- ★약관에 정의가 **실제로 있는** 용어로 채운다(GET /v1/chat/terms).
+               하드코딩하면 약관이 바뀌어도 그대로 남아, 눌렀는데 못 찾는 칩이 생긴다. -->
+          <button class="chip-btn" type="button" data-q="도수치료가 뭐야">도수치료가 뭐야</button>
+          <button class="chip-btn" type="button" data-q="통원 뜻">통원 뜻</button>
+          <button class="chip-btn" type="button" data-q="본인부담금">본인부담금</button>
+        </div>
       </div>
       <div class="composer">
-        <input id="chatIn" placeholder="메시지 입력" autocomplete="off" aria-label="메시지 입력">
+        <input id="chatIn" list="chatTerms" placeholder="메시지 입력" autocomplete="off" aria-label="메시지 입력">
+        <datalist id="chatTerms"></datalist>
         <button class="send-btn" id="chatGo" type="button">보내기</button>
       </div>
     </section>
@@ -520,7 +596,7 @@
   <section class="detail-area" aria-labelledby="detailTitle">
     <h2 class="detail-heading" id="detailTitle">보장 확인 상세</h2>
     <p class="detail-copy">판정 결과와 근거, 비슷한 사례를 한곳에서 확인할 수 있습니다.</p>
-    <div id="result"></div>
+    <div id="result" tabindex="-1"></div>
 
     <div class="split">
       <div class="detail-card" id="cohortReal">

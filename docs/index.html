@@ -67,8 +67,19 @@
 <div class="grid">
   <div class="card"><span class="n">1,367</span><span class="lbl">판정 대상 약관 (고유 sha 1,703 − 격리 336)</span></div>
   <div class="card"><span class="n">122,697</span><span class="lbl">조항 벡터 조각 · arctic-ko 1024차원</span></div>
-  <div class="card"><span class="n">1,115</span><span class="lbl">판정 가능 약관 <b>(1,367 중 81.6%)</b> · 12개사 · 1~5세대</span></div>
+  <div class="card"><span class="n">850</span><span class="lbl">판정 가능 약관 <b>(1,367 중 62.2%)</b> · 12개사 · 1~5세대</span></div>
   <div class="card"><span class="n">584</span><span class="lbl">통과 테스트 (실패 0 · CI 동등 + PG)</span></div>
+</div>
+
+<h2>화면이 실제로 도는 것을 보려면</h2>
+<div class="card">
+  <p style="margin-top:0"><b><a href="delivery/storyboard.html">동작 스토리보드 →</a></b>
+     실제로 뜬 서버에 붙어 화면을 눌러 가며 찍은 <b>6컷</b>입니다(캡처 2026-08-04).
+     입력 → <b>기권·되묻기</b> → 판본 확정 → 근거 인용 → 용어 설명 → 운영 화면 잠금까지.</p>
+  <p class="lbl" style="margin-bottom:0">★캡처에서 <b>약관 원문은 가렸습니다</b> — 저작물이라
+     저장소에 넣지 않습니다. 조항 ID·약관명·페이지는 남겼습니다.
+     다시 찍기: <code>python scripts/capture_storyboard.py docs/delivery/screenshots</code>.
+     스토리보드 아래에 <b>「증명하지 못한 것」</b>을 따로 적어 두었습니다.</p>
 </div>
 
 <h2>기능 상태</h2>
@@ -82,13 +93,18 @@
   <tr><td>조항 벡터 검색</td><td><span class="tag t-ok">동작</span></td>
       <td>보험 질의 3건 근거 반환 · 무관 질의 3건 「근거 없음」 (거리 하한 1.13, 실측 기반)</td></tr>
   <tr><td>보장 판정</td><td><span class="tag t-ok">동작</span></td>
-      <td>가입일 → 판본 확정 → 면책 대조 → 원문 인용. <b>확정된 1,115건 범위 안에서만</b></td></tr>
+      <td>가입일 → 판본 확정 → 면책 대조 → 원문 인용. <b>확정된 850건 범위 안에서만</b></td></tr>
   <tr><td>리랭커</td><td><span class="tag t-ok">선정 완료</span></td>
-      <td>5종 비교 → <code>Qwen3-Reranker-4B</code>. Hit@1 <b>84.71%</b> (dense 기준선 대비 +20.06%p)</td></tr>
+      <td>5종 비교 → <code>Qwen3-Reranker-4B</code>.
+          <b>전체 질의(n=417) Hit@1 48.44% → 63.79%</b>(+15.35%p).
+          ★앞서 여기 <b>84.71%</b>만 적혀 있었는데 그건 <b>정답이 후보 20개 안에 있는 질의만</b>
+          고른 <code>retrievable</code> 부분집합(n=314)이다 — 분모가 다르다.
+          가장 크게 오른 것은 <b>다른 말로 물었을 때</b>다(<code>exclusion_alt</code> n=106:
+          16.04% → 67.92%). 벡터가 못 찾던 것을 리랭커가 살린다</td></tr>
   <tr><td>파일 ↔ PG 두 경로 정합</td><td><span class="tag t-ok">일치</span></td>
       <td>표본 6약관 동일 6 · 다름 0</td></tr>
   <tr><td>문서 확정</td><td><span class="tag t-warn">부분</span></td>
-      <td>1,115건 전부 <b>기계 대조</b>까지만. 사람 최종 승인 <b>대기 1,115건</b></td></tr>
+      <td>850건 전부 <b>기계 대조</b>까지만. 사람 최종 승인 <b>대기 850건</b> · 모호 221건은 사람이 골라야 함</td></tr>
   <tr><td>코호트 통계</td><td><span class="tag t-warn">빈 값</span></td>
       <td>동작은 정상이나 제보 <b>콜드스타트</b> — 표본 0건, 최소 표본 30</td></tr>
   <tr><td>도메인 내 오답</td><td><span class="tag t-bad">남음</span></td>
@@ -105,15 +121,20 @@
      그래서 확정 안 된 것은 <b>판정하지 않고 기권</b>합니다(<code>needs_expert</code>, HTTP 200).</p>
   <p>확정 절차는 문서 자신에게 물어봅니다 — 상품명 토큰이 본문에 나오는지, 문서가 밝힌
      판매시점이 수집 기록과 맞는지, 세대가 제도 시행 구간과 맞는지.
-     검사 1,361건 중 <b>1,115건 통과</b>(81.6%).</p>
+     검사 1,361건 중 <b>850건 통과</b>(62.2%). 판정 기준은 <b>전체 상품명이 문서에 한 덩어리로</b>
+     나올 것이고, 같은 문서에서 다른 본약관도 확인되면 자동 확정하지 않습니다.</p>
   <p>★<b>한때 132건(9.7%)까지 떨어져 있었는데, 그 대부분은 문서 문제가 아니라
      검사 규칙이 계약보다 엄격했던 탓이었습니다</b> — 세대가 비면 탈락시켰지만
      핸드오프 계약은 세대 NULL 을 명시적으로 허용합니다(모르는 세대를 숫자로 채우면
      그 오류가 판정까지 가므로). 그 한 줄로 301건이 잘못 막혀 있었습니다.</p>
+  <p class="lbl">★★<b>한때 1,115건까지 올라갔다가 850건으로 줄였습니다.</b> 늘린 게 아니라
+     줄인 것이 맞는 방향이었습니다 — 옛 기준은 상품명 토큰이 문서 여기저기 흩어져
+     다 나오기만 하면 통과시켰고, 그 결과 <b>1,115건 중 798건(71.6%)이 다른 상품명과도
+     똑같이 일치</b>하고 있었습니다. 약관집 하나에 본약관·특약·비교표가 같이 실리기 때문입니다.</p>
   <p class="lbl">★확정이 부분이면 <b>고른 판본이 진짜 최신이 아닐 수 있습니다.</b>
      실제로 확정을 10건에서 132건으로 늘리자 어떤 질의의 적용 판본이 2세대에서 3세대로 바뀌었습니다.
      그래서 판정 응답에 그 사실을 경고로 싣습니다.</p>
-  <p class="lbl">★★<b>1,115건 전부 사람의 최종 승인이 남아 있습니다.</b> 기계 대조는
+  <p class="lbl">★★<b>850건 전부 사람의 최종 승인이 남아 있습니다.</b> 기계 대조는
      「상품명이 문서에 나오는가·날짜가 모순되지 않는가」까지만 봅니다.
      엄격 모드로 바꾸면 판정 가능 약관은 <b>0건</b>이 됩니다 — 그게 지금의 진짜 바닥입니다.</p>
 </div>
@@ -125,7 +146,7 @@
   <tr><td>고객</td><td><code>python -m scripts.run_customer_server</code> → :8080</td>
       <td>경로 19개. <b>관리자 API가 아예 실리지 않는다</b></td></tr>
   <tr><td>운영</td><td><code>python -m scripts.run_admin_server</code> → :8081</td>
-      <td>경로 37개 + 관리자 대시보드. 실제로는 VPN·사내망 뒤에 둔다</td></tr>
+      <td>경로 40개(관리자 14 포함) + 대시보드. 실제로는 VPN·사내망 뒤에 둔다</td></tr>
 </table>
 <p class="lbl">★둘을 하나로 합치지 마세요. 무인증 노출 표면을 줄이려고 일부러 가른 것입니다.
    관리자 대시보드는 로그인이 필요하고, 승격은 CLI 전용입니다 —

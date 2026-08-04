@@ -42,10 +42,10 @@ def build_chat_commerce(db, chat_fn=None, max_steps: int = 3):
     from app.adapters.react_agent_adapter import ReactAgentAdapter
     from app.application.chat_commerce import ChatCommerce
     from app.application.self_verify import SelfVerify
-    from app.core.model_registry import get_active_profile
+    from app.core.llm_clients import get_active_model
 
     model = LlmGateway()
-    model_id = get_active_profile().provider_model_id
+    model_id = get_active_model()
     agent = ReactAgentAdapter(db, chat_fn=chat_fn, max_steps=max_steps)
     return ChatCommerce(agent=agent, verify=SelfVerify(model, model_id=model_id))
 
@@ -61,11 +61,11 @@ def build_verify_bounty_submission(retriever=None, support_check=None):
     from app.application.bounty import VerifyBountySubmission
     from app.application.self_verify import SelfVerify
     from app.core.config import get_settings
-    from app.core.model_registry import get_active_profile
+    from app.core.llm_clients import get_active_model
 
     settings = get_settings()
     if support_check is None:
-        support_check = SelfVerify(LlmGateway(), model_id=get_active_profile().provider_model_id)
+        support_check = SelfVerify(LlmGateway(), model_id=get_active_model())
     return VerifyBountySubmission(
         retriever=retriever if retriever is not None else FaissRetriever(),
         support_check=support_check,
@@ -149,9 +149,13 @@ def build_precheck():
     #:   ★산출물이 반쪽이면 판정이 **"그 약관엔 그런 조항이 없다"** 고 답한다.
     #:     그건 근거 없음이 아니라 **틀린 답**이다.
     rel = release.current()
-    rel.ensure_ready()
-
     kind = _clause_store_kind()
+
+    #: 배포 환경의 PG 저장소는 조항 본문을 인덱스에 보관하므로
+    #: 로컬 `data/structured/*/<clause_tag>/*.clauses.json`를 포함하지 않는다.
+    #: 파일 저장소에서만 산출물 존재·개수 검사를 수행한다.
+    if kind == "file":
+        rel.ensure_ready()
 
     if kind == "pg":
         from app.adapters import pg_clause_store
@@ -186,10 +190,10 @@ def build_cohort():
 
     ★어느 저장소를 볼지는 여기서 정한다. DB 적재 후엔 이 줄만 바꾼다.
     """
-    from app.adapters import file_cohort_stats
+    from app.adapters import cohort_stats
     from app.core.usecases.cohort import CohortQuery
 
-    return CohortQuery(file_cohort_stats)
+    return CohortQuery(cohort_stats)
 
 
 def build_glossary():
@@ -202,3 +206,15 @@ def build_glossary():
     from app.adapters import file_glossary_source
 
     return file_glossary_source
+
+
+def build_clause_search_deps() -> dict:
+    """조항 의미검색이 쓸 어댑터를 묶어 준다.
+
+    ★유스케이스(`app/core/usecases/clause_search.py`)는 어댑터를 직접 부르지 않는다
+      (ARCH-002·003 — 의존 방향). 그래서 조립은 여기서 한다.
+    """
+    from app.adapters import pgvector_clause_index
+    from app.adapters.clause_rerank import rerank_hits
+
+    return {"index": pgvector_clause_index, "rerank_fn": rerank_hits}

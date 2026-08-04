@@ -738,14 +738,24 @@ def search(
         else "AND EXISTS (SELECT 1 FROM policy_clause_occurrence o2 "
              "WHERE o2.content_hash = c.content_hash AND o2.index_generation = %(gen)s)"
     )
+    #: ★HNSW 후보를 거리순으로 먼저 줄인다. 이전 쿼리는 `DISTINCT ON` 을
+    #:   전체 모델 청크에 먼저 적용해 HNSW 인덱스를 사실상 쓰지 못했고,
+    #:   S7.1 12만 청크에서 top20 p50 5.42초였다. 내용당 여러 청크가 있으므로
+    #:   요청 수의 50배(최소 1,000)를 후보로 뽑은 뒤 내용 중복을 제거한다.
+    #:   넉넉한 풀은 top-k 의미를 유지하면서 전량 정렬만 피한다.
     sql = f"""
-        WITH best AS (
-            SELECT DISTINCT ON (c.content_hash)
-                   c.content_hash, c.chunk_ix, c.text,
+        WITH nearest AS (
+            SELECT c.content_hash, c.chunk_ix, c.text,
                    c.embedding <-> %(q)s AS distance
             FROM policy_clause_chunk c
-            --: ★현재 모델의 벡터만 본다. 벡터 공간이 다르면 거리가 뜻을 잃는다.
             WHERE c.embed_model = %(model)s {filt}
+            ORDER BY c.embedding <-> %(q)s
+            LIMIT %(pool)s
+        ), best AS (
+            SELECT DISTINCT ON (c.content_hash)
+                   c.content_hash, c.chunk_ix, c.text,
+                   c.distance
+            FROM nearest c
             ORDER BY c.content_hash, distance
         )
         SELECT b.content_hash, b.chunk_ix, b.text, b.distance,
@@ -777,7 +787,8 @@ def search(
     import numpy as np
 
     q = np.asarray(query_vec, dtype=np.float32)
-    params = {"q": q, "k": limit, "shas": sha256s, "maxd": max_distance,
+    params = {"q": q, "k": limit, "pool": max(limit * 50, 1000),
+              "shas": sha256s, "maxd": max_distance,
               "gen": current_generation(), "model": current_embed_model()}
     with conn.cursor() as cur:
         cur.execute(sql, params)

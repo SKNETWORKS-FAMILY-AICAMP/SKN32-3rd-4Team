@@ -502,6 +502,37 @@
       font-size: 11px;
     }
 
+    /* 보조 동작용 — 무언가를 바꾸지 않고 **보여주기만** 하는 버튼. */
+    .ghost-btn {
+      height: 30px;
+      padding: 0 12px;
+      border: 1px solid #d6dbe1;
+      border-radius: 6px;
+      background: #fff;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .ghost-btn:hover {
+      border-color: #b9c1ca;
+      color: #1c1c1a;
+    }
+
+    /* 질병기호 쓰임 배지 — 면책/예외/언급을 색으로 가른다. */
+    .kcd-kind {
+      display: inline-block;
+      padding: 1px 8px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 650;
+    }
+
+    .kcd-kind.exclude { background: #fee2e2; color: #991b1b; }
+    .kcd-kind.exception { background: #dcfce7; color: #166534; }
+    .kcd-kind.mention { background: #eef1f4; color: #55606b; }
+
     .verify-btn {
       flex: 0 0 auto;
       height: 32px;
@@ -1127,9 +1158,12 @@
 </head>
 
 <body>
+  <!-- ★"인식 비교"(facebench) 링크 제거 · 화면은 legacy/v9_facebench.zip 으로 격리(2026-08-04).
+       인식 백엔드 비교는 **선택이 끝난 실험**이다(adaface 확정, config 에 근거 기록).
+       끝난 실험의 화면을 운영 대시보드에 남기면 다음 사람이 "이걸 써야 하나"를 매번 판단한다.
+       비교 API(`POST /api/face/benchmark`)는 남겨 둔다 — 재측정이 필요하면 그것을 쓴다. -->
   <nav class="top-nav">
       <a href="/static/admin.html" class="active">🛡️ 관리자</a>
-      <a href="/static/facebench.html">🧪 인식 비교</a>
     </nav>
 
   <section class="login-panel">
@@ -1142,12 +1176,16 @@
           <input id="adminPassword" type="password" placeholder="비밀번호" />
         </label>
         <button id="adminLoginBtn" class="login-btn" type="button">로그인</button>
+        <!-- ★일반 계정(USER)으로만 만들어진다. 관리자 승격은 아래 안내 참조. -->
+        <button id="signupBtn" class="login-btn is-ghost" type="button">계정 만들기</button>
         <button id="logoutBtn" class="login-btn is-ghost" type="button">로그아웃</button>
         <span id="loginStatus" class="login-status"></span>
       </div>
       <p class="login-hint">
-        관리자 승격은 CLI 전용입니다(<code>python -m scripts.manage promote &lt;username&gt;</code>) —
-        UI에는 자기 자신을 관리자로 만드는 버튼이 없습니다(권한 상승 사고 방지, 무폴백 설계).
+        <strong>계정 만들기</strong>는 항상 일반 사용자(USER)로 만듭니다.
+        <strong>최초 관리자</strong> 승격만 CLI 전용입니다(<code>python -m scripts.manage promote &lt;username&gt;</code>) —
+        화면에 "관리자로 가입" 버튼을 두면 가입한 누구나 관리자가 되기 때문입니다(권한 상승 방지).
+        그 뒤의 관리자 추가는 로그인 후 <strong>사용자 관리</strong> 패널에서 합니다.
         <code>/api/admin/*</code> 전 경로는 라우터 전역 fail-closed(<code>require_admin</code>)로 보호됩니다 —
         미인증 401, 일반 사용자 403, 관리자만 200.
       </p>
@@ -1287,6 +1325,48 @@
           </div>
         </section>
 
+        <section class="panel" aria-labelledby="kcdTitle" id="kcdPanel" hidden>
+          <header class="panel-header">
+            <div>
+              <h2 id="kcdTitle" class="panel-title">약관에 나오는 질병기호</h2>
+              <p class="panel-subtitle">
+                ★<strong>KCD 사전이 아닙니다.</strong> 코드→질병명 표(약 2만 항목)는 갖고 있지
+                않아 「F32 = 우울에피소드」라고 말하지 않습니다. 여기 있는 것은
+                <strong>확정 약관 본문에 실제로 등장한 표기</strong>이고, 「장」은 KCD 22장
+                분류이지 질병명이 아닙니다.
+              </p>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center">
+              <input id="kcdQuery" class="filter-input" type="text" placeholder="F04"
+                     style="width:100px" aria-label="질병기호 검색">
+              <select id="kcdKind" class="filter-input" aria-label="쓰임 필터">
+                <option value="">쓰임 전체</option>
+                <option value="exclude">면책</option>
+                <option value="exception">면책의 예외</option>
+                <option value="mention">그 밖의 언급</option>
+              </select>
+              <button type="button" id="kcdClose" class="ghost-btn">닫기</button>
+            </div>
+          </header>
+
+          <p class="sim-hint" id="kcdSummary">불러오는 중…</p>
+
+          <div style="overflow-x:auto;max-height:460px;overflow-y:auto">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th style="width:16%">표기</th>
+                  <th style="width:14%">쓰임</th>
+                  <th style="width:18%">장(KCD 22장)</th>
+                  <th style="width:12%" class="num">약관 수</th>
+                  <th style="width:40%">어디서 나왔나</th>
+                </tr>
+              </thead>
+              <tbody id="kcdBody"></tbody>
+            </table>
+          </div>
+        </section>
+
         <section class="panel" aria-labelledby="streamTitle">
           <header class="panel-header">
             <div>
@@ -1324,6 +1404,40 @@
       </div>
 
       <aside class="right-column">
+        <section class="panel" aria-labelledby="usersTitle">
+          <header class="panel-header">
+            <div>
+              <h2 id="usersTitle" class="panel-title">사용자 관리</h2>
+              <p class="panel-subtitle">
+                관리자 추가·해제. <strong>마지막 관리자는 해제할 수 없습니다</strong>(잠금 방지).
+              </p>
+            </div>
+
+            <span id="usersPanelCount" class="panel-count">0명</span>
+          </header>
+
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th scope="col">계정</th>
+                  <th scope="col">권한</th>
+                  <th scope="col">얼굴</th>
+                  <th scope="col" class="num">변경</th>
+                </tr>
+              </thead>
+
+              <tbody id="usersTableBody">
+                <tr class="loading-row">
+                  <td colspan="4"><span class="skeleton"></span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p class="sim-note" id="usersNote" style="padding:0 18px 16px"></p>
+        </section>
+
         <section class="panel" aria-labelledby="modeTitle">
           <header class="panel-header">
             <div>
@@ -1411,15 +1525,20 @@
               </label>
               <label class="sim-wide">질병기호 (쉼표 구분 · 비우면 8종 무작위)
                 <input id="simCodes" type="text" placeholder="S72.0, J20.9">
+                <button type="button" id="kcdOpen" class="ghost-btn" style="margin-top:6px">
+                  약관에 나오는 질병기호 보기
+                </button>
               </label>
             </div>
 
             <label class="sim-check">
               <input id="simAutoVerify" type="checkbox">
-              <span>자동 승격(<code>simulated</code>) — 끄면 아래 검수 큐에서 직접 승인합니다</span>
+              <span>자동 합성 정합성 검사 — 형식·범위 검사를 통과한 합성 건만 승격합니다</span>
             </label>
 
             <p class="sim-hint" id="simHint">
+              이 검사는 <strong>보험금 지급 진위나 보장 여부를 자동 승인하지 않습니다.</strong>
+              합성 시뮬레이터 입력의 내부 정합성만 확인합니다.<br>
               질병기호를 하나로 좁히면 표본이 몰려 <strong>최소표본 30건 게이트를 넘는 순간</strong>을
               보여줄 수 있습니다. 비워 두면 코드당 10건 남짓이라 게이트에 계속 걸립니다 — 그게 정상입니다.
             </p>

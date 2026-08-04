@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from dataclasses import asdict
 
 from app.core.errors import InfraError, ValidationErr
@@ -58,6 +59,32 @@ RULE_ENGINE_VERSION = "rules-2026.08.02"
 
 #: 판정 근거로 쓸 수 있는 문서 상태. ★`suspect` 는 쓰지 않는다.
 _USABLE_PARSE_STATUS = {"ok"}
+
+
+def _assessment_message(verdict: Verdict, assessments: list[CodeVerdict]) -> str:
+    """채팅 요약에 사용할 판정 설명을 만든다.
+
+    상세 근거는 ``per_code``와 ``citations``로 별도 제공하지만, 성공 응답의
+    ``message``를 비워 두면 프론트가 의미 없는 기본 문구로 대체하게 된다.
+    판정의 의미와 다음 행동을 한 문단에 고정해 HTTP·채팅 양쪽에서 같은 설명을
+    사용한다.
+    """
+    codes = ", ".join(a.code for a in assessments) or "입력한 질병기호"
+    if verdict is Verdict.UNLIKELY:
+        return (
+            f"{codes}에 대해 약관의 면책 조항과 일치하는 내용이 확인되었습니다. "
+            "면책 가능성이 있는 결과이며, 아래에서 질병기호별 판단과 약관 원문 근거를 확인하세요. "
+            "최종 지급 여부는 실제 사고 내용과 청구 서류에 따라 달라질 수 있습니다."
+        )
+    if verdict is Verdict.NEEDS_DOCUMENTS:
+        return (
+            f"{codes}에 대해 면책 예외 조건과 관련된 조항이 확인되었습니다. "
+            "요양급여 해당 여부 등 추가 서류와 조건을 확인해야 하며, 아래에 세부 근거를 표시했습니다."
+        )
+    return (
+        f"{codes}는 현재 확인한 면책 조항만으로는 보장 여부를 확정할 수 없습니다. "
+        "면책 목록에 없다는 사실만으로 보장된다고 단정하지 않으며, 아래의 근거와 약관 정보를 확인하세요."
+    )
 
 
 def _trace_id(req: PrecheckInput) -> str:
@@ -264,7 +291,9 @@ def _run(
 
         parsed = kcd.CodeRef.parse(code)
         hit_pairs = [(m, c) for m, c in mentions if m.range.contains(parsed)]
-        cites = _citations(hit_pairs, judged["status"])
+        #: 같은 조항 안의 큰 면책 범위와 예외 범위가 모두 코드를 포함할 수 있다.
+        #: 근거 조항은 하나이므로 코드별 응답에서도 한 번만 내보낸다.
+        cites = _dedupe(_citations(hit_pairs, judged["status"]))
         all_cites.extend(cites)
 
         if judged["status"] == "excluded":
@@ -306,7 +335,7 @@ def _run(
         verdict=overall,
         abstained=overall == Verdict.NEEDS_EXPERT,
         reason_code=rc,
-        message="",
+        message=_assessment_message(overall, per_code),
         applied_policy=applied,
         per_code=per_code,
         citations=_dedupe(all_cites),
@@ -365,6 +394,21 @@ def verify_explanation(
     return False, code, r.reason
 
 
+_SCOPE_FROM_EXCLUSION = re.compile(
+    r"생긴\s+(.{2,60}?)(?:은|는)\s+보상하지\s+않습니다"
+)
+
+
+def _citation_scope(text: str) -> str:
+    """반복되는 `제4조` 카드가 어느 담보 조항인지 원문에서 드러낸다."""
+    compact = " ".join((text or "").split())
+    match = _SCOPE_FROM_EXCLUSION.search(compact)
+    if not match:
+        return ""
+    scope = match.group(1).strip(" '‘’\"“”")
+    return scope if len(scope) <= 40 else ""
+
+
 def _citations(pairs, status: str) -> list[CitationRef]:
     """근거 조항 → 인용. ★성격이 불명한(`mention`) 것은 근거로 내지 않는다."""
     want = {"excluded": {"exclude"}, "exception": {"exception", "exclude"}}.get(status, set())
@@ -378,6 +422,7 @@ def _citations(pairs, status: str) -> list[CitationRef]:
                 qualified_no=c.qualified_no,
                 section=c.section,
                 title=c.title,
+                scope=_citation_scope(c.text),
                 quote=m.context[:300],
                 page_from=c.page_from,
                 page_to=c.page_to,

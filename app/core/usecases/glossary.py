@@ -22,6 +22,7 @@
 
 from __future__ import annotations
 
+import unicodedata
 from dataclasses import dataclass, field
 
 from app.core.errors import ValidationErr
@@ -36,6 +37,10 @@ DEFAULT_MAX_QUOTES = 3
 
 #: 이보다 짧으면 검색이 아니라 잡음이다("의", "및" …).
 _MIN_TERM = 2
+
+#: 인용 창은 원문 줄바꿈 수에 따라 서로 다른 지점에서 잘릴 수 있다. 한쪽이
+#: 다른 쪽의 정확한 접두어일 때 같은 문구로 보려면 이만큼은 일치해야 한다.
+_MIN_EXACT_PREFIX = 120
 
 #: ★출력에 **항상** 붙는다. 사용자가 이걸 판정으로 읽지 않게 한다.
 NOT_A_JUDGMENT = (
@@ -108,6 +113,46 @@ def _quote_around(p: TermPassage, term: str) -> TermQuote | None:
     )
 
 
+def _comparison_text(quote: str, term: str) -> str:
+    """줄바꿈·OCR·페이지 장식만 걷어 낸 중복 비교용 문자열."""
+    text = unicodedata.normalize("NFKC", quote)
+    at = text.find(term)
+    if at >= 0:
+        text = text[at:]
+
+    kept: list[str] = []
+    for line in text.splitlines():
+        compact = "".join(line.split())
+        if (
+            not compact
+            or compact.isdigit()
+            or len(compact) == 1
+            or compact in {"용어", "정의"}
+            or "목차로돌아가기" in compact
+            or (compact.startswith("무배당") and term not in compact)
+        ):
+            continue
+        kept.append(compact)
+
+    return "".join(ch for ch in "".join(kept) if ch.isalnum())
+
+
+def _is_same_definition(candidate: TermQuote, previous: TermQuote, term: str) -> bool:
+    """같은 보험사의 정규화 문구가 **정확히 같은 경우만** 묶는다."""
+    if not candidate.insurer or candidate.insurer != previous.insurer:
+        return False
+    a = _comparison_text(candidate.quote, term)
+    b = _comparison_text(previous.quote, term)
+    if not a or not b:
+        return False
+    if a == b:
+        return True
+    #: `_quote_around` 는 원문 문자 수로 자른다. 줄바꿈이 많은 표는 정규화 뒤
+    #: 더 짧아지므로, 한쪽이 충분히 긴 **정확한 접두어**면 같은 문구다.
+    shorter, longer = sorted((a, b), key=len)
+    return len(shorter) >= _MIN_EXACT_PREFIX and longer.startswith(shorter)
+
+
 def explain(
     term: str,
     *,
@@ -138,20 +183,20 @@ def explain(
             warnings=(NOT_A_JUDGMENT,),
         )
 
-    quotes: list[TermQuote] = []
-    seen: set[str] = set()
+    representatives: list[TermQuote] = []
+    consolidated = 0
     for p in passages:
         q = _quote_around(p, t)
         if q is None:
             continue
-        #: 같은 조항이 여러 문서에 그대로 실려 있다(중복 59.7%). 같은 인용을 반복하지 않는다.
-        key = q.quote[:120]
-        if key in seen:
+        #: 같은 정의가 여러 버전 문서에 줄바꿈·쪽장식만 달리해 실린다.
+        #: 원문 인용은 그대로 두되, 같은 보험사의 동일 문구는 대표 하나로 묶는다.
+        if any(_is_same_definition(q, old, t) for old in representatives):
+            consolidated += 1
             continue
-        seen.add(key)
-        quotes.append(q)
-        if len(quotes) >= max_quotes:
-            break
+        representatives.append(q)
+
+    quotes = representatives[:max_quotes]
 
     if not quotes:
         return TermExplanation(
@@ -170,9 +215,14 @@ def explain(
             "정의가 보험사·세대마다 다를 수 있어 합치지 않고 각각 보여줍니다. "
             "가입한 약관의 정의를 확인하세요."
         )
-    if len(passages) > len(quotes):
+    if consolidated:
         warnings.append(
-            f"정의 구절 {len(passages)}개 중 {len(quotes)}개만 보여줍니다."
+            f"같은 보험사의 동일 정의 {consolidated}개는 줄바꿈·OCR 차이를 합쳐 "
+            "대표 인용으로 묶었습니다."
+        )
+    if len(representatives) > len(quotes):
+        warnings.append(
+            f"서로 다른 정의 {len(representatives)}개 중 {len(quotes)}개만 보여줍니다."
         )
     #: ★붙임 정의표는 **칸이 무너진 채로** 인용된다. 그 사실을 감추지 않는다.
     if any(q.kind == "appendix" for q in quotes):

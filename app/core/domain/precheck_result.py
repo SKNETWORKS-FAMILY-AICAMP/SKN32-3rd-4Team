@@ -55,6 +55,7 @@ class ReasonCode(str, Enum):
     #:   사용자가 할 일도 다르다: 전자는 기다리면 되고, 후자는 다른 곳을 찾아야 한다.
     DOCUMENTS_NOT_CONFIRMED = "documents_not_confirmed"
     INSURER_NOT_SUPPORTED = "insurer_not_supported"
+    PRODUCT_NOT_MATCHED = "product_not_matched"
     NO_VERSION_AT_DATE = "no_version_at_date"
     AMBIGUOUS_PRODUCT = "ambiguous_product"
     AMBIGUOUS_PRODUCT_LINE = "ambiguous_product_line"
@@ -94,6 +95,8 @@ class CitationRef:
     qualified_no: str
     section: str = ""
     title: str = ""
+    #: 같은 제목·조번호가 여러 특약에 반복될 때 구분하는 실제 담보 범위.
+    scope: str = ""
     quote: str = ""
     page_from: int = 0
     page_to: int = 0

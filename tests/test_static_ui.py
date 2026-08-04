@@ -121,3 +121,24 @@ def test_보험_화면이_랜딩이다():
     assert "올바른 보험비서" in body
     #: ★앞서 여기 커머스 `shop.html` 이름이 남아 500 이 났다.
     assert "insurance.js" in body
+
+
+def test_보험_클라이언트가_llm_설명과_모델정보를_그린다():
+    """API만 성공하고 화면이 결과를 버리는 회귀를 막는다."""
+    js = (_STATIC / "insurance.js").read_text(encoding="utf-8")
+    assert "api('/v1/chat'" in js
+    assert "body.llm?.used" in js
+    assert "body.llm.provider" in js
+    assert "body.llm.model" in js
+    assert "AI 설명" in js
+    assert "status === 502 || status === 503" in js
+
+
+def test_보험_클라이언트가_약관범위를_상병코드로_제출하지_않는다():
+    """카탈로그의 C30~C39를 눌러 invalid_code 결과가 나오던 회귀를 막는다."""
+    js = (_STATIC / "insurance.js").read_text(encoding="utf-8")
+    html = (_STATIC / "insurance.html").read_text(encoding="utf-8")
+    assert "it.input_allowed" in js
+    assert "SINGLE_KCD_CODE.test(code)" in js
+    assert "약관의 코드 범위" in js
+    assert "C30~C39 같은 약관 범위는 선택할 수 없고" in html

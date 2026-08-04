@@ -6,6 +6,7 @@
 
 import json
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.adapters import external_submission_store as store
@@ -63,6 +64,123 @@ def test_같은_멱등키는_다시_쌓지_않는다(monkeypatch, tmp_path):
     assert first.stored
     assert not second.stored
     assert second.duplicate
+    assert len(list((tmp_path / "submissions").rglob("*.json"))) == 1
+
+
+def test_같은_멱등키에_다른_payload는_충돌이다(monkeypatch, tmp_path):
+    """멱등 재시도와 payload 바꿔치기를 같은 것으로 취급하지 않는다."""
+    from app.core.errors import ConflictErr
+
+    monkeypatch.setattr(store, "_ROOT", tmp_path)
+    monkeypatch.setattr(store, "_SUBMISSIONS", tmp_path / "submissions")
+    monkeypatch.setattr(store, "_EVENTS", tmp_path / "events")
+
+    store.store(dict(_BODY))
+    with pytest.raises(ConflictErr):
+        store.store({**_BODY, "outcome": "paid"})
+    assert len(list((tmp_path / "submissions").rglob("*.json"))) == 1
+
+
+def test_원본만_남은_부분기록은_재시도에서_이벤트를_복구한다(monkeypatch, tmp_path):
+    monkeypatch.setattr(store, "_ROOT", tmp_path)
+    monkeypatch.setattr(store, "_SUBMISSIONS", tmp_path / "submissions")
+    monkeypatch.setattr(store, "_EVENTS", tmp_path / "events")
+
+    raw_dir = tmp_path / "submissions" / "2026-08" / "agent-test"
+    raw_dir.mkdir(parents=True)
+    raw = raw_dir / "20260804T010203Z_test-key-001.json"
+    raw.write_text(
+        json.dumps(
+            {
+                "received_at": "2026-08-04T01:02:03+00:00",
+                "client_ref": "agent-test",
+                "idempotency_key": "test-key-001",
+                "payload": _BODY,
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    result = store.store(dict(_BODY))
+    assert result.duplicate is True
+    events = list((tmp_path / "events").glob("*.jsonl"))
+    assert len(events) == 1
+    row = json.loads(events[0].read_text(encoding="utf-8").strip())
+    assert row["idempotency_key"] == "test-key-001"
+    assert row["verification"] == "unverified"
+
+
+def test_멱등키_문자와_긴_client_identity가_서로_충돌하지_않는다(monkeypatch, tmp_path):
+    monkeypatch.setattr(store, "_ROOT", tmp_path)
+    monkeypatch.setattr(store, "_SUBMISSIONS", tmp_path / "submissions")
+    monkeypatch.setattr(store, "_EVENTS", tmp_path / "events")
+
+    dotted = store.store({**_BODY, "idempotency_key": "case.key.0001"})
+    tilded = store.store({**_BODY, "idempotency_key": "case~key~0001"})
+    assert dotted.stored and tilded.stored
+    assert dotted.submission_id != tilded.submission_id
+
+    prefix = "agent-" + "x" * 50
+    first = store.store({**_BODY, "client_ref": prefix + "a", "idempotency_key": "same-key-0001"})
+    second = store.store({**_BODY, "client_ref": prefix + "b", "idempotency_key": "same-key-0001"})
+    assert first.stored and second.stored
+    assert first.submission_id != second.submission_id
+
+
+def test_공개와_등록_agent_namespace는_서로_선점하지_못한다(monkeypatch, tmp_path):
+    monkeypatch.setattr(store, "_ROOT", tmp_path)
+    monkeypatch.setattr(store, "_SUBMISSIONS", tmp_path / "submissions")
+    monkeypatch.setattr(store, "_EVENTS", tmp_path / "events")
+
+    payload = {**_BODY, "client_ref": "agent-a", "idempotency_key": "shared-key-0001"}
+    public = store.store(payload)
+    protected = store.store(
+        payload,
+        channel="registered_agent",
+        authenticated_client_id="agent-a",
+    )
+    assert public.stored and protected.stored
+    assert public.channel == "public"
+    assert protected.channel == "registered_agent"
+    assert public.submission_id != protected.submission_id
+
+    protected_raw = json.loads(
+        (tmp_path / protected.raw_path).read_text(encoding="utf-8")
+        if not (tmp_path / protected.raw_path).is_absolute()
+        else (tmp_path / protected.raw_path).read_text(encoding="utf-8")
+    )
+    assert protected_raw["provenance"] == {
+        "channel": "registered_agent",
+        "authenticated_client_id": "agent-a",
+    }
+
+
+def test_legacy_무키_payload는_현재_none필드_재시도와_같다(monkeypatch, tmp_path):
+    monkeypatch.setattr(store, "_ROOT", tmp_path)
+    monkeypatch.setattr(store, "_SUBMISSIONS", tmp_path / "submissions")
+    monkeypatch.setattr(store, "_EVENTS", tmp_path / "events")
+
+    legacy_payload = {key: value for key, value in _BODY.items() if key != "idempotency_key"}
+    key = store._idem_key(legacy_payload, "agent-test")
+    raw_dir = tmp_path / "submissions" / "2026-08" / "agent-test"
+    raw_dir.mkdir(parents=True)
+    (raw_dir / f"20260804T010203Z_{key}.json").write_text(
+        json.dumps(
+            {
+                "received_at": "2026-08-04T01:02:03+00:00",
+                "client_ref": "agent-test",
+                "idempotency_key": key,
+                "payload": legacy_payload,
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    current_payload = {**legacy_payload, "idempotency_key": None}
+    result = store.store(current_payload)
+    assert result.duplicate is True
     assert len(list((tmp_path / "submissions").rglob("*.json"))) == 1
 
 

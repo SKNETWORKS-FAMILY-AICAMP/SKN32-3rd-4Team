@@ -25,6 +25,30 @@
 | `v7_lab_experiments.zip` | 보험 제품 경로와 분리된 프롬프트·프로토콜 Lab API와 단위 테스트 |
 | `v8_mall_db.zip` | `data/mall.db` 빈 SQLite 파일의 제거 직전 스냅샷(원래 상대 경로 보존) |
 | `v9_commerce_seed_cli.zip` | 활성 트리에서 제거한 커머스 CSV 시더와 제거 직전 관리 CLI |
+| `v10_publish_github.zip` | `scripts/publish_github.sh` **수정 직전 스냅샷**(2026-08-05). 아래 참조 |
+
+### `v10_publish_github.zip` — 왜 여기 있나
+
+★**이건 폐기물이 아니다.** 원본은 `scripts/publish_github.sh` 에 **그대로 살아 있고**,
+이 압축본은 손대기 전 상태를 남긴 것이다(RULE.md §4 "대체/삭제하기 직전").
+
+sha256 `7dee55daddc7f49b5169…` · 원본과 바이트 단위 일치 확인.
+
+**남긴 이유** — 이 스크립트에는 재현할 때 쓸 것이 들어 있다.
+
+- 민감파일 게이트(`.env`·`프로젝트설명`·`RULE.md` 발견 시 **중단**)
+- `Co-Authored-By` 제거 **잔여 0 검증** — 실패하면 푸시하지 않음
+- `--dry-run` · 미커밋 변경 경고(subtree split 은 커밋된 것만 가져간다)
+
+**고칠 부분** — 팀 레포에 쓰면 안 되는 것 둘.
+
+- `git push --force HEAD:main` — 공유 브랜치 강제 푸시
+- `filter-branch` 로 작성자명 `Your Name` → `roroblack` 치환.
+  실제 작성자가 아니면 **저자 정보 위조**이고 공유된 이력의 해시를 바꾼다.
+
+상수 3개도 옛 개인 레포(`roroblack/unified_mall_2`)를 가리킨다.
+2026-08-05 팀 레포 푸시에 실제로 쓴 방법은 **force push 가 아니라**
+`subtree split → 원격 tip 과 tree 동일 지점 확인 → cherry-pick → fast-forward` 였다.
 
 ### `v3_commerce.zip` 안에 든 것
 

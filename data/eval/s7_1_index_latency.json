@@ -1,0 +1,18 @@
+{
+  "schema_version": "s7.1-index-latency-v1",
+  "generated_at": "2026-08-03T22:55:50.135274+00:00",
+  "scope": "direct policy_clause_chunk pgvector search; warm connection; top20; approved OCR vectors",
+  "note": "initial 75-query run exceeded the 94-second command limit",
+  "queries": 10,
+  "latency_ms": {
+    "min": 292.26769995875657,
+    "p50": 322.6262000389397,
+    "p95": 364.33240002952516,
+    "max": 364.33240002952516,
+    "mean": 329.84570995904505
+  },
+  "hit_count": {
+    "min": 20,
+    "max": 20
+  }
+}

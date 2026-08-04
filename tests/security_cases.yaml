@@ -79,7 +79,7 @@ cases:
     desc: "MCP 오류 taxonomy 유지 + 비밀(config) 비노출"
     threat_model: "MCP 도구·리소스 응답에 API 키 등 비밀이 섞여 나가면 안 된다."
     tests:
-      - node: "tests/test_mcp_parity.py::test_runtime_config_exposes_no_secrets"
+      - node: "tests/test_mcp_parity.py::test_런타임_설정_리소스에_시크릿이_없다"
         basis: "runtime_config 응답에 키/시크릿 문자열이 없음을 직접 확인"
     status: DONE
 

@@ -38,7 +38,7 @@ def _isolated(tmp_path, monkeypatch):
 
     monkeypatch.setattr(demo, "_SUBMISSIONS", subs)
     monkeypatch.setattr(demo, "_COHORT_EVENTS", syn / "events.jsonl")
-    monkeypatch.setattr(sim, "_RESET_DIRS", (subs, syn))
+    monkeypatch.setattr(demo, "_VERIFICATION_EVENTS", tmp_path / "demo" / "verifications" / "events.jsonl")
     sim._state.__init__()  # type: ignore[misc]
     yield {"subs": subs, "syn": syn, "real": real}
     sim._state.stop_requested = True
@@ -55,8 +55,14 @@ def _fake_post(counter):
 
     def post(base, path, body, timeout=20):
         counter.append(base + path)
-        res = demo.store(body)
-        return 202, {"submission_id": res.submission_id, "duplicate": res.duplicate}
+        res = demo.store(body, auto_validate=bool(body.get("auto_validate")))
+        return 202, {
+            "submission_id": res.submission_id,
+            "duplicate": res.duplicate,
+            "promoted": res.promoted,
+            "verification": res.verification,
+            "reason_codes": list(res.reason_codes),
+        }
 
     return post
 
@@ -87,7 +93,7 @@ def test_시작하면_합성_제출이_쌓이고_상태가_끝난다(monkeypatch
     assert all(c.endswith("/v1/demo/observations") for c in calls)
 
 
-def test_자동승격은_simulated_로_남는다(monkeypatch, _isolated):
+def test_자동모드는_합성정합성_게이트_통과분만_승격한다(monkeypatch, _isolated):
     import json
 
     monkeypatch.setattr(sim, "_post", _fake_post([]))
@@ -98,8 +104,8 @@ def test_자동승격은_simulated_로_남는다(monkeypatch, _isolated):
     assert sim.status()["promoted"] == 4
     lines = (_isolated["syn"] / "events.jsonl").read_text(encoding="utf-8").splitlines()
     methods = {json.loads(x)["verification_method"] for x in lines if x.strip()}
-    assert methods == {"simulated"}, (
-        "시뮬레이터가 만든 표본이 admin_review 로 남으면 사람이 검수한 것처럼 보인다."
+    assert methods == {"simulated_consistency"}, (
+        "합성 정합성 검사를 사람이 검수한 것처럼 기록하면 안 된다."
     )
 
 
@@ -218,3 +224,30 @@ def test_같은_시드는_같은_결과를_만든다(monkeypatch, _isolated):
     second = run_once()
 
     assert first == second and first, "같은 시드인데 생성 내용이 달라졌다."
+
+
+def test_같은_시드로_두번째_실행해도_전부_중복이_되지_않는다(monkeypatch, _isolated):
+    """seed는 생성 내용 재현용이지 실행 멱등성 키가 아니다.
+
+    이전에는 client_ref와 payload만 해시해 같은 seed의 두 번째 실행 36건이
+    전부 첫 실행의 재전송으로 처리됐다. 실행은 새로 받되, 실행 안의 같은 사례를
+    재전송할 때만 같은 idempotency_key를 사용해야 한다.
+    """
+    monkeypatch.setattr(sim, "_post", _fake_post([]))
+
+    sim.start(base="http://x", agents=3, cases=2, codes=["S72.0"],
+              delay_ms=0, auto_verify=False, seed=20260804)
+    assert _wait_done()
+    first_run_id = sim.status()["run_id"]
+    assert sim.status()["submitted"] == 6
+    assert sim.status()["duplicated"] == 0
+
+    sim.start(base="http://x", agents=3, cases=2, codes=["S72.0"],
+              delay_ms=0, auto_verify=False, seed=20260804)
+    assert _wait_done()
+    second = sim.status()
+
+    assert second["run_id"] != first_run_id
+    assert second["submitted"] == 6
+    assert second["duplicated"] == 0
+    assert len(list(_isolated["subs"].rglob("*.json"))) == 12

@@ -14,6 +14,7 @@ import는 되지만 collect는 실패할 수 있음). 이번 버전은 `pytest -
 from __future__ import annotations
 
 import functools
+import os
 import pathlib
 import re
 import subprocess
@@ -60,6 +61,17 @@ def _all_collected_node_ids() -> frozenset[str]:
         proc = subprocess.run(
             [sys.executable, "-m", "pytest", "--collect-only", "tests/"],
             cwd=_REPO_ROOT,
+            #: ★★**자식 프로세스의 출력 인코딩을 못 박는다.**
+            #:
+            #:   파이프로 받을 때 Windows 자식 pytest 는 stdout 을 **로케일(cp949)** 로 쓴다.
+            #:   우리는 utf-8 로 디코딩하므로 **한글 테스트 이름이 U+FFFD 로 뭉개진다.**
+            #:   그러면 매트릭스의 한글 node id 가 절대 일치하지 않는다.
+            #:
+            #:   그동안 안 터진 이유는 매트릭스가 가리키던 node 가 전부 ASCII 이름이었기
+            #:   때문이다. 2026-08-04 에 한글 이름 node 를 등재하자 **전체 스위트로 돌릴 때만**
+            #:   실패했다 — 단독 실행 때는 셸이 `PYTHONIOENCODING` 을 넘겨 우연히 통과했다.
+            #:   "가끔 통과하는 가드"는 가드가 아니다.
+            env={**os.environ, "PYTHONIOENCODING": "utf-8"},
             capture_output=True,
             text=True,
             #: ★인코딩을 못 박는다.

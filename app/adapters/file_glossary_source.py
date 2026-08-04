@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+import os
 import threading
 from pathlib import Path
 
@@ -27,6 +28,8 @@ _ROOT = Path(__file__).resolve().parents[2]
 _DIR = _ROOT / "data" / "glossary"
 _PASSAGES = _DIR / "passages.jsonl"
 _META = _DIR / "meta.json"
+_S7_DEFAULT_DIR = _ROOT / "data" / "work" / "s7_1_approved_facts"
+_ACCEPTED_RELEASE = _ROOT / "config" / "accepted_extraction.json"
 
 _lock = threading.Lock()
 _cache: list[TermPassage] | None = None
@@ -44,37 +47,109 @@ def _load() -> list[TermPassage]:
     with _lock:
         if _cache is not None:
             return _cache
-        if not _PASSAGES.exists():
+        s7_present = any(path.exists() for path in _s7_paths())
+        if (_s7_required() and not s7_present) or (not _PASSAGES.exists() and not s7_present):
             raise InfraError(
-                "용어 색인이 없습니다: data/glossary/passages.jsonl. "
-                "`python -m scripts.extract.build_glossary` 로 만드세요."
+                "용어 색인과 S7 승인 사실 산출물이 모두 없습니다. "
+                "data/glossary/passages.jsonl 또는 S7_FACT_ROOT를 배포하세요."
             )
         rows: list[TermPassage] = []
-        with _PASSAGES.open(encoding="utf-8") as f:
-            for ln, line in enumerate(f, 1):
-                if not line.strip():
-                    continue
-                try:
-                    d = json.loads(line)
-                except json.JSONDecodeError as e:
-                    #: ★조용히 건너뛰지 않는다. 분모가 줄면 커버리지가 좋아 보인다.
-                    raise InfraError(f"용어 색인 {ln}행이 깨졌습니다: {e}") from e
-                rows.append(
-                    TermPassage(
-                        kind=d.get("kind") or "",
-                        sha256=d.get("sha256") or "",
-                        insurer=d.get("insurer") or "",
-                        qualified_no=d.get("qualified_no") or "",
-                        section=d.get("section") or "",
-                        title=d.get("title") or "",
-                        page_from=int(d.get("page_from") or 0),
-                        page_to=int(d.get("page_to") or 0),
-                        content_hash=d.get("content_hash") or "",
-                        text=d.get("text") or "",
-                    )
-                )
+        if _PASSAGES.exists():
+            with _PASSAGES.open(encoding="utf-8") as f:
+                for ln, line in enumerate(f, 1):
+                    if not line.strip():
+                        continue
+                    try:
+                        d = json.loads(line)
+                    except json.JSONDecodeError as e:
+                        #: ★조용히 건너뛰지 않는다. 분모가 줄면 커버리지가 좋아 보인다.
+                        raise InfraError(f"용어 색인 {ln}행이 깨졌습니다: {e}") from e
+                    rows.append(_to_passage(d))
+        rows.extend(_load_s7())
         _cache = rows
         return rows
+
+
+def _to_passage(d: dict) -> TermPassage:
+    return TermPassage(
+        kind=d.get("kind") or "", sha256=d.get("sha256") or "",
+        insurer=d.get("insurer") or "", qualified_no=d.get("qualified_no") or "",
+        section=d.get("section") or "", title=d.get("title") or "",
+        page_from=int(d.get("page_from") or 0), page_to=int(d.get("page_to") or 0),
+        content_hash=d.get("content_hash") or "", text=d.get("text") or "",
+    )
+
+
+def _s7_dir() -> Path:
+    return Path(os.getenv("S7_FACT_ROOT", str(_S7_DEFAULT_DIR)))
+
+
+def _s7_paths() -> tuple[Path, Path, Path]:
+    root = _s7_dir()
+    return tuple(root / name for name in (
+        "approved_facts.jsonl", "chunks.jsonl", "occurrences.jsonl"
+    ))
+
+
+def _s7_required() -> bool:
+    if not _ACCEPTED_RELEASE.exists():
+        return False
+    config = json.loads(_ACCEPTED_RELEASE.read_text(encoding="utf-8"))
+    return bool(config.get("supplemental_facts"))
+
+
+def _load_s7() -> list[TermPassage]:
+    """S7.1 승인 OCR 사실을 챗봇의 인용 가능한 구절로 연결한다."""
+    facts_path, chunks_path, occurrences_path = _s7_paths()
+    existing = [path.exists() for path in (facts_path, chunks_path, occurrences_path)]
+    if any(existing) and not all(existing):
+        missing = ", ".join(path.name for path, exists in zip(
+            (facts_path, chunks_path, occurrences_path), existing
+        ) if not exists)
+        raise InfraError(f"S7 승인 사실 산출물이 일부만 배포됐습니다: {missing}")
+    if not all(existing):
+        return []
+
+    facts: dict[str, dict] = {}
+    with facts_path.open(encoding="utf-8") as f:
+        for line in f:
+            if line.strip():
+                fact = json.loads(line)
+                if fact.get("serving_eligible") and fact.get("citation_eligible"):
+                    facts[fact.get("content_hash")] = fact
+    chunks: dict[str, str] = {}
+    with chunks_path.open(encoding="utf-8") as f:
+        for line in f:
+            if line.strip():
+                d = json.loads(line)
+                chunks[d.get("content_hash")] = d.get("text") or ""
+
+    rows: list[TermPassage] = []
+    with occurrences_path.open(encoding="utf-8") as f:
+        for line in f:
+            if not line.strip():
+                continue
+            occurrence = json.loads(line)
+            fact = facts.get(occurrence.get("content_hash"))
+            text = chunks.get(occurrence.get("content_hash"), "")
+            if not fact or not text:
+                continue
+            services = fact.get("service") or []
+            rows.append(
+                TermPassage(
+                    kind="s7_approved_fact",
+                    sha256=fact.get("document_sha256") or fact.get("document_sha12") or "",
+                    insurer=occurrence.get("insurer") or fact.get("insurer") or "",
+                    qualified_no=str(services[0] if services else fact.get("category") or "S7 fact"),
+                    section="S7.1 승인 OCR 사실",
+                    title=fact.get("plan") or fact.get("category") or "승인 OCR 사실",
+                    page_from=int(occurrence.get("page_from") or fact.get("page_1based") or 0),
+                    page_to=int(occurrence.get("page_to") or occurrence.get("page_from") or fact.get("page_1based") or 0),
+                    content_hash=occurrence.get("content_hash") or "",
+                    text=text,
+                )
+            )
+    return rows
 
 
 def find(term: str, *, insurer: str | None = None, limit: int = 20) -> list[TermPassage]:
@@ -109,9 +184,12 @@ def meta() -> dict:
     """색인을 무엇으로 언제 만들었나. **응답에 실어 나간다.**"""
     global _meta_cache
     if _meta_cache is None:
-        if not _META.exists():
-            raise InfraError("용어 색인 메타가 없습니다: data/glossary/meta.json")
-        _meta_cache = json.loads(_META.read_text(encoding="utf-8"))
+        _meta_cache = json.loads(_META.read_text(encoding="utf-8")) if _META.exists() else {}
+        s7_count = sum(row.kind == "s7_approved_fact" for row in _load())
+        if s7_count:
+            _meta_cache = {**_meta_cache, "s7_approved_fact_passages": s7_count, "s7_serving": True}
+        if not _meta_cache:
+            raise InfraError("용어 색인 메타가 없습니다: data/glossary/meta.json 또는 S7_FACT_ROOT")
     return _meta_cache
 
 

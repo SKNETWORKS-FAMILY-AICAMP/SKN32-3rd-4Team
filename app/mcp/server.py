@@ -2,9 +2,10 @@
 
 실행: `python -m app.mcp.server` (stdio 전송)
 
-★도구는 **3개뿐**이다 (MVP §6 절충안)
+★도구는 **4개**다
 
     `precheck`            보장 사전검토
+    `explain_term`        약관 원문 기반 LLM 용어 설명
     `cohort_stats`        코호트 통계 조회
     `submit_observation`  청구 결과 보고
 
@@ -62,6 +63,8 @@ def _call(fn, *args, **kwargs) -> dict:
       예외는 "실패했다"만 알려주지만 dict 는 **무엇을 해야 하는지**를 담는다.
     """
     from fastapi import HTTPException
+    from app.core.errors import AppError
+    from pydantic import ValidationError
 
     try:
         out = fn(*args, **kwargs)
@@ -72,6 +75,21 @@ def _call(fn, *args, **kwargs) -> dict:
             "error": str(e.detail),
             #: ★422(입력 잘못)와 503(우리 장애)을 구분해 준다 — 재시도 여부가 다르다.
             "retryable": e.status_code >= 500,
+        }
+    except AppError as e:
+        return {
+            "ok": False,
+            "http_status": e.http_status,
+            "error_code": e.error_code,
+            "error": e.message,
+            "retryable": e.http_status >= 500,
+        }
+    except ValidationError as e:
+        return {
+            "ok": False,
+            "http_status": 422,
+            "error": str(e),
+            "retryable": False,
         }
     return out.model_dump() if hasattr(out, "model_dump") else out
 
@@ -94,14 +112,35 @@ def precheck(
     from app.schemas.precheck import PrecheckRequest
 
     return _call(
-        router.create_precheck,
-        PrecheckRequest(
+        lambda: router.create_precheck(
+            PrecheckRequest(
             insurer=insurer,
             enrolled_on=enrolled_on,
             kcd_codes=kcd_codes,
             product_name=product_name or None,
             client_ref="mcp",
-        ),
+            )
+        )
+    )
+
+
+@mcp.tool()
+def explain_term(
+    message: Annotated[str, Field(description="보험 약관 용어 질문. 예: '통원 뜻'")],
+    insurer: Annotated[str, Field(description="보험사로 검색 범위를 좁힐 때만 입력")] = "",
+) -> dict:
+    """검색된 약관 원문을 인용하고 선택된 LLM으로 쉬운 설명을 만든다.
+
+    `insurance://runtime-config`의 `llm_provider`가 실제 사용 provider다.
+    보장 여부 질문은 여기서 답하지 않고 `next_action="precheck_form"`을 반환한다.
+    보장 판정은 반드시 `precheck` 도구를 사용하라.
+    """
+    from app.routers import chat as router
+
+    return _call(
+        lambda: router.chat_turn(
+            router.ChatRequest(message=message, insurer=insurer or None)
+        )
     )
 
 
@@ -161,16 +200,17 @@ def submit_observation(
     from app.schemas.precheck import ExternalCaseSubmission
 
     return _call(
-        router.submit_observation,
-        ExternalCaseSubmission(
-            client_ref=client_ref,
-            insurer=insurer,
-            enrolled_on=enrolled_on,
-            kcd_codes=kcd_codes,
-            outcome=outcome,
-            outcome_reason=outcome_reason,
-            precheck_trace_id=precheck_trace_id or None,
-        ),
+        lambda: router.submit_observation(
+            ExternalCaseSubmission(
+                client_ref=client_ref,
+                insurer=insurer,
+                enrolled_on=enrolled_on,
+                kcd_codes=kcd_codes,
+                outcome=outcome,
+                outcome_reason=outcome_reason,
+                precheck_trace_id=precheck_trace_id or None,
+            )
+        )
     )
 
 
@@ -197,7 +237,7 @@ def runtime_config() -> dict:
     return {
         "brand": s.BRAND_NAME,
         "llm_provider": s.LLM_PROVIDER,
-        "tools": ["precheck", "cohort_stats", "submit_observation"],
+        "tools": ["precheck", "explain_term", "cohort_stats", "submit_observation"],
         "notes": [
             "판정은 약관 원문 조항만을 근거로 한다.",
             "근거를 못 대면 needs_expert 로 기권한다 — 오류가 아니다.",

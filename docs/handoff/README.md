@@ -42,19 +42,64 @@
 ## 지금 바로 쓸 수 있는 것
 
 ```bash
-# 서버 띄우기
-uvicorn app.main:app --reload
+# 서버 띄우기 — 고객(8080)과 운영(8081)은 **다른 앱**이다
+python -m scripts.run_customer_server   # :8080  관리자 API 가 아예 안 실린다
+python -m scripts.run_admin_server      # :8081  관리자 API + 대시보드
 
 # 무엇을 지원하는지
-curl localhost:8000/v1/support-manifest
+curl 127.0.0.1:8080/v1/support-manifest
 
-# 판정 요청
-curl -X POST localhost:8000/v1/prechecks -H 'Content-Type: application/json' -d '{
+# 판정 요청 — 가입일은 YYYYMMDD 다(ISO 로 보내면 422)
+curl -X POST 127.0.0.1:8080/v1/prechecks -H 'Content-Type: application/json' -d '{
   "insurer": "DB손해보험",
   "enrolled_on": "20200301",
   "kcd_codes": ["F32", "E66", "S72"],
   "product_name": "프로미라이프 실손의료비"
 }'
+```
+
+> ★**`uvicorn app.main:app` 으로 띄우지 말 것.** 여기에 그렇게 적혀 있었는데,
+> 그건 `role="full"` 이라 **관리자 API 까지 한 프로세스에 올라온다.**
+> 실측 2026-08-04: 그렇게 띄웠더니 경로 37개가 올라와 분리가 무너졌다.
+> 화면에서는 안 보여도 **API 는 열려 있다.** 무인증 노출 표면을 줄이려고 가른 것이다.
+>
+> ★`localhost` 대신 `127.0.0.1` 을 쓴다. 서버가 IPv4 에만 바인딩돼 있어
+> `localhost` 가 IPv6(`::1`)로 풀리면 붙지 못한다(실측에서 한 번 헛짚었다).
+
+---
+
+## 리랭커 — 붙는 자리가 둘이고, 기본은 꺼져 있다
+
+조항 벡터 색인은 122,772조각이 적재돼 있지만 **오래도록 서비스 API 가 조회하지 않았다.**
+2026-08-04 에 조항 의미검색을 신설해 처음으로 이었다.
+
+| 붙는 자리 | 스위치 | 경로 |
+|---|---|---|
+| 보험 조항 | `INSURANCE_CLAUSE_RERANK_ENABLED` (기본 `false`) | `/api/admin/clause-search` — **운영서버 전용** |
+| 커머스 RAG | `RAG_RERANK_ENABLED` (기본 `false`) | `/api/rag/*` — 걷어낼 잔재 |
+
+> ★**스위치를 합치지 말 것.** 커머스를 지울 때 보험이 함께 꺼진다.
+> 모델 설정(`RERANKER_*`)만 공유한다.
+>
+> ★**꺼진 채로 `rerank=true` 를 보내면 409 다.** 조용히 무시하고 200 을 주지 않는다.
+> 리랭킹이 실패하면 **503** 이고, 벡터 순서로 되돌리지 않는다 —
+> 되돌리면 「재정렬했다」고 믿으면서 실제로는 안 한 상태가 된다.
+
+**실측**(417질의 · RTX 4070 SUPER · [리포트](../reports/2026-08-05_0100_리랭커_붙는자리_실측.md))
+
+```
+Qwen3-Reranker-4B   hit@1  0.4844 → 0.5851  (+10.07%p)   지연 p50 2,717ms
+두 붙는 자리의 hit@k 가 전부 같다 — 배선이 일치한다
+(mrr 만 4.3e-5 차이. 질의 한 건의 동점 정렬 순서다)
+```
+
+★**기본이 꺼져 있는 이유는 지연이다.** 질의당 2.7초는 동기 요청에 넣기 무겁고,
+12GB VRAM 에 4B fp16 이 11.9GB 로 빠듯하게 올라간다.
+운영 상시 가동은 전용 워커·타임아웃·메트릭이 선행돼야 한다.
+
+```bash
+# 붙는 자리를 전부 같은 후보셋으로 잰다(배포 어댑터를 그대로 부른다)
+python -m scripts.eval.rerank_attachpoints --list
 ```
 
 ---

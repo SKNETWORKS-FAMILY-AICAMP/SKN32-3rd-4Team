@@ -16,7 +16,8 @@
     simulation: null,
     simTimer: null,
     mode: null,
-    realQueue: null
+    realQueue: null,
+    users: null
   };
 
   const elements = {};
@@ -76,6 +77,11 @@
 
     elements.agentStream = document.getElementById("agentStream");
     elements.streamState = document.getElementById("streamState");
+
+    elements.signupBtn = document.getElementById("signupBtn");
+    elements.usersTableBody = document.getElementById("usersTableBody");
+    elements.usersPanelCount = document.getElementById("usersPanelCount");
+    elements.usersNote = document.getElementById("usersNote");
 
     elements.modeBadge = document.getElementById("modeBadge");
     elements.modeAuto = document.getElementById("modeAuto");
@@ -144,6 +150,9 @@
     }
     if (elements.logoutBtn) {
       elements.logoutBtn.addEventListener("click", handleLogout);
+    }
+    if (elements.signupBtn) {
+      elements.signupBtn.addEventListener("click", handleSignup);
     }
   }
 
@@ -344,7 +353,8 @@
       fetchApi(`/api/admin/cohort-summary?code=${encodeURIComponent(code)}`),
       fetchApi("/api/admin/demo/simulation"),
       fetchApi("/api/admin/precheck-mode"),
-      fetchApi("/api/admin/verifications/queue")
+      fetchApi("/api/admin/verifications/queue"),
+      fetchApi("/api/admin/users")
     ]);
 
     const [
@@ -356,7 +366,8 @@
       cohortResult,
       simResult,
       modeResult,
-      realQueueResult
+      realQueueResult,
+      usersResult
     ] = requests;
 
     const failures = [];
@@ -391,6 +402,15 @@
       renderReviewQueueError();
       failures.push("검수 큐");
       handlePossibleAuthenticationError(queueResult.reason);
+    }
+
+    if (usersResult.status === "fulfilled") {
+      state.users = normalizeObject(usersResult.value);
+      renderUsers(state.users);
+    } else {
+      renderUsersError();
+      failures.push("사용자 목록");
+      handlePossibleAuthenticationError(usersResult.reason);
     }
 
     if (modeResult.status === "fulfilled") {
@@ -648,6 +668,134 @@
     return row;
   }
 
+  /* ── 계정 만들기 ─────────────────────────────────────────────────────
+   *
+   * ★**항상 일반 사용자(USER)로 만든다.** 화면에서 관리자를 만들 수 있으면
+   *   가입한 누구나 관리자가 된다. 승격은 이미 관리자인 사람만 한다.
+   */
+  async function handleSignup() {
+    const username = (elements.adminUsername.value || "").trim();
+    const password = elements.adminPassword.value || "";
+    if (!username || !password) {
+      elements.loginStatus.textContent = "아이디와 비밀번호를 입력하세요.";
+      elements.loginStatus.style.color = "var(--danger)";
+      return;
+    }
+
+    elements.signupBtn.disabled = true;
+    try {
+      const { ok, status, body } = await apiFetch("/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
+      if (!ok) {
+        elements.loginStatus.textContent =
+          (body && (body.message || body.detail)) || `계정 생성 실패 (HTTP ${status})`;
+        elements.loginStatus.style.color = "var(--danger)";
+        return;
+      }
+      // ★만들어졌다고 관리자가 된 것은 아니다. 그 사실을 바로 말해 준다.
+      elements.loginStatus.innerHTML =
+        `계정 <strong>${username}</strong> 생성됨(일반 사용자). ` +
+        `관리자가 <strong>사용자 관리</strong>에서 승격하거나, 최초 1명이면 ` +
+        `<code>python -m scripts.manage promote ${username}</code>`;
+      elements.loginStatus.style.color = "var(--warning)";
+    } catch (err) {
+      elements.loginStatus.textContent = "계정 생성 실패: " + err.message;
+      elements.loginStatus.style.color = "var(--danger)";
+    } finally {
+      elements.signupBtn.disabled = false;
+    }
+  }
+
+  /* ── 사용자 관리 ─────────────────────────────────────────────────── */
+  function renderUsers(payload) {
+    if (!elements.usersTableBody) return;
+    const users = (payload && payload.users) || [];
+    const adminCount = (payload && payload.admin_count) || 0;
+
+    elements.usersPanelCount.textContent =
+      `${formatInteger(users.length)}명 · 관리자 ${formatInteger(adminCount)}명`;
+    elements.usersTableBody.replaceChildren();
+
+    if (users.length === 0) {
+      elements.usersTableBody.appendChild(
+        createTableMessage("계정이 없습니다.", 4)
+      );
+      return;
+    }
+
+    const fragment = document.createDocumentFragment();
+    for (const u of users) {
+      const row = document.createElement("tr");
+      row.appendChild(createCell(valueOrFallback(u.username), "agent-ref"));
+
+      const roleCell = document.createElement("td");
+      const badge = document.createElement("span");
+      const isAdmin = u.role === "ADMIN";
+      badge.className = "status-badge " + (isAdmin ? "status-resolved" : "status-unknown");
+      badge.textContent = isAdmin ? "관리자" : "일반";
+      roleCell.appendChild(badge);
+      row.appendChild(roleCell);
+
+      row.appendChild(createCell(u.face_registered ? "등록됨" : "-"));
+
+      const actionCell = document.createElement("td");
+      actionCell.className = "num";
+      const btn = document.createElement("button");
+      btn.className = "verify-btn";
+      btn.type = "button";
+      btn.textContent = isAdmin ? "해제" : "관리자로";
+      // ★마지막 관리자 해제는 **누르기 전에** 막는다. 서버도 거부하지만
+      //   눌러 보고 실패하는 것보다 못 누르게 하는 편이 낫다.
+      if (isAdmin && adminCount <= 1) {
+        btn.disabled = true;
+        btn.title = "마지막 관리자는 해제할 수 없습니다(잠금 방지).";
+      }
+      btn.addEventListener("click", () =>
+        changeUserRole(u.username, isAdmin ? "USER" : "ADMIN", btn));
+      actionCell.appendChild(btn);
+      row.appendChild(actionCell);
+
+      fragment.appendChild(row);
+    }
+    elements.usersTableBody.appendChild(fragment);
+  }
+
+  function renderUsersError() {
+    elements.usersPanelCount.textContent = "불러오기 실패";
+    elements.usersTableBody.replaceChildren(
+      createTableMessage("사용자 목록을 불러오지 못했습니다.", 4)
+    );
+  }
+
+  async function changeUserRole(username, role, button) {
+    const what = role === "ADMIN" ? "관리자로 승격" : "관리자 권한 해제";
+    if (!window.confirm(`${username} 계정을 ${what}합니다.\n\n계속할까요?`)) return;
+
+    button.disabled = true;
+    const result = await apiFetch(`/api/admin/users/${encodeURIComponent(username)}/role`, {
+      method: "PUT",
+      headers: { ...authHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({ role })
+    });
+
+    if (!result || !result.ok) {
+      setUsersNote(simErrorText(result), "error");
+      button.disabled = false;
+      return;
+    }
+    setUsersNote((result.body && result.body.message) || "변경했습니다.", "ok");
+    await refreshDashboard({ silent: true });
+  }
+
+  function setUsersNote(text, tone) {
+    if (!elements.usersNote) return;
+    elements.usersNote.textContent = text || "";
+    elements.usersNote.className = "sim-note" + (tone ? ` is-${tone}` : "");
+  }
+
   /* ── 판정 모드 ───────────────────────────────────────────────────────
    *
    * ★시뮬레이션 제어와 **의도적으로 다르게** 보이게 한다. 저쪽은 합성 데이터를
@@ -785,14 +933,32 @@
     return li;
   }
 
+  //: 서버(`external_submission_store._MIN_BASIS_LEN`)와 **같은 값**이어야 한다.
+  //: 다르면 화면이 통과시킨 것을 서버가 거절해 사용자가 이유를 모른다.
+  const MIN_BASIS_LEN = 5;
+
   async function attestSubmission(submissionId, button) {
-    // ★근거를 받는다. 빈 승인은 나중에 설명할 수 없다(서버도 5자 미만은 거절한다).
-    const basis = window.prompt(
-      "무엇을 보고 이 제보를 납득했습니까?\n" +
-      "(예: 지급통지서 사본 대조 · 통화 확인 · 진료비 영수증 금액 일치)\n\n" +
-      "★이것은 발행처 확인이 아닙니다. admin_attested 등급으로 기록됩니다."
-    );
-    if (basis === null) return;
+    // ★근거를 받는다. 빈 승인은 나중에 설명할 수 없다(서버도 짧으면 거절한다).
+    //
+    // ★★**빈 값으로 확인을 눌러도 그대로 보내고 있었다**(2026-08-04).
+    //   서버가 422 로 막아 주긴 했지만 화면에는 pydantic 오류가 날것으로 찍혔다.
+    //   막는 것과 **왜 막혔는지 알려 주는 것**은 다르다 — 여기서 먼저 확인한다.
+    let basis = null;
+    for (;;) {
+      basis = window.prompt(
+        "무엇을 보고 이 제보를 납득했습니까?\n" +
+        `(${MIN_BASIS_LEN}자 이상 · 예: 지급통지서 사본 대조 · 통화 확인 · 영수증 금액 일치)\n\n` +
+        "★이것은 발행처 확인이 아닙니다. admin_attested 등급으로 기록됩니다.",
+        basis || ""
+      );
+      if (basis === null) return;              // 취소
+      if (basis.trim().length >= MIN_BASIS_LEN) break;
+      window.alert(
+        `검수 근거를 ${MIN_BASIS_LEN}자 이상 적어 주세요.\n\n` +
+        "이 문장은 나중에 \"이 숫자가 어떻게 생겼나\"에 답하는 유일한 기록입니다."
+      );
+    }
+    basis = basis.trim();
 
     button.disabled = true;
     button.textContent = "승인 중";
@@ -824,6 +990,110 @@
     elements.simStartBtn.addEventListener("click", startSimulation);
     elements.simStopBtn.addEventListener("click", stopSimulation);
     elements.simResetBtn.addEventListener("click", resetDemoTrack);
+    bindKcdEvents();
+  }
+
+  //: ── 약관에 나오는 질병기호 ────────────────────────────────────────
+  //:
+  //: ★★**「질병기호 전체 표」가 아니다.** 우리는 KCD 코드→질병명 사전을
+  //:   갖고 있지 않다(약 2만 항목). 그래서 화면도 그렇게 말하지 않는다 —
+  //:   보여주는 것은 **확정 약관 본문에 실제로 등장한 표기**다.
+  //:   그게 관리자에게 더 쓸모 있다: 「우리가 판정할 수 있는 코드가 무엇인가」.
+  let kcdLoaded = false;
+
+  function bindKcdEvents() {
+    const open = document.getElementById("kcdOpen");
+    const close = document.getElementById("kcdClose");
+    const panel = document.getElementById("kcdPanel");
+    if (!open || !panel) return;
+
+    open.addEventListener("click", () => {
+      panel.hidden = false;
+      panel.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (!kcdLoaded) loadKcd();
+    });
+    if (close) close.addEventListener("click", () => { panel.hidden = true; });
+
+    const q = document.getElementById("kcdQuery");
+    const kind = document.getElementById("kcdKind");
+    //: 필터는 **서버에서** 건다. 525개를 다 내려받아 클라이언트에서 거르면
+    //: 「몇 개 중 몇 개」의 분모를 화면이 스스로 만들게 되어 서버와 어긋난다.
+    if (q) q.addEventListener("change", loadKcd);
+    if (kind) kind.addEventListener("change", loadKcd);
+  }
+
+  async function loadKcd() {
+    const body = document.getElementById("kcdBody");
+    const summary = document.getElementById("kcdSummary");
+    if (!body) return;
+    const q = (document.getElementById("kcdQuery") || {}).value || "";
+    const kind = (document.getElementById("kcdKind") || {}).value || "";
+
+    body.replaceChildren(createTableMessage("불러오는 중…", 5));
+    const params = new URLSearchParams();
+    if (q.trim()) params.set("q", q.trim());
+    if (kind) params.set("kind", kind);
+    const suffix = params.toString() ? `?${params}` : "";
+
+    let data;
+    try {
+      data = await fetchApi(`/api/admin/kcd-codes${suffix}`);
+    } catch (error) {
+      //: ★조용히 빈 표로 만들지 않는다. 「등장하는 코드가 없다」로 읽힌다.
+      body.replaceChildren(
+        createTableMessage(`불러오지 못했습니다: ${error && error.message ? error.message : error}`, 5)
+      );
+      if (summary) summary.textContent = "목록을 불러오지 못했습니다.";
+      handlePossibleAuthenticationError(error);
+      return;
+    }
+
+    kcdLoaded = true;
+    const items = Array.isArray(data.items) ? data.items : [];
+    if (summary) {
+      //: ★분모를 함께 적는다 — 거른 결과가 전량으로 보이면 안 된다.
+      summary.textContent =
+        `확정 약관 ${formatInteger(data.scanned_policies || 0)}건에서 찾은 표기 ` +
+        `${formatInteger(data.total_ranges || 0)}종 중 ${formatInteger(data.matched || 0)}종 표시 · ` +
+        `언급 ${formatInteger(data.total_mentions || 0)}회 · 기준 ${data.built_at || "-"}`;
+    }
+
+    body.replaceChildren();
+    if (!items.length) {
+      body.appendChild(createTableMessage("조건에 맞는 표기가 없습니다.", 5));
+      return;
+    }
+
+    const KIND_KO = { exclude: "면책", exception: "면책의 예외", mention: "그 밖의 언급" };
+    const fragment = document.createDocumentFragment();
+    for (const item of items) {
+      const row = document.createElement("tr");
+
+      const codeCell = document.createElement("td");
+      const code = document.createElement("code");
+      code.textContent = item.range || "-";
+      codeCell.appendChild(code);
+      row.appendChild(codeCell);
+
+      const kindCell = document.createElement("td");
+      const badge = document.createElement("span");
+      badge.className = `kcd-kind ${item.kind || "mention"}`;
+      badge.textContent = KIND_KO[item.kind] || item.kind || "-";
+      kindCell.appendChild(badge);
+      row.appendChild(kindCell);
+
+      row.appendChild(createCell(valueOrFallback(item.chapter)));
+      row.appendChild(createCell(formatInteger(toFiniteNumber(item.documents, 0)), "num"));
+
+      const ex = item.example || {};
+      const where = [ex.insurer, ex.qualified_no, ex.title].filter(Boolean).join(" · ");
+      const whereCell = createCell(where || "-");
+      if (ex.context) whereCell.title = ex.context;
+      row.appendChild(whereCell);
+
+      fragment.appendChild(row);
+    }
+    body.appendChild(fragment);
   }
 
   function simParams() {
@@ -907,12 +1177,53 @@
     await refreshDashboard({ silent: true });
   }
 
+  /*
+   * ★서버 오류를 **사람이 읽을 문장**으로 바꾼다.
+   *
+   *   이 앱의 오류는 두 모양으로 온다 —
+   *     ① AppError 계열: {ok:false, error_code, message}  ← 이미 한국어 문장
+   *     ② FastAPI 입력 검증: {detail:[{type,loc,msg,ctx}, ...]}  ← **배열**
+   *
+   *   ②를 그대로 `JSON.stringify` 하면 화면에
+   *   `[{"type":"string_too_short","loc":["body","basis"],...}]` 가 찍힌다.
+   *   실제로 그렇게 나왔다(2026-08-04, 교차검증 승인). 오류 메시지가 사실을
+   *   잘못 전하는 것보다 낫지도 않다 — 무엇을 고쳐야 하는지 알 수 없다.
+   */
+  const _VALIDATION_HINTS = {
+    string_too_short: (e) => `${_fieldName(e)}이(가) 너무 짧습니다` +
+      (e.ctx && e.ctx.min_length ? ` (${e.ctx.min_length}자 이상)` : ""),
+    string_too_long: (e) => `${_fieldName(e)}이(가) 너무 깁니다`,
+    missing: (e) => `${_fieldName(e)}이(가) 필요합니다`,
+    int_parsing: (e) => `${_fieldName(e)}은(는) 숫자여야 합니다`,
+    greater_than_equal: (e) => `${_fieldName(e)} 값이 너무 작습니다` +
+      (e.ctx && e.ctx.ge !== undefined ? ` (${e.ctx.ge} 이상)` : ""),
+    less_than_equal: (e) => `${_fieldName(e)} 값이 너무 큽니다` +
+      (e.ctx && e.ctx.le !== undefined ? ` (${e.ctx.le} 이하)` : ""),
+  };
+
+  function _fieldName(e) {
+    const loc = Array.isArray(e.loc) ? e.loc : [];
+    return String(loc[loc.length - 1] ?? "입력값");
+  }
+
   function simErrorText(result) {
     const status = result ? result.status : 0;
-    const detail =
-      (result && result.body && (result.body.message || result.body.detail)) ||
-      `HTTP ${status}`;
-    return typeof detail === "string" ? detail : JSON.stringify(detail);
+    const body = result && result.body;
+    if (!body) return `HTTP ${status}`;
+
+    if (typeof body.message === "string" && body.message) return body.message;
+
+    const detail = body.detail;
+    if (typeof detail === "string" && detail) return detail;
+
+    if (Array.isArray(detail)) {
+      const parts = detail.map((e) => {
+        const hint = _VALIDATION_HINTS[e.type];
+        return hint ? hint(e) : `${_fieldName(e)}: ${e.msg || e.type}`;
+      });
+      return parts.join(" · ");
+    }
+    return `HTTP ${status}`;
   }
 
   function renderSimulation(sim) {
@@ -954,7 +1265,7 @@
       elements.simBar.style.width = `${pct}%`;
       elements.simProgressText.textContent =
         `${done}/${planned} (${pct}%) · 제출 ${sim.submitted} · 승격 ${sim.promoted} · ` +
-        `중복 ${sim.duplicated} · 실패 ${sim.failed}`;
+        `검증거절 ${sim.rejected || 0} · 중복 ${sim.duplicated} · 실패 ${sim.failed}`;
     }
 
     // ★실패를 숫자로만 두지 않는다. 마지막 사유를 화면에 올린다.

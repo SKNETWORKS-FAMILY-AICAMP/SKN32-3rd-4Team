@@ -1,0 +1,868 @@
+{
+ "schema_version": "v1",
+ "built_at": "2026-08-04T13:00:53",
+ "source": "data/glossary/passages.jsonl (약관의 용어 정의 구절)",
+ "scanned_passages": 3500,
+ "scanned_policies": 1147,
+ "verified_terms": 170,
+ "junk_removed": 141,
+ "min_policies": 3,
+ "★한계": [
+  "이건 용어 사전이 아니다 — 뜻은 담지 않는다. 뜻은 챗봇이 약관 원문으로 답한다.",
+  "여기 있는 것은 **약관 정의 구절에 실제로 나오고 검색으로 확인된** 낱말뿐이다.",
+  "목록에 없는 낱말도 물어볼 수 있다 — 못 찾으면 못 찾았다고 답한다.",
+  "부분 문자열 검색이라 낱말이 다른 낱말 안에 들어 있어도 걸린다."
+ ],
+ "items": [
+  {
+   "term": "의료비",
+   "policies": 1119,
+   "passages": 2409
+  },
+  {
+   "term": "금액",
+   "policies": 1119,
+   "passages": 2156
+  },
+  {
+   "term": "보상",
+   "policies": 1115,
+   "passages": 2060
+  },
+  {
+   "term": "의료기관",
+   "policies": 1112,
+   "passages": 2480
+  },
+  {
+   "term": "병원",
+   "policies": 1092,
+   "passages": 2017
+  },
+  {
+   "term": "계약",
+   "policies": 1089,
+   "passages": 1623
+  },
+  {
+   "term": "급여",
+   "policies": 1088,
+   "passages": 1936
+  },
+  {
+   "term": "의약품",
+   "policies": 1084,
+   "passages": 1915
+  },
+  {
+   "term": "치료",
+   "policies": 1082,
+   "passages": 2004
+  },
+  {
+   "term": "의사",
+   "policies": 1081,
+   "passages": 1698
+  },
+  {
+   "term": "피보험자",
+   "policies": 1077,
+   "passages": 1380
+  },
+  {
+   "term": "입원",
+   "policies": 1074,
+   "passages": 1351
+  },
+  {
+   "term": "제비",
+   "policies": 1071,
+   "passages": 1301
+  },
+  {
+   "term": "외래",
+   "policies": 1070,
+   "passages": 1781
+  },
+  {
+   "term": "통원",
+   "policies": 1069,
+   "passages": 1253
+  },
+  {
+   "term": "상해",
+   "policies": 1065,
+   "passages": 1115
+  },
+  {
+   "term": "주사료",
+   "policies": 1061,
+   "passages": 1694
+  },
+  {
+   "term": "진단",
+   "policies": 1053,
+   "passages": 1964
+  },
+  {
+   "term": "처방조제",
+   "policies": 1047,
+   "passages": 1332
+  },
+  {
+   "term": "희귀의약품",
+   "policies": 1046,
+   "passages": 1725
+  },
+  {
+   "term": "비용",
+   "policies": 1044,
+   "passages": 1305
+  },
+  {
+   "term": "요양급여",
+   "policies": 1042,
+   "passages": 1270
+  },
+  {
+   "term": "입원수술비",
+   "policies": 1042,
+   "passages": 1270
+  },
+  {
+   "term": "입원실료",
+   "policies": 1042,
+   "passages": 1270
+  },
+  {
+   "term": "입원제비용",
+   "policies": 1042,
+   "passages": 1270
+  },
+  {
+   "term": "입원의료비",
+   "policies": 1040,
+   "passages": 1264
+  },
+  {
+   "term": "의료급여",
+   "policies": 1037,
+   "passages": 1080
+  },
+  {
+   "term": "본인부담금",
+   "policies": 1037,
+   "passages": 1070
+  },
+  {
+   "term": "약사",
+   "policies": 1035,
+   "passages": 1323
+  },
+  {
+   "term": "기준병실",
+   "policies": 1033,
+   "passages": 1047
+  },
+  {
+   "term": "보험료",
+   "policies": 1032,
+   "passages": 1272
+  },
+  {
+   "term": "약국",
+   "policies": 1031,
+   "passages": 1174
+  },
+  {
+   "term": "계약자",
+   "policies": 1029,
+   "passages": 1192
+  },
+  {
+   "term": "다수보험",
+   "policies": 1028,
+   "passages": 1028
+  },
+  {
+   "term": "외래제비용",
+   "policies": 1026,
+   "passages": 1040
+  },
+  {
+   "term": "한제",
+   "policies": 1026,
+   "passages": 1026
+  },
+  {
+   "term": "외래수술비",
+   "policies": 1024,
+   "passages": 1038
+  },
+  {
+   "term": "통원의료비",
+   "policies": 1024,
+   "passages": 1024
+  },
+  {
+   "term": "보험기간",
+   "policies": 1023,
+   "passages": 1097
+  },
+  {
+   "term": "이학요법",
+   "policies": 1022,
+   "passages": 1173
+  },
+  {
+   "term": "처방조제비",
+   "policies": 1021,
+   "passages": 1035
+  },
+  {
+   "term": "상한제",
+   "policies": 1021,
+   "passages": 1021
+  },
+  {
+   "term": "간호",
+   "policies": 1018,
+   "passages": 1018
+  },
+  {
+   "term": "공제금액",
+   "policies": 993,
+   "passages": 1041
+  },
+  {
+   "term": "동등하다고",
+   "policies": 993,
+   "passages": 993
+  },
+  {
+   "term": "보험금",
+   "policies": 985,
+   "passages": 1207
+  },
+  {
+   "term": "접조제비",
+   "policies": 964,
+   "passages": 964
+  },
+  {
+   "term": "비급여",
+   "policies": 957,
+   "passages": 1612
+  },
+  {
+   "term": "환급금",
+   "policies": 908,
+   "passages": 940
+  },
+  {
+   "term": "직접조제비",
+   "policies": 906,
+   "passages": 906
+  },
+  {
+   "term": "보험증권",
+   "policies": 903,
+   "passages": 926
+  },
+  {
+   "term": "보험회사",
+   "policies": 902,
+   "passages": 913
+  },
+  {
+   "term": "원금",
+   "policies": 887,
+   "passages": 897
+  },
+  {
+   "term": "진단계약",
+   "policies": 887,
+   "passages": 889
+  },
+  {
+   "term": "영업일",
+   "policies": 886,
+   "passages": 896
+  },
+  {
+   "term": "보험수익자",
+   "policies": 885,
+   "passages": 910
+  },
+  {
+   "term": "이율",
+   "policies": 883,
+   "passages": 893
+  },
+  {
+   "term": "공시이율",
+   "policies": 858,
+   "passages": 864
+  },
+  {
+   "term": "공제계약",
+   "policies": 855,
+   "passages": 855
+  },
+  {
+   "term": "요양병원",
+   "policies": 853,
+   "passages": 1055
+  },
+  {
+   "term": "행위",
+   "policies": 851,
+   "passages": 1753
+  },
+  {
+   "term": "분류번호",
+   "policies": 849,
+   "passages": 1309
+  },
+  {
+   "term": "금융감독원",
+   "policies": 843,
+   "passages": 853
+  },
+  {
+   "term": "증식치료",
+   "policies": 836,
+   "passages": 1241
+  },
+  {
+   "term": "치료행위",
+   "policies": 834,
+   "passages": 1251
+  },
+  {
+   "term": "도수치료",
+   "policies": 834,
+   "passages": 1207
+  },
+  {
+   "term": "항암제",
+   "policies": 832,
+   "passages": 1240
+  },
+  {
+   "term": "계산방법",
+   "policies": 832,
+   "passages": 842
+  },
+  {
+   "term": "평균공시이율",
+   "policies": 831,
+   "passages": 837
+  },
+  {
+   "term": "차액",
+   "policies": 811,
+   "passages": 919
+  },
+  {
+   "term": "보험계약대출이율",
+   "policies": 730,
+   "passages": 730
+  },
+  {
+   "term": "자기공명영상",
+   "policies": 723,
+   "passages": 1125
+  },
+  {
+   "term": "자기공명영상진단",
+   "policies": 723,
+   "passages": 1125
+  },
+  {
+   "term": "파치료",
+   "policies": 694,
+   "passages": 965
+  },
+  {
+   "term": "무배당",
+   "policies": 600,
+   "passages": 951
+  },
+  {
+   "term": "보장책임액",
+   "policies": 596,
+   "passages": 596
+  },
+  {
+   "term": "보장대상의료비",
+   "policies": 586,
+   "passages": 780
+  },
+  {
+   "term": "연단위복리",
+   "policies": 584,
+   "passages": 588
+  },
+  {
+   "term": "홈페이지",
+   "policies": 543,
+   "passages": 545
+  },
+  {
+   "term": "보상대상의료비",
+   "policies": 490,
+   "passages": 1100
+  },
+  {
+   "term": "체외충격파치료",
+   "policies": 488,
+   "passages": 653
+  },
+  {
+   "term": "보상책임액",
+   "policies": 478,
+   "passages": 478
+  },
+  {
+   "term": "해지환급금",
+   "policies": 450,
+   "passages": 459
+  },
+  {
+   "term": "종료일",
+   "policies": 435,
+   "passages": 437
+  },
+  {
+   "term": "해약환급금",
+   "policies": 418,
+   "passages": 441
+  },
+  {
+   "term": "갱신일",
+   "policies": 332,
+   "passages": 336
+  },
+  {
+   "term": "문구",
+   "policies": 320,
+   "passages": 320
+  },
+  {
+   "term": "3대비급여",
+   "policies": 293,
+   "passages": 406
+  },
+  {
+   "term": "별표2",
+   "policies": 258,
+   "passages": 316
+  },
+  {
+   "term": "갱신계약",
+   "policies": 251,
+   "passages": 252
+  },
+  {
+   "term": "최초계약",
+   "policies": 251,
+   "passages": 252
+  },
+  {
+   "term": "상해비급여",
+   "policies": 203,
+   "passages": 209
+  },
+  {
+   "term": "질병비급여",
+   "policies": 199,
+   "passages": 205
+  },
+  {
+   "term": "상급병실료차액",
+   "policies": 187,
+   "passages": 221
+  },
+  {
+   "term": "보상금액",
+   "policies": 185,
+   "passages": 239
+  },
+  {
+   "term": "태아",
+   "policies": 182,
+   "passages": 246
+  },
+  {
+   "term": "출생일",
+   "policies": 176,
+   "passages": 220
+  },
+  {
+   "term": "임신부",
+   "policies": 176,
+   "passages": 176
+  },
+  {
+   "term": "태아보장기간",
+   "policies": 176,
+   "passages": 176
+  },
+  {
+   "term": "태아위험보장",
+   "policies": 175,
+   "passages": 175
+  },
+  {
+   "term": "출생예정일",
+   "policies": 174,
+   "passages": 174
+  },
+  {
+   "term": "연계약해당일",
+   "policies": 168,
+   "passages": 168
+  },
+  {
+   "term": "는의료기관",
+   "policies": 135,
+   "passages": 135
+  },
+  {
+   "term": "보상한도종료일",
+   "policies": 130,
+   "passages": 130
+  },
+  {
+   "term": "희귀질환",
+   "policies": 124,
+   "passages": 186
+  },
+  {
+   "term": "비급여대상",
+   "policies": 113,
+   "passages": 113
+  },
+  {
+   "term": "본인부담금상한제",
+   "policies": 111,
+   "passages": 111
+  },
+  {
+   "term": "입원일수",
+   "policies": 110,
+   "passages": 140
+  },
+  {
+   "term": "신체",
+   "policies": 104,
+   "passages": 129
+  },
+  {
+   "term": "인정되는의료기관",
+   "policies": 89,
+   "passages": 89
+  },
+  {
+   "term": "동차",
+   "policies": 78,
+   "passages": 78
+  },
+  {
+   "term": "2회",
+   "policies": 77,
+   "passages": 77
+  },
+  {
+   "term": "이학요법치료",
+   "policies": 76,
+   "passages": 177
+  },
+  {
+   "term": "중증외상",
+   "policies": 72,
+   "passages": 134
+  },
+  {
+   "term": "중증난치질환",
+   "policies": 68,
+   "passages": 126
+  },
+  {
+   "term": "상·중증외상",
+   "policies": 63,
+   "passages": 118
+  },
+  {
+   "term": "자동전환일",
+   "policies": 58,
+   "passages": 58
+  },
+  {
+   "term": "증화상·중증외상",
+   "policies": 56,
+   "passages": 93
+  },
+  {
+   "term": "이륜자동차",
+   "policies": 56,
+   "passages": 56
+  },
+  {
+   "term": "결핵·잠복결핵",
+   "policies": 51,
+   "passages": 88
+  },
+  {
+   "term": "중증화상·중증외상",
+   "policies": 46,
+   "passages": 64
+  },
+  {
+   "term": "표준이율",
+   "policies": 45,
+   "passages": 49
+  },
+  {
+   "term": "전환전계약",
+   "policies": 45,
+   "passages": 48
+  },
+  {
+   "term": "전환후계약",
+   "policies": 45,
+   "passages": 48
+  },
+  {
+   "term": "해당보험년도",
+   "policies": 42,
+   "passages": 42
+  },
+  {
+   "term": "재가입계약",
+   "policies": 40,
+   "passages": 40
+  },
+  {
+   "term": "현대해상다이렉트실손의료비보장보험",
+   "policies": 39,
+   "passages": 94
+  },
+  {
+   "term": "장해",
+   "policies": 39,
+   "passages": 45
+  },
+  {
+   "term": "보상재개",
+   "policies": 39,
+   "passages": 39
+  },
+  {
+   "term": "(Deductible)",
+   "policies": 37,
+   "passages": 37
+  },
+  {
+   "term": "해당계약",
+   "policies": 36,
+   "passages": 36
+  },
+  {
+   "term": "1만원",
+   "policies": 30,
+   "passages": 284
+  },
+  {
+   "term": "설명",
+   "policies": 30,
+   "passages": 30
+  },
+  {
+   "term": "(보험대상자)",
+   "policies": 26,
+   "passages": 26
+  },
+  {
+   "term": "계약자적립액",
+   "policies": 24,
+   "passages": 24
+  },
+  {
+   "term": "F99",
+   "policies": 21,
+   "passages": 21
+  },
+  {
+   "term": "N98",
+   "policies": 21,
+   "passages": 21
+  },
+  {
+   "term": "R32",
+   "policies": 20,
+   "passages": 20
+  },
+  {
+   "term": "정신발달장애",
+   "policies": 20,
+   "passages": 20
+  },
+  {
+   "term": "8천원",
+   "policies": 18,
+   "passages": 161
+  },
+  {
+   "term": "종합형",
+   "policies": 17,
+   "passages": 17
+  },
+  {
+   "term": "중요한사항",
+   "policies": 16,
+   "passages": 20
+  },
+  {
+   "term": "K64",
+   "policies": 16,
+   "passages": 16
+  },
+  {
+   "term": "갱신전계약",
+   "policies": 15,
+   "passages": 15
+  },
+  {
+   "term": "보통약관93",
+   "policies": 15,
+   "passages": 15
+  },
+  {
+   "term": "(별표2)",
+   "policies": 14,
+   "passages": 27
+  },
+  {
+   "term": "산정특례대상질환",
+   "policies": 14,
+   "passages": 19
+  },
+  {
+   "term": "갱신전계약의보험기간만료일의다음날",
+   "policies": 13,
+   "passages": 13
+  },
+  {
+   "term": "1만5천원",
+   "policies": 12,
+   "passages": 181
+  },
+  {
+   "term": "(공제금액반영)",
+   "policies": 12,
+   "passages": 12
+  },
+  {
+   "term": "보통약관95",
+   "policies": 10,
+   "passages": 10
+  },
+  {
+   "term": "부상또는주민등록상의배우자",
+   "policies": 9,
+   "passages": 9
+  },
+  {
+   "term": "지정대리청구서비스특약약관",
+   "policies": 9,
+   "passages": 9
+  },
+  {
+   "term": "(대상금액)",
+   "policies": 8,
+   "passages": 8
+  },
+  {
+   "term": "계약의전환",
+   "policies": 8,
+   "passages": 8
+  },
+  {
+   "term": "질병통원형",
+   "policies": 8,
+   "passages": 8
+  },
+  {
+   "term": "보통약관97",
+   "policies": 7,
+   "passages": 7
+  },
+  {
+   "term": "통합형",
+   "policies": 7,
+   "passages": 7
+  },
+  {
+   "term": "금등을계산하기위해시장금리를고려하",
+   "policies": 6,
+   "passages": 10
+  },
+  {
+   "term": "재개계약",
+   "policies": 6,
+   "passages": 6
+  },
+  {
+   "term": "특별조건부특약약관",
+   "policies": 6,
+   "passages": 6
+  },
+  {
+   "term": "본인이실제로부담한의료비",
+   "policies": 5,
+   "passages": 5
+  },
+  {
+   "term": "제왕절개",
+   "policies": 5,
+   "passages": 5
+  },
+  {
+   "term": "종합통원형",
+   "policies": 5,
+   "passages": 5
+  },
+  {
+   "term": "12회",
+   "policies": 4,
+   "passages": 4
+  },
+  {
+   "term": "24회",
+   "policies": 4,
+   "passages": 4
+  },
+  {
+   "term": "36회",
+   "policies": 4,
+   "passages": 4
+  },
+  {
+   "term": "상해통원형",
+   "policies": 4,
+   "passages": 4
+  },
+  {
+   "term": "공통조항73",
+   "policies": 3,
+   "passages": 3
+  },
+  {
+   "term": "분만입원",
+   "policies": 3,
+   "passages": 3
+  }
+ ]
+}

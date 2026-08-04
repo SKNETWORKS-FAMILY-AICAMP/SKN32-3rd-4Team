@@ -1,4 +1,4 @@
-"""MCP ↔ REST 동등성 — 도구 3종(MVP §6).
+"""MCP ↔ REST 동등성 — 보험 도구 4종.
 
 ★parity 의 의미가 **바뀌었다**
 
@@ -14,7 +14,7 @@
 ★`app/mcp` 는 2026-08-04 에 되살아났다
 
     v3 커머스와 함께 레거시로 격리돼 있었고, 그동안 이 파일은 `mcp` 마커로 빠져
-    **아무것도 보증하지 않았다.** 보험 도구 3종으로 다시 만들면서 마커를 뗀다 —
+    **아무것도 보증하지 않았다.** 보험 도구를 다시 만들면서 마커를 뗀다 —
     stdio 서브프로세스를 쓰지 않으므로 CI 에서 그냥 돈다.
 """
 
@@ -101,6 +101,41 @@ def test_cohort_도_rest_와_같은_응답을_낸다(client):
     assert "by_verification" in mcp_out
 
 
+def test_용어설명도_rest와_mcp가_같고_llm상태를_보존한다(client, monkeypatch):
+    from app.core.ports.glossary import TermPassage
+    from app.mcp.server import mcp
+    from app.routers import chat as chat_router
+
+    class _Glossary:
+        def find(self, term, *, insurer=None, limit=20):
+            row = TermPassage(
+                kind="clause",
+                sha256="a" * 64,
+                insurer="가보험",
+                qualified_no="보통약관/2.",
+                section="보통약관",
+                title="용어의 정의",
+                page_from=3,
+                page_to=3,
+                content_hash="deadbeefcafe",
+                text="통원 의료기관에 입원하지 않고 방문하여 치료받는 것",
+            )
+            return [row] if term in row.text else []
+
+        def meta(self):
+            return {"built_from": "test"}
+
+    monkeypatch.setattr(chat_router, "_source", lambda: _Glossary())
+    # 공통 테스트 환경은 LLM_CHAT_ENABLED=false라 결정론적 원문 응답을 비교한다.
+    payload = {"message": "통원 뜻"}
+    rest = client.post("/v1/chat", json=payload).json()
+    mcp_out = json.loads(_text(_run(mcp.call_tool("explain_term", payload))))
+
+    assert rest == mcp_out
+    assert mcp_out["found"] is True
+    assert mcp_out["llm"]["used"] is False
+
+
 def test_잘못된_data_source_는_예외가_아니라_구조화된_오류다():
     """★에이전트는 분기해야 한다. 예외만 던지면 무엇을 고칠지 알 수 없다."""
     from app.mcp.server import mcp
@@ -114,12 +149,29 @@ def test_잘못된_data_source_는_예외가_아니라_구조화된_오류다():
     assert out["retryable"] is False
 
 
-def test_도구는_정확히_세_개다():
-    """★늘어나기 시작하면 "전체 parity"로 번진다. MVP §6 은 3종으로 못박았다."""
+def test_잘못된_observation_outcome도_구조화된_422다():
+    from app.mcp.server import mcp
+
+    out = json.loads(_text(_run(mcp.call_tool(
+        "submit_observation",
+        {
+            "client_ref": "mcp-test",
+            "insurer": "가보험",
+            "outcome": "anything",
+            "kcd_codes": ["F32"],
+        },
+    ))))
+    assert out["ok"] is False
+    assert out["http_status"] == 422
+    assert out["retryable"] is False
+
+
+def test_도구는_정확히_네_개다():
+    """LLM 용어 설명도 별도 구현 없이 REST 라우터를 그대로 쓴다."""
     from app.mcp.server import mcp
 
     names = {t.name for t in _run(mcp.list_tools())}
-    assert names == {"precheck", "cohort_stats", "submit_observation"}
+    assert names == {"precheck", "explain_term", "cohort_stats", "submit_observation"}
 
 
 def test_mcp_서버는_유스케이스를_직접_부르지_않는다():

@@ -28,27 +28,24 @@ from __future__ import annotations
 
 import json
 import random
-import shutil
 import threading
 import urllib.error
 import urllib.request
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from pathlib import Path
 
 from app.core.errors import ConflictErr, InfraError, ValidationErr
 
-_ROOT = Path(__file__).resolve().parents[2]
-
-#: `초기화` 가 지우는 대상 — **합성 트랙 뿐이다.** 실제 트랙 경로는 여기 없다.
-_RESET_DIRS = (
-    _ROOT / "data" / "demo" / "submissions",
-    _ROOT / "data" / "cohort" / "synthetic",
+from app.core.domain.synthetic_validation import (
+    ALLOWED_AGE_BANDS,
+    ALLOWED_INSURERS,
+    ALLOWED_KCD_CODES,
 )
 
-INSURERS = ["삼성화재", "DB손해보험", "NH농협생명", "동양생명", "현대해상", "흥국화재"]
-CODES = ["S72.0", "J20.9", "E11.9", "M51.2", "C50.9", "K35.8", "H25.9", "N20.0"]
-AGE_BANDS = ["20대", "30대", "40대", "50대", "60대"]
+INSURERS = sorted(ALLOWED_INSURERS)
+CODES = sorted(ALLOWED_KCD_CODES)
+AGE_BANDS = sorted(ALLOWED_AGE_BANDS)
 
 #: ★결과 분포를 **일부러 부지급 쪽으로 채운다.**
 #:   전부 `paid` 면 "승인율 100%"라는 거짓 화면이 나오고,
@@ -69,12 +66,16 @@ class SimState:
     planned: int = 0
     submitted: int = 0
     promoted: int = 0
+    rejected: int = 0
     duplicated: int = 0
     failed: int = 0
     stop_requested: bool = False
     #: ★멈춘 이유를 남긴다. "그냥 끝남"과 "오류로 끊김"과 "사람이 멈춤"은 다르다.
     last_error: str = ""
     stopped_by: str = ""
+    #: 같은 seed로 다시 실행해도 **새 실행**임을 구분한다. 사례 재시도 멱등성과
+    #: 시뮬레이션 재실행을 같은 것으로 취급하면 두 번째 실행이 전부 중복된다.
+    run_id: str = ""
     params: dict = field(default_factory=dict)
 
     def as_dict(self) -> dict:
@@ -85,11 +86,13 @@ class SimState:
             "planned": self.planned,
             "submitted": self.submitted,
             "promoted": self.promoted,
+            "rejected": self.rejected,
             "duplicated": self.duplicated,
             "failed": self.failed,
             "stop_requested": self.stop_requested,
             "last_error": self.last_error,
             "stopped_by": self.stopped_by,
+            "run_id": self.run_id,
             "params": self.params,
             "data_source": "synthetic",
             #: ★프로세스 메모리다. 재시작하면 이 상태는 사라진다(데이터는 남는다).
@@ -144,16 +147,14 @@ def _validate(agents: int, cases: int, codes: list[str], delay_ms: int) -> None:
 
 
 def _run(*, base: str, agents: int, cases: int, codes: list[str], delay_ms: int,
-         auto_verify: bool, seed: int) -> None:
-    from app.adapters import demo_submission_store as demo
-
+         auto_verify: bool, seed: int, run_id: str) -> None:
     rnd = random.Random(seed)
     delay = delay_ms / 1000.0
 
     try:
         for i in range(1, agents + 1):
             ref = f"sim-agent-{i:03d}"
-            for _ in range(cases):
+            for case_no in range(1, cases + 1):
                 with _lock:
                     if _state.stop_requested:
                         return
@@ -167,6 +168,13 @@ def _run(*, base: str, agents: int, cases: int, codes: list[str], delay_ms: int,
                     "age_band": rnd.choice(AGE_BANDS),
                     "outcome": rnd.choice(OUTCOMES),
                     "outcome_reason": "시뮬레이션 생성",
+                    # 실행별 ID + 실행 안의 사례 순번이다. 같은 요청을 재전송하면
+                    # 같은 키라 중복 차단되고, 같은 seed로 새로 실행하면 run_id가
+                    # 달라져 새 사례로 접수된다.
+                    "idempotency_key": f"sim-{run_id}-{i:03d}-{case_no:03d}",
+                    "simulation_run_id": run_id,
+                    "simulation_case_no": case_no,
+                    "auto_validate": auto_verify,
                 }
                 status_code, res = _post(base, "/v1/demo/observations", body)
 
@@ -180,14 +188,10 @@ def _run(*, base: str, agents: int, cases: int, codes: list[str], delay_ms: int,
                         _state.duplicated += 1
                         continue
                     _state.submitted += 1
-                    sid = res.get("submission_id")
-
-                if auto_verify and sid:
-                    #: ★사람이 검수 버튼을 누르는 것과 **같은 함수**를 부르되
-                    #:   방법만 `simulated` 로 남긴다. 섞으면 사람이 검수한 것처럼 보인다.
-                    demo.promote(sid, method=demo.METHOD_SIMULATED, actor="simulator")
-                    with _lock:
+                    if res.get("promoted"):
                         _state.promoted += 1
+                    elif auto_verify and res.get("verification") == "rejected":
+                        _state.rejected += 1
 
                 if delay:
                     #: 정지 요청에 빨리 반응하도록 잘게 쪼개 잔다.
@@ -229,14 +233,20 @@ def start(*, base: str, agents: int, cases: int, codes: list[str],
         _state.running = True
         _state.started_at = datetime.now(timezone.utc).isoformat()
         _state.planned = agents * cases
+        _state.run_id = uuid.uuid4().hex[:12]
         _state.params = {
             "base": base, "agents": agents, "cases": cases, "codes": codes,
             "delay_ms": delay_ms, "auto_verify": auto_verify, "seed": seed,
         }
+        if auto_verify:
+            from app.core.domain.synthetic_validation import RULE_VERSION
+
+            _state.params["validation_rule_version"] = RULE_VERSION
 
     _thread = threading.Thread(
         target=_run, kwargs=dict(base=base, agents=agents, cases=cases, codes=codes,
-                                 delay_ms=delay_ms, auto_verify=auto_verify, seed=seed),
+                                 delay_ms=delay_ms, auto_verify=auto_verify, seed=seed,
+                                 run_id=_state.run_id),
         name="demo-simulator", daemon=True,
     )
     _thread.start()
@@ -258,19 +268,13 @@ def reset() -> dict:
         if _state.running:
             raise ConflictErr("시뮬레이션 실행 중에는 초기화할 수 없습니다. 먼저 정지하세요.")
 
-    removed = []
-    for d in _RESET_DIRS:
-        if d.exists():
-            shutil.rmtree(d)
-            #: ★경로 표시 때문에 삭제가 실패하면 안 된다(저장소 밖일 수 있다 — 테스트).
-            try:
-                removed.append(str(d.relative_to(_ROOT)))
-            except ValueError:
-                removed.append(str(d))
+    from app.adapters import demo_submission_store as demo
+
+    result = demo.reset()
 
     with _lock:
         _state.__init__()  # type: ignore[misc]
-    return {"reset": True, "removed": removed, "data_source": "synthetic"}
+    return result
 
 
 __all__ = [

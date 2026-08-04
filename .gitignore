@@ -159,3 +159,19 @@ data/exports/dataset/
 #   검수는 로컬에서 열어 보는 것이고 저장소에 남길 것이 아니다(CLAUDE.md §2).
 #   ★`docs/handoff/preprocess_viz.html` 은 남긴다 — 조항 인용이 0 이고 계약 산출물이다.
 docs/review/*.html
+
+# ★질병코드 카탈로그는 **약관 원문 조각을 담는다** — 커밋하지 않는다.
+#
+#   `data/exports/kcd_catalog.json` 의 `example.context` 는 그 코드가 나온
+#   약관 문장을 최대 160자씩 담는다(525개). 약관 원문은 저작물이고
+#   `data/raw/` 에만 둔다(CLAUDE.md §2). `data/extracted/`·`data/structured/`
+#   를 무시하는 것과 **같은 이유**다 — PDF 를 막아 놓고 그것을 뽑은 텍스트를
+#   커밋하면 막은 뜻이 없어진다.
+#
+#   ★생성물이라 언제든 다시 만든다: `python -m scripts.eval.kcd_catalog`
+#   없으면 API 가 503 + 실행할 명령을 알려 준다(조용히 빈 목록을 주지 않는다).
+data/exports/kcd_catalog.json
+
+# 파인튜닝 어댑터 바이너리 — 합성 데이터 산출물이고 66MB 다.
+# peft save_pretrained 가 베이스 토크나이저(2.3M줄)까지 복사한다. 로컬에만 둔다.
+artifacts/finetune/*/adapter/

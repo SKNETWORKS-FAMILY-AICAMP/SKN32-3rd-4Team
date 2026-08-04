@@ -14,14 +14,25 @@
     매니페스트는 *수집기가 사이트에서 읽은 것*이다. 그게 맞는지는
     **약관 본문**과 대조해야 안다. 네 가지를 본다.
 
-        ① 상품명 토큰이 문서 앞부분에 실제로 나오는가
-        ② 문서가 스스로 밝힌 판매일이 매니페스트와 **월 단위로** 맞는가
-        ③ 세대가 `config/generation_profiles.json` 의 시행 구간과 맞는가
-        ④ 조항 산출물의 `parse_status` 가 `ok` 인가
+        ① ★**전체 상품명이 문서에 한 덩어리로** 나오는가 (강한 식별자)
+        ② 문서가 스스로 밝힌 판매일이 `sale_start` 보다 **앞서지 않는가**
+           (뒤면 개정이다 — 상품 판매개시와 판본 효력일은 **다른 것**이다)
+        ③ 세대는 **값이 있을 때만** 규칙과 맞는지 본다 (NULL 은 정상 · 핸드오프 계약)
+        ④ ★같은 문서에서 **다른 본약관**도 확인되면 자동 확정하지 않는다 (`ambiguous`)
 
-    ★실제로 걸러냈다(2026-08-04) — 메리츠화재 한 건은 매니페스트가
-      `20260501` 인데 **약관 표지에 "판매개시 2026. 7. 13"** 이라 적혀 있었다.
-      2개월 넘게 어긋난다. 확정했다면 다른 판본으로 판정할 뻔했다.
+    `parse_status` 는 **식별 조건이 아니다.** 「이 파일이 무엇인가」와
+    「조항을 근거로 댈 수 있는가」는 다른 층이라 `extraction_blocked` 로 표시만 한다.
+
+★이 도구가 실제로 잡은 것들 (2026-08-04)
+
+    · 메리츠화재 `sale_start=20260501` vs 표지 「판매개시 2026. 7. 13」
+      → 처음엔 탈락시켰는데 **틀렸다.** 상품 판매개시와 판본 효력일은 다른 필드다.
+    · 반대로 내가 만든 **없는 규칙** 셋이 대량 오탈락을 냈다 —
+      `date_confidence` 라벨 부재(+677) · 세대 NULL(+301) · `parse_status`(+36).
+      ★**계약보다 엄격한 규칙을 임의로 만드는 것**이 이 작업의 주된 실패 모드였다.
+    · 반대로 **너무 무른 기준**도 있었다 — 토큰 커버리지만 보다가
+      확정 1,115건 중 **798건(71.6%)이 다른 상품명과도 일치**하고 있었다.
+      강한 식별자로 바꾸니 850건이 됐다(제거 337). **줄어든 것이 맞는 방향이다.**
 
 ★확정은 **매니페스트에 쓰지 않는다.** 별도 원장에 쌓는다.
 
@@ -53,9 +64,16 @@ _LEDGER = _ROOT / "config" / "confirmed_documents.jsonl"
 #:   통과하는데, 종이 다르면 자기부담금이 다른 **다른 상품**이다.
 _NAME_MATCH_MIN = 1.0
 
-#: 문서 앞 몇 쪽까지 훑을 것인가. 표지가 「감사의 글」·「가이드 북」인 회사가 있어
-#: 3쪽으로는 모자랐다(실측: 삼성생명·NH농협손보).
-_SCAN_PAGES = 15
+#: 문서 앞 몇 쪽까지 훑을 것인가.
+#:
+#: ★★**15 였다가 전체로 바꿨다(2026-08-04).** 표지가 「감사의 글」·「가이드 북」인
+#:   회사가 있어 3 → 15 로 올렸는데 그래도 모자랐다 — 삼성생명은 **17쪽**에
+#:   「삼성생명 인터넷실손의료비보장보험4.0(기본형,갱신형,무배당)」 이라고 정확히 밝힌다.
+#:   실측: 상품명 탈락 206건 중 **117건이 40쪽 안에** 전체 이름을 갖고 있었다.
+#:   즉 그 117건은 문서 문제가 아니라 **내가 만든 인위적 실패**였다(코덱스 지적).
+#:
+#: ★`None` 이면 전문을 본다. 범위를 넓히는 대신 **아래 강한 식별자**로 정밀도를 지킨다.
+_SCAN_PAGES: int | None = None
 
 #: 파일명에서 온 날짜 접두어(`2016-01-01_무배당…`). 상품명이 아니라 **수집기가 붙인 것**이라
 #: 문서 본문에 있을 리 없다. 이름 대조에서 뺀다 — 안 빼면 흥국화재가 통째로 탈락한다.
@@ -100,6 +118,51 @@ def _norm(s: str) -> str:
     return re.sub(r"[^0-9A-Za-z가-힣]", "", unicodedata.normalize("NFKC", s or "")).lower()
 
 
+#: 수집기가 파일명에서 붙인 날짜 접두어. 상품명이 아니다.
+_NAME_DATE_PREFIX = re.compile(r"^\d{4}-\d{2}-\d{2}_")
+
+
+def full_name_key(product_name: str) -> str:
+    """상품명 **전체**를 기호·공백 없이 한 덩어리로. 제목이 줄바꿈으로 갈려도 이어 붙는다."""
+    return _norm(_NAME_DATE_PREFIX.sub("", product_name or ""))
+
+
+def _rivals(row: dict, flat_doc: str, siblings: list[dict]) -> list[str]:
+    """이 문서 안에서 **같은 보험사의 다른 상품명**도 통째로 확인되는가.
+
+    ★★**토큰 커버리지는 유일성을 보장하지 않는다**(코덱스 지적 · 2026-08-04 실측으로 확인).
+
+        약관집 PDF 하나에 본약관·특약·비교표가 같이 실린다. 그래서 상품명 토큰이
+        전부 나온다고 그 문서가 **그 상품**이라는 뜻이 아니다.
+
+        확정 원장 1,115건을 재측정한 결과 —
+          토큰 부분문자열 대조   다른 상품명도 일치 **798건(71.6%)**
+          낱말 경계 대조         504건(60.1%)
+          ★전체 이름 연속 대조   297건(31.4%)  ← 지금 쓰는 것
+
+        전체 이름 연속 대조로도 297건이 남고, 그중 **166건은 상대가 본약관**이다.
+        `(계약전환용)2101` 과 `2101`, `단체전환용_26.05` 와 `26.01` 처럼
+        **자기부담금·적용대상이 다른 상품**이 한 문서에 같이 언급된다.
+
+    ★그래서 **조용히 통과시키지 않는다.** 상대를 세어서 남기고, 본약관 상대가 있으면
+      자동 확정하지 않는다(`ambiguous`). 특약만 상대인 경우는 정상이다 —
+      `resolve()` 가 본약관을 우선하므로 섞이지 않는다.
+    """
+    from app.core.domain.policy_naming import looks_like_rider
+
+    me = full_name_key(row.get("product_name", ""))
+    out = []
+    for o in siblings:
+        if o.get("sha256") == row.get("sha256"):
+            continue
+        k = full_name_key(o.get("product_name", ""))
+        if not k or k == me or k not in flat_doc:
+            continue
+        if not looks_like_rider(o.get("product_name") or ""):
+            out.append(o.get("product_name") or "")
+    return out
+
+
 def _token_in(tok: str, flat: str) -> bool:
     """토큰이 문서에 있나. **별칭까지 본다.**"""
     if _norm(tok) in flat:
@@ -129,7 +192,8 @@ def _artifact_text(sha12: str, page_tag: str) -> tuple[str, int]:
         return "", 0
     d = json.loads(hits[0].read_text(encoding="utf-8"))
     pages = d.get("pages") or []
-    return "\n".join((p.get("text") or "") for p in pages[:_SCAN_PAGES]), len(pages)
+    keep = pages if _SCAN_PAGES is None else pages[:_SCAN_PAGES]
+    return "\n".join((p.get("text") or "") for p in keep), len(pages)
 
 
 def _parse_status(sha12: str, clause_tag: str) -> str | None:
@@ -139,10 +203,14 @@ def _parse_status(sha12: str, clause_tag: str) -> str | None:
     return json.loads(hits[0].read_text(encoding="utf-8")).get("parse_status")
 
 
-def verify(row: dict, *, page_tag: str, clause_tag: str) -> dict:
+def verify(row: dict, *, page_tag: str, clause_tag: str,
+           siblings: list[dict] | None = None) -> dict:
     """한 문서의 식별 근거를 모은다. **판정하지 않고 근거를 낸다.**
 
     ★`ok` 가 아닌 이유를 반드시 담는다. 조용히 빼면 「검토했다」가 거짓이 된다.
+
+    Args:
+        siblings: 같은 보험사의 다른 매니페스트 행. 주면 **경쟁 상품명 검사**를 한다.
     """
     sha = row.get("sha256", "")
     sha12 = sha[:12]
@@ -161,10 +229,25 @@ def verify(row: dict, *, page_tag: str, clause_tag: str) -> dict:
     if not ss or ss == "00000000":
         out["reasons"].append("sale_start 가 비었거나 자리표시자다")
 
+    #: ★★**`parse_status` 를 식별 실패로 세지 않는다**(2026-08-04 · 코덱스 지적).
+    #:
+    #:   「이 파일이 무엇인가」(식별)와 「조항을 근거로 댈 수 있는가」(인용 가능성)는
+    #:   **다른 층**이다. ERD 도 확정 문서와 추출 승인을 나눠 두었고,
+    #:   런타임은 판본을 고른 **뒤에** `parse_status` 를 다시 본다
+    #:   (`app/core/usecases/precheck.py`). 여기서 또 막으면 층을 섞는 것이다.
+    #:
+    #:   실측 — `suspect` 52건 중 **51건이 인용 가능 조항 10개 이상**이다.
+    #:   식별은 되는데 식별 단계에서 떨어뜨리고 있었다(36건이 이 이유만으로 막혔다).
+    #:
+    #: ★★그런데 **그냥 통과시키면 안 된다.** `eligibility.check()` 가
+    #:   `parse_status != "ok"` 인 문서의 조항을 **전부** 거절한다. 그래서 확정하면
+    #:   판본은 잡히고 인용은 0건이 되어 `no_evidence`(「질병기호로 적힌 조항을
+    #:   찾지 못했습니다」)로 답한다 — **실제 이유는 구조화 품질인데 다른 사유를 말한다.**
+    #:   그래서 원장에 `extraction_blocked` 로 **표시**해 두고, 판정 쪽이
+    #:   그 사유를 쓸 수 있게 남긴다.
     ps = _parse_status(sha12, clause_tag)
     out["parse_status"] = ps
-    if ps != "ok":
-        out["reasons"].append(f"조항 산출물 parse_status={ps!r}")
+    out["extraction_blocked"] = ps != "ok"
 
     text, n_pages = _artifact_text(sha12, page_tag)
     out["pages"] = n_pages
@@ -173,19 +256,23 @@ def verify(row: dict, *, page_tag: str, clause_tag: str) -> dict:
         out["ok"] = False
         return out
 
-    #: ── ① 이름 대조 ──
+    #: ── ① 이름 대조 — **강한 식별자 하나**를 요구한다 ──
+    #:
+    #: ★★토큰이 문서 여기저기 흩어져 다 나오는 것으로는 **부족하다.**
+    #:   전체 상품명이 **한 덩어리로** 있어야 한다. 근거는 `_rivals()` 주석의 실측 표.
     flat = _norm(text)
+    me = full_name_key(out["product_name"])
     raw_toks = re.split(r"[\s()\[\],_/]+", unicodedata.normalize("NFKC", out["product_name"]))
     toks = [t for t in raw_toks if len(_norm(t)) >= 2 and not _FILENAME_DATE.match(t)]
-    hit = [t for t in toks if _token_in(t, flat)]
     miss = [t for t in toks if not _token_in(t, flat)]
-    out["name_match"] = f"{len(hit)}/{len(toks)}"
+    out["name_match"] = f"{len(toks) - len(miss)}/{len(toks)}"
     out["name_missing"] = miss
-    ratio = (len(hit) / len(toks)) if toks else 0.0
-    if not toks:
-        out["reasons"].append("상품명에서 대조할 토큰을 못 만들었다")
-    elif ratio < _NAME_MATCH_MIN:
-        out["reasons"].append(f"상품명이 문서에서 확인되지 않는다({out['name_match']}): {miss[:4]}")
+    if not me:
+        out["reasons"].append("상품명이 비어 있어 대조할 수 없다")
+    elif me not in flat:
+        detail = f", 빠진 토큰 {miss[:3]}" if miss else " — 토큰은 다 있으나 흩어져 있다"
+        out["reasons"].append(
+            f"전체 상품명이 문서에 한 덩어리로 나오지 않는다(토큰 {out['name_match']}{detail})")
 
     #: ── ② 문서가 스스로 밝힌 판매일 ──
     squeezed = text.replace(" ", "")
@@ -246,10 +333,26 @@ def verify(row: dict, *, page_tag: str, clause_tag: str) -> dict:
     if g is not None and exp is not None and g != exp:
         out["reasons"].append(f"세대가 규칙과 다르다: 매니페스트 {g} · 규칙 {exp}")
 
+    #: ── ④ 경쟁 상품명 — **유일하게 식별되는가** ──
+    #:
+    #: ★이름이 맞는 것과 **그 이름만 맞는 것**은 다르다. 약관집에 본약관과 특약이
+    #:   같이 실리므로, 같은 보험사의 다른 **본약관**까지 통째로 나오면 자동 확정하지 않는다.
+    #:   (특약만 상대인 경우는 정상 — `resolve()` 가 본약관을 우선한다.)
+    out["rivals"] = _rivals(row, flat, siblings or []) if (me and me in flat) else []
+    if out["rivals"]:
+        out["reasons"].append(
+            f"같은 문서에서 다른 본약관 {len(out['rivals'])}건도 확인된다 — 사람이 골라야 한다"
+            f": {out['rivals'][:2]}")
+
     out["ok"] = not out["reasons"]
-    #: ★문서 안에서 판매일을 못 찾았으면 근거가 한 단 약하다. **등급으로 남긴다.**
-    out["evidence"] = "name+date" if (out["ok"] and out["doc_dates"]) else (
-        "name_only" if out["ok"] else "-")
+    #: ★근거 등급. 문서 안에서 판매일까지 확인되면 한 단 강하다.
+    if not out["ok"]:
+        out["evidence"] = "ambiguous" if out["rivals"] else "-"
+    elif out["extraction_blocked"]:
+        #: 식별은 됐지만 **인용은 못 한다.** 판정 쪽이 이 사실을 말할 수 있어야 한다.
+        out["evidence"] = "extraction_blocked"
+    else:
+        out["evidence"] = "name+date" if out["doc_dates"] else "name_only"
     return out
 
 
@@ -269,6 +372,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--scope", default="demo", help="확정 범위 표시(demo/full)")
     ap.add_argument("--limit", type=int, default=0, help="후보 상한(0=전량)")
     ap.add_argument("--insurer", default="", help="보험사로 좁힌다")
+    ap.add_argument("--rebuild", action="store_true",
+                    help="★원장을 **다시 심사**한다. 기준이 바뀌면 기존 항목도 다시 봐야 한다 — "
+                         "덧붙이기만 하면 통과율이 「기준 완화 이력의 합」이 된다. "
+                         "사람이 승인한 항목은 지우지 않고 보고만 한다")
     ap.add_argument("--spread", action="store_true",
                     help="★통과분에서 **보험사×세대마다 1건**만 남긴다(데모용 — 전 경로를 훑기 위함). "
                          "근거가 강한 것(name+date)을 먼저 고른다")
@@ -284,6 +391,12 @@ def main(argv: list[str] | None = None) -> int:
     if a.insurer:
         rows = [r for r in rows if r.get("insurer") == a.insurer]
 
+    #: 경쟁 상품명 검사용 — 같은 보험사 행을 미리 묶는다.
+    import collections as _c
+    by_insurer = _c.defaultdict(list)
+    for _r in rows:
+        by_insurer[_r.get('insurer', '')].append(_r)
+
     results, skipped = [], 0
     for r in rows:
         #: ★싸게 거를 수 있는 것을 먼저 걸러 산출물 읽기를 아낀다.
@@ -292,7 +405,8 @@ def main(argv: list[str] | None = None) -> int:
            (r.get("date_confidence") or "") not in ("exact", "month"):
             skipped += 1
             continue
-        results.append(verify(r, page_tag=page_tag, clause_tag=clause_tag))
+        results.append(verify(r, page_tag=page_tag, clause_tag=clause_tag,
+                              siblings=by_insurer.get(r.get('insurer', ''), [])))
         if a.limit and len(results) >= a.limit:
             break
 
@@ -341,10 +455,37 @@ def main(argv: list[str] | None = None) -> int:
                 if line.strip():
                     e = json.loads(line)
                     existing[e["sha256"]] = e
-        added = 0
+        dropped = 0
+        if a.rebuild:
+            #: ★★기준이 바뀌면 **옛 기준으로 들어온 것을 반드시 다시 심사한다.**
+            #:   덧붙이기만 하면 통과율이 「기준을 느슨하게 했던 이력의 합」이 된다.
+            #:   실측 2026-08-04 — 강한 식별자를 넣기 전 1,115건이 들어와 있었는데
+            #:   새 기준으로는 850건만 통과한다. 265건은 **빼야 한다.**
+            keep = {x["sha256"] for x in ok}
+            for sha, e in list(existing.items()):
+                if sha in keep:
+                    continue
+                if "대기" not in (e.get("confirmed_by") or ""):
+                    #: ★사람이 승인한 것은 **지우지 않는다.** 기계 기준이 사람 결정을 덮으면 안 된다.
+                    print(f"  ★사람 승인 항목이 새 기준에서 탈락 — 남겨 둡니다: "
+                          f"{sha[:12]} {(e.get('product_name') or '')[:34]}")
+                    continue
+                del existing[sha]
+                dropped += 1
+        added = refreshed = 0
         for x in ok:
-            if x["sha256"] in existing:
-                continue
+            prev = existing.get(x["sha256"])
+            if prev is not None:
+                #: ★★**살아남았다고 그냥 두면 옛 기준의 근거가 남는다.**
+                #:   `--rebuild` 가 탈락만 지우고 통과분을 갱신하지 않아,
+                #:   새로 생긴 `extraction_blocked` 필드가 기존 행에 안 붙었다
+                #:   (회귀 시험이 잡았다 · 2026-08-04). 기준이 바뀌면 **근거도 다시 쓴다.**
+                #:   ★사람이 승인한 것은 손대지 않는다.
+                if not a.rebuild or "대기" not in (prev.get("confirmed_by") or ""):
+                    continue
+                refreshed += 1
+            else:
+                added += 1
             existing[x["sha256"]] = {
                 "sha256": x["sha256"],
                 "insurer": x["insurer"],
@@ -358,6 +499,8 @@ def main(argv: list[str] | None = None) -> int:
                 "confirmed_by": a.confirmed_by.strip(),
                 "scope": a.scope,
                 "evidence": x["evidence"],
+                #: ★인용 가능성은 식별과 **다른 층**이다. 확정했다고 근거를 댈 수 있는 건 아니다.
+                "extraction_blocked": x.get("extraction_blocked", False),
                 "basis": {
                     "name_match": x.get("name_match"),
                     "doc_dates": x.get("doc_dates"),
@@ -367,11 +510,10 @@ def main(argv: list[str] | None = None) -> int:
                     "clause_tag": clause_tag,
                 },
             }
-            added += 1
         with _LEDGER.open("w", encoding="utf-8") as f:
             for sha in sorted(existing):
                 f.write(json.dumps(existing[sha], ensure_ascii=False) + "\n")
-        print(f"\n원장 기록 {added:,}건 추가 · 총 {len(existing):,}건 → {_LEDGER}")
+        print(f"\n원장 추가 {added:,} · 제거 {dropped:,} · 총 {len(existing):,}건 → {_LEDGER}")
     return 0
 
 

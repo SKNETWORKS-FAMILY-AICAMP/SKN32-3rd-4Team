@@ -44,7 +44,7 @@ def main() -> int:
     ap.add_argument("--codes", default="", help="쉼표로 구분한 KCD 코드(비우면 8종 무작위)")
     ap.add_argument("--delay", type=float, default=0.15, help="요청 간 간격(초)")
     ap.add_argument("--auto-verify", action="store_true",
-                    help="제출 직후 simulated 로 승격(검수 버튼 없이 표본을 쌓을 때)")
+                    help="합성 형식·범위 정합성 게이트 통과분만 자동 승격")
     ap.add_argument("--reset", action="store_true", help="합성 트랙을 비우고 종료")
     args = ap.parse_args()
 
@@ -62,7 +62,9 @@ def main() -> int:
 
     print(f"가상 에이전트 {args.agents}대 × {args.cases}건 → {base}")
     print(f"질병기호: {', '.join(codes)}")
-    print(f"승격: {'simulated 자동' if args.auto_verify else '없음(대시보드에서 수동 검수)'}")
+    print(f"승격: {'합성 정합성 검사 통과분' if args.auto_verify else '없음(대시보드에서 수동 검수)'}")
+    if args.auto_verify:
+        print("주의: 보험금 지급 진위나 보장 여부를 자동 승인하는 기능이 아닙니다.")
     print("-" * 70)
 
     try:
@@ -80,7 +82,8 @@ def main() -> int:
         done = st["submitted"] + st["duplicated"] + st["failed"]
         if done != last:
             print(f"\r  진행 {done}/{st['planned']} · 제출 {st['submitted']} · "
-                  f"승격 {st['promoted']} · 중복 {st['duplicated']} · 실패 {st['failed']}",
+                  f"승격 {st['promoted']} · 검증거절 {st.get('rejected', 0)} · "
+                  f"중복 {st['duplicated']} · 실패 {st['failed']}",
                   end="", flush=True)
             last = done
         if not st["running"]:

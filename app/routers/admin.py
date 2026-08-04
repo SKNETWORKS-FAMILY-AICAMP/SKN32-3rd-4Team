@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -246,6 +246,74 @@ def admin_demo_verify(body: DemoVerifyRequest, user=Depends(require_admin)) -> d
     return {"promoted": True, "event": event, "counts": demo.counts()}
 
 
+# ── 사용자·권한 관리 ──────────────────────────────────────────────────────
+#
+# ★★**"관리자 가입" 폼은 만들지 않는다.**
+#
+#   누구나 가입해서 스스로 관리자가 되는 화면은 권한 상승 그 자체다.
+#   그래서 **최초 관리자 1명의 부트스트랩은 CLI 로만** 한다
+#   (`python -m scripts.manage promote <username>`).
+#
+#   다만 그 뒤까지 CLI 로만 두는 것은 과했다 — 팀원을 추가하려면 매번
+#   서버에 붙어야 했다. **이미 관리자인 사람이 다른 사람을 올리는 것**은
+#   정상 운영이므로 화면에서 할 수 있게 한다. 규칙(마지막 관리자 강등 금지·감사)은
+#   `app.auth.roles.change_role` 한 곳에 있고 CLI 도 같은 함수를 쓴다.
+
+
+class RoleChangeRequest(BaseModel):
+    role: str = Field(description="ADMIN 또는 USER")
+
+
+@router.get("/users")
+def admin_list_users(db: Session = Depends(get_db)) -> dict:
+    """계정 목록(요약 필드만). **비밀번호 해시는 절대 내보내지 않는다.**"""
+    from app.db.models import FaceCredential, User
+
+    rows = db.query(User).order_by(User.id).all()
+    face_ids = {c.user_id for c in db.query(FaceCredential).all()}
+    admins = sum(1 for u in rows if u.role == "ADMIN")
+    return {
+        "users": [
+            {
+                "id": u.id,
+                "username": u.username,
+                "role": u.role,
+                "face_registered": u.id in face_ids,
+            }
+            for u in rows
+        ],
+        "admin_count": admins,
+        #: ★화면이 "마지막 관리자"를 미리 알아야 강등 버튼을 잠글 수 있다.
+        #:   서버도 거부하지만, 눌러 보고 실패하는 것보다 못 누르게 하는 게 낫다.
+        "note": "최초 관리자 부트스트랩은 CLI 전용입니다: python -m scripts.manage promote <username>",
+    }
+
+
+@router.put("/users/{username}/role")
+def admin_change_user_role(
+    username: str,
+    body: RoleChangeRequest,
+    db: Session = Depends(get_db),
+    user=Depends(require_admin),
+) -> dict:
+    """다른 계정의 역할을 바꾼다. **관리자만** 부를 수 있다(라우터 전역 게이트).
+
+    ★마지막 관리자 강등은 거부된다(잠금 방지) — 규칙은 도메인에 있다.
+    """
+    from app.auth.roles import change_role
+    from app.obs import agent_stream
+
+    actor = getattr(user, "username", "admin")
+    result = change_role(db, username, body.role.strip().upper(), actor=actor)
+    if result["changed"]:
+        agent_stream.publish(
+            "role.change", client_ref=actor,
+            detail={"username": username, "to": result["role"],
+                    "from": result.get("from")},
+        )
+    return result
+
+
 # ── 판정 모드(문서 확정 게이트) ───────────────────────────────────────────
 #
 # ★이 스위치는 **어떤 약관으로 판정할지**를 바꾼다. 시뮬레이션 제어와 성격이 완전히 다르다 —
@@ -456,3 +524,172 @@ def admin_cohort_summary(code: str = Query(default="S72.0")) -> dict:
             "headline": ans.headline,
         }
     return {"code": kc.code, "tracks": out}
+
+
+@router.get("/kcd-codes")
+def admin_kcd_codes(
+    kind: str | None = Query(default=None, description="exclude · exception · mention"),
+    chapter: str | None = Query(default=None, description="장 이름 일부"),
+    q: str | None = Query(default=None, description="표기 검색(예: F04)"),
+) -> dict:
+    """**우리 약관에 실제로 등장하는 질병기호** 목록.
+
+    ★★**KCD 사전이 아니다.** 코드→질병명 표를 우리는 갖고 있지 않다(약 2만 항목).
+      `F32` 가 「우울에피소드」라고 말할 근거가 없으므로 **말하지 않는다.**
+      말할 수 있는 것은 「F 는 정신·행동 장」과 「약관이 이 코드를 면책으로 쓴다」까지다.
+      화면도 그렇게 적어야 한다 — 「질병기호 전체 표」라고 부르면 거짓이 된다.
+
+    ★미리 만들어 둔 파일을 읽는다. 확정 약관 전량 스캔은 약 100초라 요청마다 못 돈다.
+      **파일이 없으면 없다고 말한다** — 빈 목록으로 때우면 「등장하는 코드가 없다」로 읽힌다.
+    """
+    import json
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parents[2] / "data" / "exports" / "kcd_catalog.json"
+    if not path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=("질병기호 목록이 아직 만들어지지 않았습니다. "
+                    "`python -m scripts.eval.kcd_catalog` 를 먼저 실행하세요."),
+        )
+    data = json.loads(path.read_text(encoding="utf-8"))
+    items = data.get("items") or []
+    total = len(items)
+    if kind:
+        items = [x for x in items if x.get("kind") == kind]
+    if chapter:
+        items = [x for x in items if chapter in (x.get("chapter") or "")]
+    if q:
+        needle = q.strip().upper()
+        items = [x for x in items if needle in (x.get("range") or "").upper()]
+    return {
+        **{k: v for k, v in data.items() if k != "items"},
+        #: ★거른 뒤에도 **전체 수를 함께** 낸다. 안 그러면 필터 결과가 전량으로 보인다.
+        "matched": len(items),
+        "total_ranges": total,
+        "items": items,
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# 조항 의미검색 — **운영서버 전용**. 고객앱(8080)에는 이 라우터가 실리지 않는다.
+#
+# ★왜 여기인가 (2026-08-04)
+#   조항 벡터 색인이 122,772조각 적재돼 있는데 **서비스 어디서도 조회하지 않았다.**
+#   리랭커도 커머스 RAG 에만 붙어 있어 보험 쪽엔 재정렬할 대상이 없었다.
+#   먼저 검색 호출부를 만들고, 리랭킹은 플래그 뒤에 둔다.
+#
+# ★**판정이 아니다.** 여기 결과는 근거 후보다. 보장 여부는 `/v1/prechecks` 가 정한다.
+#   응답에 verdict 류 필드를 만들지 않는 이유다(코덱스 지적).
+# ─────────────────────────────────────────────────────────────────────────
+
+#: 4B 리랭커는 GPU 를 통째로 쓴다. 겹쳐 돌면 OOM 이라 문 앞에서 하나만 통과시킨다.
+_RERANK_GATE = asyncio.Semaphore(1)
+
+
+class ClauseSearchRequest(BaseModel):
+    query: str = Field(min_length=1, max_length=512)
+    #: ★범위를 안 주면 전역이다. 전역은 `allow_global` 로 **따로** 열어야 한다 —
+    #:   서로 다른 상품·세대 조항이 섞이면 그럴듯하지만 틀린 결과가 나온다.
+    scope_sha256s: list[str] | None = None
+    allow_global: bool = False
+    final_k: int = Field(default=8, ge=1, le=50)
+    candidate_k: int | None = Field(default=None, ge=1, le=200)
+    rerank: bool = False
+
+
+@router.post("/clause-search")
+async def admin_clause_search(body: ClauseSearchRequest) -> dict:
+    """조항 근거 후보를 찾는다. 라우터 전역 `require_admin` 으로 보호된다."""
+    from app.adapters import clause_query_embedder
+    from app.adapters.pgvector_index import get_conn
+    from app.composition import build_clause_search_deps
+    from app.core.config import get_settings
+    from app.core.errors import InfraError, ValidationErr
+    from app.core.usecases import clause_search
+
+    st = get_settings()
+    reranker = None
+    if body.rerank:
+        #: ★꺼져 있는데 요청이 오면 **조용히 무시하지 않는다.** 무시하면 부르는 쪽은
+        #:   재정렬된 결과를 받았다고 믿는다(코덱스 지적).
+        if not st.INSURANCE_CLAUSE_RERANK_ENABLED:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=("조항 리랭킹이 꺼져 있습니다(INSURANCE_CLAUSE_RERANK_ENABLED=false). "
+                        "끈 채로 재정렬한 척하지 않습니다."),
+            )
+        from app.adapters.reranker import CrossEncoderReranker
+
+        reranker = CrossEncoderReranker(
+            st.RERANKER_MODEL,
+            device=st.RERANKER_DEVICE,
+            batch_size=st.RERANKER_BATCH_SIZE,
+            #: ★조항 전용 절단값을 쓴다. 커머스 768 을 그대로 쓰면
+            #:   후보가 같은 앞부분만 남아 `constant scores` 로 멈추는 질의가 나온다.
+            max_length=st.CLAUSE_RERANK_MAX_LENGTH,
+            dtype=st.RERANKER_DTYPE,
+            trust_remote_code=st.RERANKER_TRUST_REMOTE_CODE,
+        )
+
+    def _run():
+        with get_conn() as conn:
+            return clause_search.search(
+                **build_clause_search_deps(),
+                conn=conn,
+                embedder=clause_query_embedder.build(),
+                query=body.query,
+                scope_sha256s=body.scope_sha256s,
+                allow_global=body.allow_global,
+                final_k=body.final_k,
+                candidate_k=body.candidate_k,
+                reranker=reranker,
+                max_candidates=st.CLAUSE_RERANK_MAX_CANDIDATES,
+                score_body=st.CLAUSE_RERANK_SCORE_BODY,
+                score_chars=st.CLAUSE_RERANK_SCORE_CHARS,
+            )
+
+    try:
+        if reranker is None:
+            result = await asyncio.to_thread(_run)
+        else:
+            async with _RERANK_GATE:
+                result = await asyncio.to_thread(_run)
+    except ValidationErr as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except clause_search.RerankUnavailable as exc:
+        #: ★벡터 순서로 되돌려 200 을 주지 않는다. 실패는 실패로 보인다.
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"리랭킹에 실패했습니다(원래 순서로 되돌리지 않습니다): {exc}",
+        ) from exc
+    except InfraError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)
+        ) from exc
+
+    return {
+        "schema_version": "clause-search-v1",
+        "reranked": result.reranked,
+        "provenance": result.provenance,
+        #: 본문이 없어 뺀 조각 수. 0 이 아니면 적재가 반쪽이라는 신호다.
+        "dropped_incomplete": result.dropped_incomplete,
+        "settings": {"score_body": st.CLAUSE_RERANK_SCORE_BODY,
+                     "max_length": st.CLAUSE_RERANK_MAX_LENGTH,
+                     "rerank_enabled": st.INSURANCE_CLAUSE_RERANK_ENABLED},
+        "hits": [
+            {
+                "clause_id": h.clause_id,
+                "insurer": h.insurer,
+                "section": h.section,
+                "qualified_no": h.qualified_no,
+                "title": h.title,
+                "page_from": h.page_from,
+                "page_to": h.page_to,
+                "distance": h.distance,
+                "sha256": h.sha256,
+            }
+            for h in result.hits
+        ],
+        "_주의": "근거 후보입니다. 보장 여부 판정이 아닙니다 — 판정은 /v1/prechecks 가 합니다.",
+    }

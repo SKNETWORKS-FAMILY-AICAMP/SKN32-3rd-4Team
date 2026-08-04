@@ -4,6 +4,19 @@ import os, json, datetime
 import pandas as pd
 
 TAG = os.environ.get('VIZ_TAG', 's5')
+
+#: ★추출기 이름을 글자로 박아 두면 안 된다. s5·s6 은 pymupdf 였지만
+#:   s7 은 `s7_hybrid-table-v1` 이다. 박아 둔 채 s7 을 만들었더니 머리말이
+#:   「추출기 pymupdf/1.28.0」이라고 **거짓을 적었다**. 디렉터리에서 읽어 온다.
+def _extractor_of(tag: str) -> str:
+    import glob as _glob
+    names = {os.path.basename(p.rstrip('/\\'))
+             for p in _glob.glob(f'data/structured/*/{tag}_*/')}
+    suffix = sorted({n.split('_', 1)[1] for n in names if '_' in n})
+    return ' · '.join(suffix) if suffix else '알 수 없음'
+
+
+EXTRACTOR = _extractor_of(TAG)
 import plotly.express as px
 import plotly.graph_objects as go
 
@@ -146,20 +159,132 @@ if TAG != 's5':
                      '시점이 다른 숫자를 섞지 말 것.',
                      f'<b>{TAG} 재추출 완료본</b> 기준이다({built}). '
                      f'<code>CLAUDE.md</code>·기존 리포트·이전 판 시각화에는 '
-                     f'<b>s5 기준 수치</b>가 남아 있다. 시점이 다른 숫자를 섞지 말 것.'))
+                     f'<b>이전 스키마(s5·s6) 기준 수치</b>가 남아 있다. 시점이 다른 숫자를 섞지 말 것.'))
 
-dbtab = """<h2>G. 전처리 → DB 적재 정합성</h2>
-<div class="box w"><b>분모가 다른 것을 한 퍼널로 합치지 않는다</b>
-조항(수록)·고유 내용·청크는 서로 다른 단위다. 하나로 이으면 "몇 % 적재됨"이 잘못 계산된다.</div>
-<table><tr><th>단위</th><th class="n">전처리 산출</th><th class="n">DB 적재</th><th class="n">차이</th><th>비고</th></tr>
-<tr><td>조항(수록) <code>policy_clause_occurrence</code></td><td class="n">211,131</td><td class="n">156,946</td><td class="n">-54,185</td><td>약관 177,436 + 법령 33,257 + fallback 438</td></tr>
-<tr><td>고유 내용 <code>policy_clause_content</code></td><td class="n">63,963</td><td class="n">2,221</td><td class="n">-61,742</td><td>약관 조항 기준 고유 <code>content_hash</code></td></tr>
-<tr><td>청크 <code>policy_clause_chunk</code></td><td class="n">(미산출)</td><td class="n">6,208</td><td class="n">—</td><td>권고안 추산 154,874 (항 경계 정렬 900자)</td></tr>
-<tr><td><code>rag_chunks</code></td><td class="n">—</td><td class="n">0</td><td class="n">—</td><td>비어 있음</td></tr></table>
-<div class="box"><b>읽는 법</b>
-적재가 <b>중간 상태</b>다. 수록은 74% 들어갔는데 고유 내용은 3.5%뿐이다.
-정상 순서라면 내용이 먼저 차야 한다 — 적재 스크립트의 순서·중단 지점을 확인해야 한다.
-측정 시각 기준이며 다른 세션이 적재 중이면 값이 바뀐다.</div>"""
+#: ★머리말의 추출기 표기는 스키마를 따라간다(위 `_extractor_of`).
+head = head.replace('<code>pymupdf/1.28.0</code>', f'<code>{EXTRACTOR}</code>')
+
+def _db_section() -> str:
+    """★G 절을 **실측으로 만든다.**
+
+    2026-08-04 실측: 여기 있던 표는 손으로 적은 **s5 시절 적재 결과**였다
+    (`조항 156,946 / 고유내용 2,221 / 청크 6,208` · *"고유 내용은 3.5%뿐"*).
+    그 사이 S7.1 이 적재돼 실제로는 `s6` 발생 210,733 · 청크 122,772 인데,
+    문서를 여는 사람은 **「DB 가 3.5% 적재됨」으로 읽는다.** 제출물에 그대로 나갈 뻔했다.
+
+    ★그래서 숫자를 **글자로 두지 않고 매번 조회한다.** 못 붙으면 못 붙었다고 적는다 —
+      조용히 옛 숫자를 남기는 것이 가장 나쁘다.
+    """
+    head_ = ('<h2>G. 전처리 → DB 적재 정합성</h2>\n'
+             '<div class="box w"><b>분모가 다른 것을 한 퍼널로 합치지 않는다</b>\n'
+             '조항(수록)·고유 내용·청크는 서로 다른 단위다. '
+             '하나로 이으면 "몇 % 적재됨"이 잘못 계산된다.</div>\n')
+    try:
+        #: ★`python scripts/viz/build_preprocess_viz.py` 로 돌리면 저장소 루트가
+        #:   `sys.path` 에 없어 `app` 을 못 찾는다(실제로 여기서 한 번 실패했다).
+        #:   `-m` 으로만 돌게 강제하지 않고, 어느 쪽으로 불러도 되게 여기서 붙인다.
+        import sys
+        _root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        if _root not in sys.path:
+            sys.path.insert(0, _root)
+        import psycopg
+        from app.core.config import get_settings
+        with psycopg.connect(get_settings().PGVECTOR_DSN, connect_timeout=10) as conn:
+            with conn.cursor() as cur:
+                def one(sql, *a):
+                    cur.execute(sql, a)
+                    return cur.fetchone()[0]
+
+                def rows(sql, *a):
+                    cur.execute(sql, a)
+                    return cur.fetchall()
+
+                occ_gen = rows("SELECT index_generation, count(*) FROM policy_clause_occurrence"
+                               " GROUP BY 1 ORDER BY 2 DESC")
+                occ_kind = rows("SELECT source_kind, count(*) FROM policy_clause_occurrence"
+                                " WHERE index_generation=%s GROUP BY 1 ORDER BY 2 DESC", TAG)
+                chunk_model = rows("SELECT embed_model, count(*) FROM policy_clause_chunk"
+                                   " GROUP BY 1 ORDER BY 2 DESC")
+                occ_cur = one("SELECT count(*) FROM policy_clause_occurrence"
+                              " WHERE index_generation=%s", TAG)
+                uniq_cur = one("SELECT count(DISTINCT content_hash) FROM policy_clause_occurrence"
+                               " WHERE index_generation=%s", TAG)
+                content_n = one("SELECT count(*) FROM policy_clause_content")
+                chunk_n = one("SELECT count(*) FROM policy_clause_chunk")
+                eligible = one("SELECT count(*) FROM policy_clause_occurrence"
+                               " WHERE index_generation=%s AND citation_eligible", TAG)
+                leaked = one("SELECT count(*) FROM policy_clause_occurrence"
+                             " WHERE index_generation<>%s AND citation_eligible IS NOT NULL", TAG)
+                #: ★「TAG 아닌 세대에 게이트 값이 있으면 누수」는 **TAG 가 곧 활성 세대일 때만**
+                #:   맞는 말이다. s7 문서를 만들면서 그대로 뒀더니, 실제로 검색에 쓰이는 s6 를
+                #:   「누수 190,155건」·「막혀 있다」로 적었다. 활성 세대를 DB 에 직접 묻는다.
+                act = rows("SELECT index_generation, count(*) FROM policy_clause_occurrence"
+                           " WHERE citation_eligible IS NOT NULL GROUP BY 1 ORDER BY 2 DESC LIMIT 1")
+                active_gen = act[0][0] if act else None
+                with_vec = one(
+                    "SELECT count(*) FROM policy_clause_occurrence o"
+                    " WHERE o.index_generation=%s AND EXISTS ("
+                    "   SELECT 1 FROM policy_clause_chunk k WHERE k.content_hash=o.content_hash)",
+                    TAG)
+    except Exception as exc:                      # noqa: BLE001 — 원인을 화면에 그대로 싣는다
+        return (head_ + '<div class="box w"><b>DB 에 붙지 못해 적재 수치를 싣지 못했다</b><br>'
+                f'<code>{type(exc).__name__}: {str(exc)[:200]}</code><br>'
+                '★옛 숫자를 대신 채우지 않는다. '
+                '<code>python -m scripts.pg status</code> 로 기동을 확인한 뒤 다시 만든다.</div>')
+
+    n = lambda v: format(int(v), ',')             # noqa: E731
+    def _why(g: str) -> str:
+        if g == active_gen:
+            return ('★<b>지금 검색에 쓰이는 세대</b> — 게이트 값이 채워져 있다'
+                    + ('' if g == TAG else f' (이 문서가 다루는 <code>{TAG}</code> 가 아니다)'))
+        return '게이트 값이 비어 있어 검색에서 막힌다'
+
+    gen_rows = ''.join(
+        f'<tr><td><code>{g}</code></td><td class="n">{n(c)}</td><td>{_why(g)}</td></tr>'
+        for g, c in occ_gen)
+
+    #: 이 스키마가 아직 DB 에 없을 수 있다. 그때 0 을 「적재 실패」로 읽히게 두지 않는다.
+    not_loaded = (
+        '' if occ_cur else
+        f'<div class="box w"><b><code>{TAG}</code> 는 아직 DB 에 적재되지 않았다</b>'
+        f'전처리 산출물({n(len(ln))}조항)은 디스크에 다 있지만 <code>policy_clause_occurrence</code> 에는 '
+        f'<code>{TAG}</code> 행이 <b>0건</b>이다. 실패가 아니라 <b>아직 적재 안 한 상태</b>다. '
+        f'지금 검색은 <code>{active_gen}</code> 로 돌아간다 — 아래 표의 0 을 '
+        f'「적재 실패」로 읽지 말 것.</div>')
+    kind_rows = ''.join(f'<tr><td><code>{k}</code></td><td class="n">{n(c)}</td></tr>'
+                        for k, c in occ_kind)
+    model_rows = ''.join(f'<tr><td><code>{m}</code></td><td class="n">{n(c)}</td></tr>'
+                         for m, c in chunk_model)
+    return head_ + not_loaded + (
+        f'<table><tr><th>단위</th><th class="n">전처리 산출({TAG})</th>'
+        f'<th class="n">DB 적재({TAG})</th><th>비고</th></tr>'
+        f'<tr><td>조항(수록) <code>policy_clause_occurrence</code></td>'
+        f'<td class="n">{n(len(ln))}</td><td class="n">{n(occ_cur)}</td>'
+        f'<td>그중 벡터가 있는 발생 <b>{n(with_vec)}</b> · 없는 발생 {n(occ_cur - with_vec)}</td></tr>'
+        f'<tr><td>고유 내용 <code>policy_clause_content</code></td>'
+        f'<td class="n">{n(uniq_cur)}</td><td class="n">{n(content_n)}</td>'
+        f'<td>왼쪽은 {TAG} 발생의 고유 <code>content_hash</code>, 오른쪽은 테이블 전체 행</td></tr>'
+        f'<tr><td>청크 <code>policy_clause_chunk</code></td>'
+        f'<td class="n">—</td><td class="n">{n(chunk_n)}</td>'
+        f'<td>임베딩 모델별 내역은 아래</td></tr></table>'
+        f'<table><tr><th>index_generation</th><th class="n">발생</th><th>뜻</th></tr>{gen_rows}</table>'
+        f'<table><tr><th>{TAG} source_kind</th><th class="n">발생</th></tr>{kind_rows}</table>'
+        f'<table><tr><th>embed_model</th><th class="n">청크</th></tr>{model_rows}</table>'
+        f'<div class="box"><b>읽는 법</b><br>'
+        f'· <code>{TAG}</code> 발생 중 <b>인용 가능</b>(<code>citation_eligible</code>)은 <b>{n(eligible)}</b>건이다.<br>'
+        f'· 지금 <b>검색에 실제로 쓰이는 세대</b>는 <code>{active_gen}</code> 다. '
+        + (f'이 문서가 다루는 <code>{TAG}</code> 와 <b>다르다</b> — '
+           f'그러므로 아래 그림·표(전처리 산출)와 DB 적재는 <b>다른 판을 보고 있다.</b><br>'
+           if active_gen != TAG else
+           f'이 문서가 다루는 판과 같다.<br>')
+        + f'· 게이트 값이 채워진 행은 <code>{active_gen}</code> 계열 <b>{n(leaked if active_gen != TAG else 0)}</b>건이다 — '
+        f'활성 세대이므로 <b>정상</b>이다. 「0 이어야 정상」은 '
+        f'<code>{TAG}</code> 가 활성 세대일 때만 성립한다.<br>'
+        f'· ★<b>이 표는 문서를 만들 때 DB 를 직접 조회한 값이다.</b> '
+        f'전처리 산출과 DB 적재는 <b>단위가 다르므로</b> 차이를 "누락"으로 읽지 않는다.</div>')
+
+
+dbtab = _db_section()
 
 tail = dbtab + """<div class="box"><b>원자료를 직접 보려면</b>
 집계는 이 문서로, 행 단위 탐색은 <b>Parquet + Tad</b>(MIT · DuckDB 기반)로 나눴다.
@@ -167,8 +292,9 @@ tail = dbtab + """<div class="box"><b>원자료를 직접 보려면</b>
 <code>data/exports/s5_clauses.parquet</code> (211,131행 · 83MB) ·
 <code>s5_documents.parquet</code> · <code>s5_clause_lengths.parquet</code></div></main>"""
 
-#: ★꼬리말·DB표도 스키마를 따라가야 한다. 예전엔 여기만 `s5` 로 굳어 있어
-#:   s6 페이지가 **s5 parquet 을 가리키고** 조항 수도 s5 값(211,131)을 보여줬다.
+#: ★꼬리말도 스키마를 따라가야 한다. 예전엔 여기만 `s5` 로 굳어 있어
+#:   s6 페이지가 **s5 parquet 을 가리켰다.**
+#:   (DB 표는 이제 `_db_section()` 이 실측으로 만든다 — 여기서 문자열 치환하지 않는다.)
 if TAG != 's5':
     tail = (tail
             .replace('data/exports/s5_clauses.parquet',
@@ -177,19 +303,55 @@ if TAG != 's5':
                      '<code>%s_documents.parquet</code>' % TAG)
             .replace('<code>s5_clause_lengths.parquet</code>',
                      '<code>%s_clause_lengths.parquet</code>' % TAG)
-            .replace('(211,131행 · 83MB)', '(%s행)' % format(len(ln), ','))
-            .replace('<td class="n">211,131</td>',
-                     '<td class="n">%s</td>' % format(len(ln), ','))
-            .replace('측정 시각 기준이며 다른 세션이 적재 중이면 값이 바뀐다.',
-                     '★<b>왼쪽(전처리 산출)은 %s 실측, 오른쪽(DB 적재)은 s5 시절 적재 결과</b>다. '
-                     '서로 다른 판을 나란히 둔 것이므로 차이 열을 "누락"으로 읽으면 안 된다. '
-                     '적재를 다시 돌린 뒤 같은 판으로 재측정해야 한다.' % TAG))
+            .replace('(211,131행 · 83MB)', '(%s행)' % format(len(ln), ',')))
+
+def _tad_banner() -> str:
+    """★캡처와 **현재 행 수를 나란히** 둔다.
+
+    Tad 캡처는 GUI 로만 만들 수 있어 재생성에서 살아남지 못한다.
+    그래서 캡처는 **s5 시절 화면**인데 본문은 s6 라고 적혀 있었다
+    (예: 캡처 `133행` ↔ 현재 `v1_clause_boundary` 7행).
+    캡처를 다시 못 찍으니, **지금 값을 옆에 적어 오해를 막는다.**
+    """
+    import glob as _glob
+    try:
+        import pandas as _pd
+    except Exception:                              # noqa: BLE001
+        return ''
+    rows_ = []
+    for p in sorted(_glob.glob(os.path.join('data', 'exports', 'views', 'v*.parquet'))):
+        try:
+            rows_.append((os.path.basename(p).replace('.parquet', ''), len(_pd.read_parquet(p))))
+        except Exception:                          # noqa: BLE001
+            rows_.append((os.path.basename(p), None))
+    if not rows_:
+        return ''
+    body = ''.join(f'<tr><td><code>{k}</code></td>'
+                   f'<td class="n">{format(v, ",") if v is not None else "읽지 못함"}</td></tr>'
+                   for k, v in rows_)
+    #: ★자산 파일에도 이미 낡음 경고가 있다(「이 캡처는 … 판이다」). 그 문장을 되풀이하지 않고
+    #:   **거기 없는 것 — 지금 행 수 전량**만 덧붙인다.
+    return (f'<div class="box"><b>지금({TAG}) 실제 행 수</b> — 아래 캡처의 행 수와 다르면 캡처가 옛것이다.'
+            f'<table><tr><th>뷰</th><th class="n">현재 행</th></tr>{body}</table>'
+            f'원본은 <code>data/exports/views/*.parquet</code> — Tad 로 열면 같은 화면이 나온다.</div>')
+
 
 #: ★H 절(Tad 행 단위 캡처)은 GUI 로만 만들 수 있어 재생성에서 살아남지 못했다.
 #:   자산 파일로 떼어 두고 여기서 이어 붙인다 — 없으면 없다고 적는다(조용히 빠지지 않게).
 _tad = os.path.join('docs', 'handoff', '_viz_tad_section.html')
 if os.path.exists(_tad):
-    tail = tail.replace('</main>', open(_tad, encoding='utf-8').read() + '</main>')
+    _asset = open(_tad, encoding='utf-8').read()
+    #: ★자산은 s6 판에 쓰였고 「집계 그림·표는 재생성된 s6 기준」이라고 못박고 있다.
+    #:   s7 문서에 그대로 실었더니 바로 위 배너는 「지금(s7) 실제 행 수」인데
+    #:   아래 문장은 「집계는 s6」이라 **한 문서 안에서 서로 다른 판을 말했다.**
+    #:   자산은 공용이므로 파일을 고치지 않고 **싣는 쪽에서** 스키마를 맞춘다.
+    _asset = _asset.replace('<b>재생성된 s6</b>(11:45 완료)', f'<b>재생성된 {TAG}</b>')
+    #: 캡처 바로 앞에 「지금 값」 표를 끼운다. 첫 h2 뒤가 그 자리다.
+    _b = _tad_banner()
+    if _b:
+        _i = _asset.find('</h2>')
+        _asset = (_asset[:_i + 5] + _b + _asset[_i + 5:]) if _i >= 0 else (_b + _asset)
+    tail = tail.replace('</main>', _asset + '</main>')
 else:
     tail = tail.replace('</main>',
         '<h2>H. 행 단위 캡처</h2><div class="box w">'

@@ -25,7 +25,16 @@ import pathlib
 import sys
 
 HERE = pathlib.Path(__file__).resolve().parent
-LOCK_KEY = 0x5F3A_1C02  # 이 저장소 전용 advisory lock 키
+TRACKS = {
+    "core": (HERE, 0x5F3A_1C02),
+    "demo": (HERE / "demo", 0x5F3A_1C03),
+    "agent": (HERE / "agent", 0x5F3A_1C04),
+}
+
+
+def _ledger_name(track: str, path: pathlib.Path) -> str:
+    """기존 core 이력 키는 바꾸지 않는다. 바꾸면 적용된 DDL을 재실행한다."""
+    return path.name if track == "core" else f"{track}/{path.name}"
 
 #: ★이력은 `public` 에 둔다. `ops` 는 001 이 만드는 것이라 여기서 먼저 만들면 충돌한다.
 LEDGER = """
@@ -45,13 +54,15 @@ def _sha(text: str) -> str:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dsn", default=os.environ.get("PG_DSN", ""))
+    ap.add_argument("--track", choices=sorted(TRACKS), default="core")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
     if not args.dsn:
         print("DSN 이 없다. --dsn 또는 PG_DSN 환경변수를 주라.", file=sys.stderr)
         return 2
 
-    files = sorted(p for p in HERE.glob("*.sql"))
+    migration_dir, lock_key = TRACKS[args.track]
+    files = sorted(p for p in migration_dir.glob("*.sql"))
     if not files:
         print("적용할 .sql 이 없다.", file=sys.stderr)
         return 2
@@ -66,39 +77,44 @@ def main() -> int:
             if cur.fetchone()[0] is not None:
                 cur.execute("SELECT filename, checksum FROM public.schema_migration")
                 done = dict(cur.fetchall())
+        checksum_conflict = False
         for path in files:
             sql = path.read_text(encoding="utf-8")
             digest = _sha(sql)
-            prev = done.get(path.name)
+            ledger_name = _ledger_name(args.track, path)
+            prev = done.get(ledger_name)
             mark = "skip " if prev == digest else ("STOP " if prev else "would")
-            print(f"  {mark}  {path.name}  ({len(sql):,}자, {digest[:16]}…)")
-        return 0
+            checksum_conflict = checksum_conflict or bool(prev and prev != digest)
+            print(f"  {mark}  {ledger_name}  ({len(sql):,}자, {digest[:16]}…)")
+        return 1 if checksum_conflict else 0
 
     #: ★락과 DDL 을 같은 세션에서 돌린다. 세션이 끊기면 락도 풀린다.
     with psycopg.connect(args.dsn) as conn:
-        conn.execute(LEDGER)
-        conn.commit()
         cur = conn.cursor()
-        cur.execute("SELECT pg_try_advisory_lock(%s)", (LOCK_KEY,))
+        cur.execute("SELECT pg_try_advisory_lock(%s)", (lock_key,))
         if not cur.fetchone()[0]:
             print("다른 적용이 진행 중이다(advisory lock). 중단한다.", file=sys.stderr)
             return 1
         conn.commit()
         try:
+            #: 최초 DB에서도 ledger bootstrap부터 track lock 안에서 수행한다.
+            cur.execute(LEDGER)
+            conn.commit()
             cur.execute("SELECT filename, checksum FROM public.schema_migration")
             done = dict(cur.fetchall())
 
             for path in files:
                 sql = path.read_text(encoding="utf-8")
                 digest = _sha(sql)
-                prev = done.get(path.name)
+                ledger_name = _ledger_name(args.track, path)
+                prev = done.get(ledger_name)
 
                 if prev == digest:
-                    print(f"  skip    {path.name}")
+                    print(f"  skip    {ledger_name}")
                     continue
                 if prev is not None:
                     print(
-                        f"  STOP    {path.name}  이미 적용됐는데 내용이 바뀌었다\n"
+                        f"  STOP    {ledger_name}  이미 적용됐는데 내용이 바뀌었다\n"
                         f"          적용본 {prev[:16]}… / 현재 {digest[:16]}…\n"
                         f"          되돌리지 말고 새 번호의 보정 마이그레이션을 만들라.",
                         file=sys.stderr,
@@ -109,15 +125,15 @@ def main() -> int:
                 cur.execute(sql)
                 cur.execute(
                     "INSERT INTO public.schema_migration (filename, checksum) VALUES (%s, %s)",
-                    (path.name, digest),
+                    (ledger_name, digest),
                 )
                 conn.commit()
-                print(f"  applied {path.name}  ({digest[:16]}…)")
+                print(f"  applied {ledger_name}  ({digest[:16]}…)")
         except Exception:
             conn.rollback()
             raise
         finally:
-            cur.execute("SELECT pg_advisory_unlock(%s)", (LOCK_KEY,))
+            cur.execute("SELECT pg_advisory_unlock(%s)", (lock_key,))
             conn.commit()
 
     print("완료.")
