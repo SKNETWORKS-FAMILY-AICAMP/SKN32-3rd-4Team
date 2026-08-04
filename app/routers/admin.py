@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -456,3 +456,48 @@ def admin_cohort_summary(code: str = Query(default="S72.0")) -> dict:
             "headline": ans.headline,
         }
     return {"code": kc.code, "tracks": out}
+
+
+@router.get("/kcd-codes")
+def admin_kcd_codes(
+    kind: str | None = Query(default=None, description="exclude · exception · mention"),
+    chapter: str | None = Query(default=None, description="장 이름 일부"),
+    q: str | None = Query(default=None, description="표기 검색(예: F04)"),
+) -> dict:
+    """**우리 약관에 실제로 등장하는 질병기호** 목록.
+
+    ★★**KCD 사전이 아니다.** 코드→질병명 표를 우리는 갖고 있지 않다(약 2만 항목).
+      `F32` 가 「우울에피소드」라고 말할 근거가 없으므로 **말하지 않는다.**
+      말할 수 있는 것은 「F 는 정신·행동 장」과 「약관이 이 코드를 면책으로 쓴다」까지다.
+      화면도 그렇게 적어야 한다 — 「질병기호 전체 표」라고 부르면 거짓이 된다.
+
+    ★미리 만들어 둔 파일을 읽는다. 확정 약관 전량 스캔은 약 100초라 요청마다 못 돈다.
+      **파일이 없으면 없다고 말한다** — 빈 목록으로 때우면 「등장하는 코드가 없다」로 읽힌다.
+    """
+    import json
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parents[2] / "data" / "exports" / "kcd_catalog.json"
+    if not path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=("질병기호 목록이 아직 만들어지지 않았습니다. "
+                    "`python -m scripts.eval.kcd_catalog` 를 먼저 실행하세요."),
+        )
+    data = json.loads(path.read_text(encoding="utf-8"))
+    items = data.get("items") or []
+    total = len(items)
+    if kind:
+        items = [x for x in items if x.get("kind") == kind]
+    if chapter:
+        items = [x for x in items if chapter in (x.get("chapter") or "")]
+    if q:
+        needle = q.strip().upper()
+        items = [x for x in items if needle in (x.get("range") or "").upper()]
+    return {
+        **{k: v for k, v in data.items() if k != "items"},
+        #: ★거른 뒤에도 **전체 수를 함께** 낸다. 안 그러면 필터 결과가 전량으로 보인다.
+        "matched": len(items),
+        "total_ranges": total,
+        "items": items,
+    }

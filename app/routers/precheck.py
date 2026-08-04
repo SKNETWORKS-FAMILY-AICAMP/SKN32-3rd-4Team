@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
 
 from app.core.domain.precheck_result import PrecheckInput, PrecheckOutcome
 from app.core.errors import InfraError, ValidationErr
@@ -247,6 +247,20 @@ def create_precheck(body: PrecheckRequest) -> PrecheckResult:
         #:   (`docs/handoff/06_계약_Agent.md` §1).
         outcome, _state = _graph().invoke(_to_input(body))
         dto = _to_dto(outcome)
+
+        #: ★★**근거를 못 대서 기권한 건은 지식갭 큐로 보낸다(2026-08-04).**
+        #:
+        #:   `no_evidence` 는 "약관에 이 질병기호에 대한 근거가 없다"는 뜻이다 —
+        #:   정확히 **문서 보강 대상**이고, 그게 이 큐의 용도다.
+        #:
+        #:   ★`documents_not_confirmed` 는 **넣지 않는다.** 그건 지식이 없는 게 아니라
+        #:     확정 작업이 밀린 것이고, 넣으면 같은 문장으로 큐가 넘쳐
+        #:     진짜 보강 대상이 묻힌다. 그 현황은 `support-manifest` 가 이미 말한다.
+        if dto.abstained and dto.reason_code == "no_evidence":
+            from app.obs.knowledge_gaps import record_gap_safe
+
+            record_gap_safe(
+                f"[판정] {body.insurer} · {', '.join(body.kcd_codes)} — 근거 조항 없음")
         #: ★★**확정이 부분이면 고른 판본이 진짜 최신이 아닐 수 있다.**
         #:
         #:   `resolve()` 는 「가입일 이전 판매 시작 중 **가장 늦은 것**」을 고른다.
@@ -261,6 +275,22 @@ def create_precheck(body: PrecheckRequest) -> PrecheckResult:
         #:
         #:   ★그래서 판본을 골랐을 때만 붙인다. 기권했으면 이미 다른 사유를 말하고 있다.
         if dto.applied_policy is not None:
+            #: ★★**판매 종료를 모르면 「계속 판매 중」으로 취급된다** — 조용한 폴백이다.
+            #:
+            #:   `resolve()` 의 조건은 `not v.sale_end or enrolled_on <= v.sale_end` 다.
+            #:   `sale_end` 가 비면 **무조건 통과**한다. 실측 2026-08-04 — 확정 850건 중
+            #:   **445건(52.4%)이 종료일 미상**이고, 그중 54건은 2018년 이전 판매개시다.
+            #:
+            #:   가장 늦은 판본을 고르므로 옛 것이 최신을 이기지는 않는다. 그래도
+            #:   「그 시점에 정말 팔고 있었나」는 **확인된 사실이 아니다.**
+            #:   모르면 모른다고 한다(CLAUDE.md §0) — 막지는 않되 **말은 한다.**
+            if not (dto.applied_policy.sale_end or "").strip():
+                dto.warnings = [
+                    *dto.warnings,
+                    f"이 약관의 판매 종료 시점을 모릅니다(판매개시 "
+                    f"{dto.applied_policy.sale_start}). 가입일 당시 실제로 판매 중이었는지는 "
+                    "확인된 사실이 아닙니다 — 더 나중 판본이 있었을 수 있습니다.",
+                ]
             st = _confirmation_stats()
             done, total = st.get("confirmed") or 0, st.get("collected") or 0
             if total and done < total:
@@ -440,4 +470,157 @@ def submit_observation(body: ExternalCaseSubmission) -> dict:
             "outcome": body.outcome,
             "precheck_trace_id": body.precheck_trace_id,
         },
+    }
+
+
+@router.get("/catalog/products")
+def catalog_products(
+    insurer: str = Query(..., min_length=1, description="보험사명. **필수** — 전체 목록은 주지 않는다"),
+    q: str = Query(default="", description="상품명 일부(2자 이상)"),
+    enrolled_on: str = Query(default="", description="가입일 YYYYMMDD. 주면 그 시점 것만"),
+    limit: int = Query(default=10, ge=1, le=30),
+) -> dict:
+    """상품명 **검색**. 전체 목록이 아니다.
+
+    ★★**「우리가 지원하는 상품 전부」로 읽히면 안 된다.**
+
+        확정 약관은 850건이고 판정대상 1,367건의 **62.2%** 다. 나머지는 아직
+        「이 파일이 무엇인가」를 확정하지 못한 것이지 **없는 상품이 아니다.**
+        전량을 내려주면 「목록에 없으면 미지원」으로 읽힌다 — 그건 거짓이다.
+
+        그래서 **보험사를 필수로 받고**, 검색어로 좁히고, 상한을 둔다.
+        응답에 「전체 목록이 아니다」를 항상 싣는다.
+
+    ★같은 상품명이 **여러 판본**으로 존재한다(실측 140종·421건 = 확정분의 절반).
+      그래서 이름을 골라도 판본은 **가입일이 정한다.** `versions` 로 그 사실을 보인다 —
+      「골랐으니 내 약관을 특정했다」고 믿게 두면 안 된다.
+    """
+    import collections
+
+    vs = [v for v in _versions() if v.insurer == insurer]
+    if not vs:
+        #: ★"없다"와 "확정 전이다"를 섞지 않는다.
+        return {"insurer": insurer, "matched": 0, "items": [],
+                "note": (f"'{insurer}' 로 확정된 약관이 없습니다. 약관을 보유하지 않았다는 뜻이 "
+                         "아니라 아직 확정 절차가 남았다는 뜻입니다.")}
+
+    needle = _norm_for_search(q)
+    if needle and len(needle) < 2:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="검색어는 2자 이상 입력하세요(전체 목록은 제공하지 않습니다).",
+        )
+    pool = [v for v in vs if not needle or needle in _norm_for_search(v.product_name)]
+    if enrolled_on.strip():
+        pool = [v for v in pool
+                if v.sale_start <= enrolled_on
+                and (not v.sale_end or enrolled_on <= v.sale_end)]
+
+    #: 같은 이름은 하나로 묶고 **판본 수를 함께** 낸다.
+    grouped: dict[str, list] = collections.defaultdict(list)
+    for v in pool:
+        grouped[v.product_name].append(v)
+    items = [
+        {
+            "product_name": name,
+            "versions": len(rows),
+            "sale_start_range": [min(r.sale_start for r in rows),
+                                 max(r.sale_start for r in rows)],
+            "generations": sorted({r.generation for r in rows if r.generation}),
+            "product_lines": sorted({r.product_line for r in rows if r.product_line}),
+        }
+        for name, rows in grouped.items()
+    ]
+    items.sort(key=lambda x: (-x["versions"], x["product_name"]))
+    total = len(items)
+    return {
+        "insurer": insurer,
+        #: ★거른 뒤에도 **분모를 준다.** 없으면 검색 결과가 전량으로 보인다.
+        "matched": total,
+        "shown": min(total, limit),
+        "confirmed_for_insurer": len(vs),
+        "items": items[:limit],
+        #: ★**마크다운을 쓰지 않는다.** 화면이 `textContent` 로 넣어 별표가 그대로 보인다
+        #:   — 같은 실수를 `_confirmation_coverage()` 에서 이미 했다(2026-08-04).
+        "note": ("전체 상품 목록이 아니라 확정된 약관에서 검색된 후보입니다. "
+                 "목록에 없다고 그 상품이 없는 것은 아닙니다 — 아직 확정 절차가 남은 약관이 있습니다. "
+                 "상품명을 골라도 적용 판본은 가입일이 정합니다."),
+    }
+
+
+def _norm_for_search(s: str) -> str:
+    """검색용 정규화 — 공백·기호·대소문자를 지운다."""
+    import re
+    import unicodedata
+
+    return re.sub(r"[^0-9a-z가-힣]", "", unicodedata.normalize("NFKC", s or "").lower())
+
+
+@router.get("/catalog/codes")
+def catalog_codes(
+    q: str = Query(default="", description="표기 검색(예: F04)"),
+    chapter: str = Query(default="", description="장 이름 일부"),
+    limit: int = Query(default=60, ge=1, le=200),
+) -> dict:
+    """**약관에 등장한 질병코드·범위.** 입력 도우미다.
+
+    ★★**「입력 가능한 코드 목록」이 아니다.** 아무 KCD 코드나 입력할 수 있고,
+      여기 없는 코드도 판정이 정상 처리한다(「면책 조항에는 없습니다」가 유효한 답).
+
+      실측 2026-08-04 — 흔한 청구 코드가 이 목록에 **없다**:
+        K02.0 치아우식 · F32 우울  → 구체적 항목 있음
+        S72.0 골절 · K29.7 위염 · H25.9 백내장 · N20.0 신장결석 → 없음
+      이 목록에 든 것은 **약관이 콕 집어 말한 코드**(정신질환·임신출산·치과·비만·
+      요실금 등)뿐이다. 그래서 목록에서 자기 코드를 못 찾은 사용자가
+      「지원 안 하나 보다」라고 읽고 **입력을 포기**하는 것이 이 기능의 주된 위험이다.
+      → 화면과 응답이 **「목록에 없는 코드도 입력할 수 있습니다」를 항상** 말한다.
+
+    ★★**면책·예외 라벨을 고객에게 내보내지 않는다**(코덱스 권고).
+      「F04~F99 면책」만 보면 F32 가 예외(급여분 보상)라는 것을 놓쳐
+      **정당한 청구를 포기**할 수 있다. 보장 여부는 판정 API 가 근거와 함께 답한다.
+      관리자용 `/api/admin/kcd-codes` 는 라벨을 그대로 내보낸다 — 용도가 다르다.
+    """
+    import json
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parents[2] / "data" / "exports" / "kcd_catalog.json"
+    if not path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="질병코드 목록이 아직 준비되지 않았습니다. 코드는 직접 입력하실 수 있습니다.",
+        )
+    data = json.loads(path.read_text(encoding="utf-8"))
+
+    #: ★같은 표기가 쓰임(면책/예외/언급)별로 나뉘어 있다. 라벨을 빼는 이상
+    #:   **한 줄로 합친다** — 안 합치면 같은 코드가 두 번 보여 혼란만 준다.
+    merged: dict[str, dict] = {}
+    for x in data.get("items") or []:
+        cur = merged.setdefault(x["range"], {
+            "code": x["range"], "chapter": x.get("chapter", ""), "policies": 0,
+        })
+        cur["policies"] = max(cur["policies"], x.get("documents", 0))
+    items = list(merged.values())
+    total = len(items)
+
+    if q.strip():
+        needle = q.strip().upper()
+        items = [x for x in items if needle in x["code"].upper()]
+    if chapter.strip():
+        items = [x for x in items if chapter.strip() in x["chapter"]]
+    items.sort(key=lambda x: (-x["policies"], x["code"]))
+
+    return {
+        "scanned_policies": data.get("scanned_policies", 0),
+        "built_at": data.get("built_at", ""),
+        #: ★거른 뒤에도 분모를 준다.
+        "total_codes": total,
+        "matched": len(items),
+        "shown": min(len(items), limit),
+        "items": items[:limit],
+        "notes": [
+            "이 목록은 확정된 약관에서 실제로 언급된 코드·범위입니다.",
+            "★목록에 없는 코드도 그대로 입력하실 수 있습니다.",
+            "코드가 목록에 있다고 보장되는 것이 아니고, 없다고 보장이 안 되는 것도 아닙니다.",
+            "가장 정확한 방법은 진료비 세부내역서나 진단서에 적힌 상병코드를 그대로 넣는 것입니다.",
+        ],
     }

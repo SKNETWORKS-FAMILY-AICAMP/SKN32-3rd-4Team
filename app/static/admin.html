@@ -502,6 +502,37 @@
       font-size: 11px;
     }
 
+    /* 보조 동작용 — 무언가를 바꾸지 않고 **보여주기만** 하는 버튼. */
+    .ghost-btn {
+      height: 30px;
+      padding: 0 12px;
+      border: 1px solid #d6dbe1;
+      border-radius: 6px;
+      background: #fff;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .ghost-btn:hover {
+      border-color: #b9c1ca;
+      color: #1c1c1a;
+    }
+
+    /* 질병기호 쓰임 배지 — 면책/예외/언급을 색으로 가른다. */
+    .kcd-kind {
+      display: inline-block;
+      padding: 1px 8px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 650;
+    }
+
+    .kcd-kind.exclude { background: #fee2e2; color: #991b1b; }
+    .kcd-kind.exception { background: #dcfce7; color: #166534; }
+    .kcd-kind.mention { background: #eef1f4; color: #55606b; }
+
     .verify-btn {
       flex: 0 0 auto;
       height: 32px;
@@ -1127,9 +1158,12 @@
 </head>
 
 <body>
+  <!-- ★"인식 비교"(facebench) 링크 제거 · 화면은 legacy/v9_facebench.zip 으로 격리(2026-08-04).
+       인식 백엔드 비교는 **선택이 끝난 실험**이다(adaface 확정, config 에 근거 기록).
+       끝난 실험의 화면을 운영 대시보드에 남기면 다음 사람이 "이걸 써야 하나"를 매번 판단한다.
+       비교 API(`POST /api/face/benchmark`)는 남겨 둔다 — 재측정이 필요하면 그것을 쓴다. -->
   <nav class="top-nav">
       <a href="/static/admin.html" class="active">🛡️ 관리자</a>
-      <a href="/static/facebench.html">🧪 인식 비교</a>
     </nav>
 
   <section class="login-panel">
@@ -1287,6 +1321,48 @@
           </div>
         </section>
 
+        <section class="panel" aria-labelledby="kcdTitle" id="kcdPanel" hidden>
+          <header class="panel-header">
+            <div>
+              <h2 id="kcdTitle" class="panel-title">약관에 나오는 질병기호</h2>
+              <p class="panel-subtitle">
+                ★<strong>KCD 사전이 아닙니다.</strong> 코드→질병명 표(약 2만 항목)는 갖고 있지
+                않아 「F32 = 우울에피소드」라고 말하지 않습니다. 여기 있는 것은
+                <strong>확정 약관 본문에 실제로 등장한 표기</strong>이고, 「장」은 KCD 22장
+                분류이지 질병명이 아닙니다.
+              </p>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center">
+              <input id="kcdQuery" class="filter-input" type="text" placeholder="F04"
+                     style="width:100px" aria-label="질병기호 검색">
+              <select id="kcdKind" class="filter-input" aria-label="쓰임 필터">
+                <option value="">쓰임 전체</option>
+                <option value="exclude">면책</option>
+                <option value="exception">면책의 예외</option>
+                <option value="mention">그 밖의 언급</option>
+              </select>
+              <button type="button" id="kcdClose" class="ghost-btn">닫기</button>
+            </div>
+          </header>
+
+          <p class="sim-hint" id="kcdSummary">불러오는 중…</p>
+
+          <div style="overflow-x:auto;max-height:460px;overflow-y:auto">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th style="width:16%">표기</th>
+                  <th style="width:14%">쓰임</th>
+                  <th style="width:18%">장(KCD 22장)</th>
+                  <th style="width:12%" class="num">약관 수</th>
+                  <th style="width:40%">어디서 나왔나</th>
+                </tr>
+              </thead>
+              <tbody id="kcdBody"></tbody>
+            </table>
+          </div>
+        </section>
+
         <section class="panel" aria-labelledby="streamTitle">
           <header class="panel-header">
             <div>
@@ -1411,6 +1487,9 @@
               </label>
               <label class="sim-wide">질병기호 (쉼표 구분 · 비우면 8종 무작위)
                 <input id="simCodes" type="text" placeholder="S72.0, J20.9">
+                <button type="button" id="kcdOpen" class="ghost-btn" style="margin-top:6px">
+                  약관에 나오는 질병기호 보기
+                </button>
               </label>
             </div>
 

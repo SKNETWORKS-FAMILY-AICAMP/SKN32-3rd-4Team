@@ -59,6 +59,160 @@ function updateRegisterState() {
   $('go').disabled = !ready;
 }
 
+/* ── 상품명 자동완성 ───────────────────────────────────────────────
+ *
+ * ★★**「전체 상품 목록」이 아니다.** 확정된 약관 850건 / 판정대상 1,367건(62.2%)
+ *   에서 **검색된 후보**다. 목록에 없다고 그 상품이 없는 것이 아니다 —
+ *   아직 「이 파일이 무엇인가」를 확정하지 못한 약관이 있다.
+ *
+ * ★그래서 **보험사를 고르기 전에는 잠가 둔다.** 서버도 보험사를 필수로 받는다.
+ *   전량을 내려주면 「목록에 없으면 미지원」으로 읽힌다.
+ *
+ * ★★**고른다고 판본이 정해지지 않는다.** 같은 상품명이 여러 판본으로 존재하는 것이
+ *   실측 140종·421건(확정분의 절반)이다. 적용 판본은 **가입일**이 정한다.
+ *   그래서 후보마다 판본 수를 함께 보이고, 안내 문구로도 말한다.
+ */
+let _productTimer = null;
+
+function _setProductHint(text, warn) {
+  const el = $('productHint');
+  if (!el) return;
+  el.textContent = text;
+  el.style.color = warn ? 'var(--danger, #991b1b)' : '';
+}
+
+async function loadProducts() {
+  const box = $('productName');
+  const list = $('products');
+  if (!box || !list) return;
+  const insurer = $('insurer').value.trim();
+
+  if (!insurer) {
+    box.disabled = true;
+    box.placeholder = '보험사를 먼저 고르세요';
+    list.replaceChildren();
+    _setProductHint('보험사를 고르면 확정된 약관에서 상품명을 찾아 드립니다.');
+    return;
+  }
+  box.disabled = false;
+  box.placeholder = '두 글자 이상 입력하면 후보를 찾습니다';
+
+  const q = box.value.trim();
+  if (q.length < 2) {
+    list.replaceChildren();
+    _setProductHint('두 글자 이상 입력하면 후보를 찾습니다. 비워 두어도 판정은 됩니다.');
+    return;
+  }
+
+  const params = new URLSearchParams({ insurer, q, limit: '10' });
+  const enrolled = $('enrolled').value.trim();
+  if (/^\d{8}$/.test(enrolled)) params.set('enrolled_on', enrolled);
+
+  const { status, body } = await api(`/v1/catalog/products?${params}`);
+  if (status !== 200 || !body) {
+    //: ★못 불러온 것을 "그런 상품 없음"으로 그리지 않는다. 다른 사실이다.
+    list.replaceChildren();
+    _setProductHint(`상품 후보를 불러오지 못했습니다 (HTTP ${status}). 상품명은 비워 두어도 됩니다.`, true);
+    return;
+  }
+
+  const items = body.items || [];
+  list.replaceChildren();
+  for (const it of items) {
+    const opt = document.createElement('option');
+    opt.value = it.product_name;
+    //: ★판본 수를 **함께** 보인다 — 「골랐으니 내 약관이 정해졌다」로 믿게 두지 않는다.
+    opt.label = `판본 ${it.versions}개 · ${it.sale_start_range[0]}~${it.sale_start_range[1]}`;
+    list.appendChild(opt);
+  }
+  if (!items.length) {
+    _setProductHint(
+      `'${q}' 로 찾은 확정 약관이 없습니다. 확정되지 않은 약관은 여기 나오지 않으니, ` +
+      '상품명을 비우고 진행하셔도 됩니다.');
+    return;
+  }
+  _setProductHint(
+    `후보 ${body.shown}개 표시 (검색 결과 ${body.matched}개 · ${insurer} 확정 약관 ` +
+    `${body.confirmed_for_insurer}건). 전체 상품 목록이 아니며, 고르셔도 적용 약관은 가입일이 정합니다.`);
+}
+
+function scheduleProductSearch() {
+  //: 입력할 때마다 서버를 두드리지 않는다.
+  if (_productTimer) clearTimeout(_productTimer);
+  _productTimer = setTimeout(loadProducts, 250);
+}
+
+/* ── 약관에 등장한 질병코드 (입력 도우미) ─────────────────────────
+ *
+ * ★★**「입력 가능한 코드 목록」이 아니다.** 아무 KCD 코드나 넣을 수 있고,
+ *   여기 없는 코드도 판정이 정상 처리한다.
+ *
+ *   실측 2026-08-04 — 흔한 청구 코드가 이 목록에 **없다**
+ *   (골절 S72.0 · 위염 K29.7 · 백내장 H25.9). 목록에 든 것은 약관이 콕 집어
+ *   말한 코드(정신질환·임신출산·치과·비만·요실금)뿐이다.
+ *   그래서 **자기 코드를 못 찾은 사용자가 입력을 포기하는 것**이 이 기능의 주된 위험이고,
+ *   패널이 그 사실을 **항상 위에** 적어 둔다.
+ *
+ * ★면책·예외 라벨은 **보이지 않는다.** 「F04~F99 면책」만 읽으면 F32 가 예외라는
+ *   것을 놓쳐 정당한 청구를 포기할 수 있다. 보장 여부는 판정이 근거와 함께 답한다.
+ */
+let _codeListLoaded = false;
+let _codeListQueryTimer = null;
+
+async function loadCodeList() {
+  const body = $('codeListBody');
+  const summary = $('codeListSummary');
+  if (!body) return;
+  const q = ($('codeListQuery') || {}).value || '';
+  const params = new URLSearchParams({ limit: '60' });
+  if (q.trim()) params.set('q', q.trim());
+
+  const { status, body: data } = await api(`/v1/catalog/codes?${params}`);
+  if (status !== 200 || !data) {
+    //: ★못 불러온 것을 "코드가 없다"로 그리지 않는다. 코드는 직접 입력하면 된다.
+    body.replaceChildren();
+    if (summary) {
+      summary.textContent =
+        `목록을 불러오지 못했습니다 (HTTP ${status}). 코드는 직접 입력하시면 됩니다.`;
+    }
+    return;
+  }
+  _codeListLoaded = true;
+  const items = data.items || [];
+  if (summary) {
+    //: ★분모를 함께 — 거른 결과가 전량으로 보이면 안 된다.
+    summary.textContent =
+      `확정 약관 ${data.scanned_policies}건에서 찾은 코드 ${data.total_codes}종 중 ` +
+      `${data.shown}종 표시. 목록에 없는 코드도 입력하실 수 있습니다.`;
+  }
+  body.replaceChildren();
+  if (!items.length) {
+    const p = document.createElement('p');
+    p.className = 'precheck-help';
+    p.textContent = '조건에 맞는 코드가 없습니다. 그래도 코드를 직접 입력하시면 판정됩니다.';
+    body.appendChild(p);
+    return;
+  }
+  const frag = document.createDocumentFragment();
+  for (const it of items) {
+    //: 누르면 입력창에 넣어 준다 — 그게 「입력 도우미」의 목적이다.
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip';
+    b.style.cursor = 'pointer';
+    b.textContent = `${it.code} · ${it.chapter}`;
+    b.title = `약관 ${it.policies}건에 등장`;
+    b.addEventListener('click', () => {
+      const box = $('codes');
+      const cur = box.value.trim();
+      box.value = cur ? `${cur}, ${it.code}` : it.code;
+      box.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    frag.appendChild(b);
+  }
+  body.appendChild(frag);
+}
+
 /* ── 컷① 지원범위 ─────────────────────────────────────────────── */
 
 async function loadScope() {
@@ -387,6 +541,8 @@ $('insuranceForm').addEventListener('submit', (e) => {
   $(id).addEventListener('input', () => {
     updateRegisterState();
     updateSessionCard();
+    //: 보험사·가입일이 바뀌면 후보도 바뀐다(가입일이 판본을 가른다).
+    if (id === 'insurer' || id === 'productName' || id === 'enrolled') scheduleProductSearch();
   });
 });
 $('consent').addEventListener('change', updateRegisterState);
@@ -397,6 +553,18 @@ $('chatGo').addEventListener('click', () => sendChat());
 $('chatIn').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendChat(); });
 document.querySelectorAll('.chip-btn').forEach((b) =>
   b.addEventListener('click', () => sendChat(b.dataset.q)));
+$('codeListOpen').addEventListener('click', () => {
+  const panel = $('codeListPanel');
+  panel.hidden = !panel.hidden;
+  if (!panel.hidden && !_codeListLoaded) loadCodeList();
+});
+$('codeListClose').addEventListener('click', () => { $('codeListPanel').hidden = true; });
+$('codeListQuery').addEventListener('input', () => {
+  if (_codeListQueryTimer) clearTimeout(_codeListQueryTimer);
+  _codeListQueryTimer = setTimeout(loadCodeList, 250);
+});
+
 updateSessionCard();
 updateRegisterState();
+loadProducts();
 loadScope();

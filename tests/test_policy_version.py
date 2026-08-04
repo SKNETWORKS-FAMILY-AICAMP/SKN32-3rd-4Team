@@ -169,3 +169,49 @@ def test_판매시점_신뢰도가_없으면_정확하다고_하지_않는다():
                           "sale_start": "20220101", "date_confidence": "exact",
                           "generation_review": "reviewed", "identification": "confirmed"})
     assert v3.usable_for_judgment is True
+
+
+def test_안_맞는_상품명을_말없이_버리지_않는다():
+    """★★**조용한 폴백이었다** — 코덱스가 잡았고 실측으로 확인했다(2026-08-04).
+
+    `resolve()` 의 상품명 좁히기가 이랬다.
+
+        narrowed = [v for v in cand if pn in _norm(v.product_name)]
+        if narrowed:
+            cand = narrowed      # ← 못 찾으면 **그냥 넘어간다**
+
+    그래서 `product_name="있지도않은상품명XYZ"` 를 넣어도 **상품명을 안 준 것과
+    똑같은 답**이 나왔다. 사용자는 「내 상품을 지정했다」고 믿는데 그 입력은
+    판정에 아무 영향도 주지 않았다.
+
+    ★상품명 자동완성을 붙이면 이 위험이 **커진다** — 목록에서 골랐으니 더 확신한다.
+      그래서 자동완성보다 이걸 먼저 고쳤다.
+
+    ★막되 **길을 알려준다** — 후보를 함께 돌려주므로 사용자가 고를 수 있다.
+    """
+    from app.adapters.manifest_policy_resolver import resolve
+    from app.core.ports.precheck import NotResolved
+
+    pool = [
+        _v("20140401", name="무배당 삼성화재 실손의료비보험1404", gen=2),
+        _v("20160101", name="무배당 삼성화재 실손의료비보험1601", gen=2),
+    ]
+
+    #: 상품명을 안 주면 가장 늦은 것이 잡힌다 — 기준선.
+    base = resolve(insurer="삼성화재", enrolled_on="20170101", versions=pool)
+    assert not isinstance(base, NotResolved)
+
+    #: ★안 맞는 상품명은 **기준선과 같은 답을 주면 안 된다.**
+    got = resolve(insurer="삼성화재", enrolled_on="20170101",
+                  product_name="있지도않은상품명XYZ", versions=pool)
+    assert isinstance(got, NotResolved), "안 맞는 상품명이 조용히 무시됐습니다"
+    assert got.reason_code == "product_not_matched"
+    assert "있지도않은상품명XYZ" in got.message
+    #: ★막기만 하고 길을 안 알려주면 사용자가 할 수 있는 게 없다.
+    assert got.candidates, "후보를 주지 않아 사용자가 고칠 방법이 없습니다"
+
+    #: ★맞는 상품명은 여전히 **좁히는 용도**로 동작해야 한다(막기만 하면 그것도 고장).
+    ok = resolve(insurer="삼성화재", enrolled_on="20170101",
+                 product_name="1404", versions=pool)
+    assert not isinstance(ok, NotResolved)
+    assert "1404" in ok.product_name

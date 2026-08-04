@@ -824,6 +824,110 @@
     elements.simStartBtn.addEventListener("click", startSimulation);
     elements.simStopBtn.addEventListener("click", stopSimulation);
     elements.simResetBtn.addEventListener("click", resetDemoTrack);
+    bindKcdEvents();
+  }
+
+  //: ── 약관에 나오는 질병기호 ────────────────────────────────────────
+  //:
+  //: ★★**「질병기호 전체 표」가 아니다.** 우리는 KCD 코드→질병명 사전을
+  //:   갖고 있지 않다(약 2만 항목). 그래서 화면도 그렇게 말하지 않는다 —
+  //:   보여주는 것은 **확정 약관 본문에 실제로 등장한 표기**다.
+  //:   그게 관리자에게 더 쓸모 있다: 「우리가 판정할 수 있는 코드가 무엇인가」.
+  let kcdLoaded = false;
+
+  function bindKcdEvents() {
+    const open = document.getElementById("kcdOpen");
+    const close = document.getElementById("kcdClose");
+    const panel = document.getElementById("kcdPanel");
+    if (!open || !panel) return;
+
+    open.addEventListener("click", () => {
+      panel.hidden = false;
+      panel.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (!kcdLoaded) loadKcd();
+    });
+    if (close) close.addEventListener("click", () => { panel.hidden = true; });
+
+    const q = document.getElementById("kcdQuery");
+    const kind = document.getElementById("kcdKind");
+    //: 필터는 **서버에서** 건다. 525개를 다 내려받아 클라이언트에서 거르면
+    //: 「몇 개 중 몇 개」의 분모를 화면이 스스로 만들게 되어 서버와 어긋난다.
+    if (q) q.addEventListener("change", loadKcd);
+    if (kind) kind.addEventListener("change", loadKcd);
+  }
+
+  async function loadKcd() {
+    const body = document.getElementById("kcdBody");
+    const summary = document.getElementById("kcdSummary");
+    if (!body) return;
+    const q = (document.getElementById("kcdQuery") || {}).value || "";
+    const kind = (document.getElementById("kcdKind") || {}).value || "";
+
+    body.replaceChildren(createTableMessage("불러오는 중…", 5));
+    const params = new URLSearchParams();
+    if (q.trim()) params.set("q", q.trim());
+    if (kind) params.set("kind", kind);
+    const suffix = params.toString() ? `?${params}` : "";
+
+    let data;
+    try {
+      data = await fetchApi(`/api/admin/kcd-codes${suffix}`);
+    } catch (error) {
+      //: ★조용히 빈 표로 만들지 않는다. 「등장하는 코드가 없다」로 읽힌다.
+      body.replaceChildren(
+        createTableMessage(`불러오지 못했습니다: ${error && error.message ? error.message : error}`, 5)
+      );
+      if (summary) summary.textContent = "목록을 불러오지 못했습니다.";
+      handlePossibleAuthenticationError(error);
+      return;
+    }
+
+    kcdLoaded = true;
+    const items = Array.isArray(data.items) ? data.items : [];
+    if (summary) {
+      //: ★분모를 함께 적는다 — 거른 결과가 전량으로 보이면 안 된다.
+      summary.textContent =
+        `확정 약관 ${formatInteger(data.scanned_policies || 0)}건에서 찾은 표기 ` +
+        `${formatInteger(data.total_ranges || 0)}종 중 ${formatInteger(data.matched || 0)}종 표시 · ` +
+        `언급 ${formatInteger(data.total_mentions || 0)}회 · 기준 ${data.built_at || "-"}`;
+    }
+
+    body.replaceChildren();
+    if (!items.length) {
+      body.appendChild(createTableMessage("조건에 맞는 표기가 없습니다.", 5));
+      return;
+    }
+
+    const KIND_KO = { exclude: "면책", exception: "면책의 예외", mention: "그 밖의 언급" };
+    const fragment = document.createDocumentFragment();
+    for (const item of items) {
+      const row = document.createElement("tr");
+
+      const codeCell = document.createElement("td");
+      const code = document.createElement("code");
+      code.textContent = item.range || "-";
+      codeCell.appendChild(code);
+      row.appendChild(codeCell);
+
+      const kindCell = document.createElement("td");
+      const badge = document.createElement("span");
+      badge.className = `kcd-kind ${item.kind || "mention"}`;
+      badge.textContent = KIND_KO[item.kind] || item.kind || "-";
+      kindCell.appendChild(badge);
+      row.appendChild(kindCell);
+
+      row.appendChild(createCell(valueOrFallback(item.chapter)));
+      row.appendChild(createCell(formatInteger(toFiniteNumber(item.documents, 0)), "num"));
+
+      const ex = item.example || {};
+      const where = [ex.insurer, ex.qualified_no, ex.title].filter(Boolean).join(" · ");
+      const whereCell = createCell(where || "-");
+      if (ex.context) whereCell.title = ex.context;
+      row.appendChild(whereCell);
+
+      fragment.appendChild(row);
+    }
+    body.appendChild(fragment);
   }
 
   function simParams() {
