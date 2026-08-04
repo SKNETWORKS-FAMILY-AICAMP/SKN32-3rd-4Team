@@ -184,6 +184,8 @@ def _cite(c) -> Citation:
         qualified_no=c.qualified_no,
         section=c.section,
         title=c.title,
+        scope=c.scope,
+        occurrence_id=c.occurrence_id,
         quote=c.quote,
         page_from=c.page_from,
         page_to=c.page_to,

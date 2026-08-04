@@ -109,6 +109,57 @@ def test_같은_인용을_반복하지_않는다():
     assert len(ans.quotes) == 1
 
 
+def test_줄바꿈과_페이지_장식만_다른_동일_정의를_묶는다():
+    rows = [
+        _p(
+            "입원의료비 입원실료\n통원\n의사가 피보험자의 질병 또는 상해로 치료가 "
+            "필요하다고 인정하는 경우로서 의료기관에 입원하지 않고 의료기관을 방문하여 "
+            "의사의 관리하에 치료에 전념하는 것\n처방조제"
+        ),
+        _p(
+            "입원의료비 비급여 병실료\n통원\n의사가 피보험자의 질병 또는 상해로 치료가\n"
+            "필요하다고 인정하는 경우로서 의료기관에\n보\n통\n약\n관\n"
+            "☞ 목차로 돌아가기\n84\n용 어\n정  의\n입원하지 않고 의료기관을 방문하여 "
+            "의사의 관리 하에 치료에 전념하는 것\n처방조제",
+            sha="b" * 64,
+        ),
+        _p(
+            "입원의료비 상급병실료 차액\n통원\n의사가 피보험자의 질병 또는 상해로 치료가 "
+            "필요하다고 인정하는 경우로서 병원에 입원하지 않고 병원을 방문하여 의사의 "
+            "관리 하에 치료에 전념하는 것\n처방조제",
+            sha="c" * 64,
+        ),
+    ]
+    ans = glossary.explain("통원", source=_Fake(rows), insurer="가보험")
+    assert len(ans.quotes) == 2
+    assert "의료기관에 입원하지 않고" in ans.quotes[0].quote
+    assert "병원에 입원하지 않고" in ans.quotes[1].quote
+    assert any("동일 정의 1개" in warning for warning in ans.warnings)
+
+
+def test_같은_보험사라도_뜻이_다른_정의는_남긴다():
+    src = _Fake(
+        [
+            _p("통원 의료기관에 입원하지 않고 방문하여 치료받는 것"),
+            _p("통원 전화나 화상으로 상담만 받는 것", sha="b" * 64),
+        ]
+    )
+    ans = glossary.explain("통원", source=src)
+    assert len(ans.quotes) == 2
+
+
+def test_보험사가_다르면_같은_문구도_각각_남긴다():
+    same = "통원 의료기관에 입원하지 않고 방문하여 치료받는 것"
+    src = _Fake(
+        [
+            _p(same, insurer="가보험"),
+            _p(same, insurer="나보험", sha="b" * 64),
+        ]
+    )
+    ans = glossary.explain("통원", source=src)
+    assert len(ans.quotes) == 2
+
+
 # ---------------------------------------------------------------- API
 
 

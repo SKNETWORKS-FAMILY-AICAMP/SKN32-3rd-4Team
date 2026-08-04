@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from dataclasses import asdict
 
 from app.core.errors import InfraError, ValidationErr
@@ -264,7 +265,9 @@ def _run(
 
         parsed = kcd.CodeRef.parse(code)
         hit_pairs = [(m, c) for m, c in mentions if m.range.contains(parsed)]
-        cites = _citations(hit_pairs, judged["status"])
+        #: 같은 조항 안의 큰 면책 범위와 예외 범위가 모두 코드를 포함할 수 있다.
+        #: 근거 조항은 하나이므로 코드별 응답에서도 한 번만 내보낸다.
+        cites = _dedupe(_citations(hit_pairs, judged["status"]))
         all_cites.extend(cites)
 
         if judged["status"] == "excluded":
@@ -365,6 +368,21 @@ def verify_explanation(
     return False, code, r.reason
 
 
+_SCOPE_FROM_EXCLUSION = re.compile(
+    r"생긴\s+(.{2,60}?)(?:은|는)\s+보상하지\s+않습니다"
+)
+
+
+def _citation_scope(text: str) -> str:
+    """반복되는 `제4조` 카드가 어느 담보 조항인지 원문에서 드러낸다."""
+    compact = " ".join((text or "").split())
+    match = _SCOPE_FROM_EXCLUSION.search(compact)
+    if not match:
+        return ""
+    scope = match.group(1).strip(" '‘’\"“”")
+    return scope if len(scope) <= 40 else ""
+
+
 def _citations(pairs, status: str) -> list[CitationRef]:
     """근거 조항 → 인용. ★성격이 불명한(`mention`) 것은 근거로 내지 않는다."""
     want = {"excluded": {"exclude"}, "exception": {"exception", "exclude"}}.get(status, set())
@@ -378,6 +396,7 @@ def _citations(pairs, status: str) -> list[CitationRef]:
                 qualified_no=c.qualified_no,
                 section=c.section,
                 title=c.title,
+                scope=_citation_scope(c.text),
                 quote=m.context[:300],
                 page_from=c.page_from,
                 page_to=c.page_to,

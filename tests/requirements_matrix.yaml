@@ -173,8 +173,8 @@ requirements:
   - id: REQ-MCP-01
     desc: "MCP·REST parity — 같은 유스케이스 경유, 응답 동일"
     tests:
-      - node: "tests/test_mcp_parity.py::test_rest_and_mcp_rag_qa_are_identical"
-        basis: "고정 Fake 유스케이스로 REST/MCP 응답 dict 완전 일치를 직접 확인"
+      - node: "tests/test_mcp_parity.py::test_precheck_는_rest_와_mcp_가_완전히_같은_응답을_낸다"
+        basis: "고정 Fake 판정 그래프로 REST/MCP 응답 dict 완전 일치를 직접 확인"
     status: DONE
 
   - id: REQ-AUTH-01

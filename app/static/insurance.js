@@ -255,7 +255,7 @@ function renderCitations(cites) {
   if (!cites || !cites.length) return '';
   return `<h2 style="margin-top:18px">근거 조항</h2>` + cites.map((c) => `
     <div class="cite">
-      <div><strong>${esc(c.title || c.qualified_no)}</strong></div>
+      <div><strong>${esc(c.title || c.qualified_no)}${c.scope ? ` · ${esc(c.scope)}` : ''}</strong></div>
       <div class="quote">${esc(c.quote || '')}</div>
       <div class="loc">${esc(c.clause_id)} · ${esc(c.section || '')} p${c.page_from}${c.page_to && c.page_to !== c.page_from ? '–' + c.page_to : ''}</div>
     </div>`).join('');

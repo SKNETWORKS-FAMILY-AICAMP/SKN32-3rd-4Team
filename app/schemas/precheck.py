@@ -55,6 +55,8 @@ class Citation(BaseModel):
     qualified_no: str = Field(description="`보통약관/제9조`")
     section: str = ""
     title: str = ""
+    scope: str = Field(default="", description="같은 제목의 조항을 구분하는 담보 범위")
+    occurrence_id: str = Field(default="", description="승인 릴리스 안의 정확한 조항 수록 식별자")
     quote: str = Field(default="", description="실제 인용한 문장(원문 부분 문자열)")
     page_from: int = 0
     page_to: int = 0

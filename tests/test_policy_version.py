@@ -75,6 +75,7 @@ def test_모르는_reason_code는_조용히_None이_되지_않는다():
 
     assert _reason(None) is None
     assert _reason("documents_not_confirmed") is ReasonCode.DOCUMENTS_NOT_CONFIRMED
+    assert _reason("product_not_matched") is ReasonCode.PRODUCT_NOT_MATCHED
     with pytest.raises(ValidationErr):
         _reason("아직_없는_코드")
 
