@@ -5,8 +5,10 @@ v3.2 §2 의존성 규칙: app/application/*는 FastAPI/LangChain/SQLAlchemy/ope
 
 from __future__ import annotations
 
+import hashlib
 import pathlib
 import re
+import zipfile
 
 _APP_DIR = pathlib.Path(__file__).resolve().parents[1] / "app" / "application"
 _FORBIDDEN = ("fastapi", "langchain", "sqlalchemy", "openai")
@@ -279,3 +281,24 @@ def test_arch_004_legacy_is_archived_not_importable():
     assert loose == [], (
         f"레거시에 풀린 파일이 있습니다. README와 zip만 허용합니다: {loose[:5]}"
     )
+
+
+def test_arch_004_removed_commerce_seed_is_preserved() -> None:
+    """제거된 커머스 시더와 제거 직전 CLI는 원래 경로로 보존한다."""
+    archive_path = _ROOT / "legacy" / "v9_commerce_seed_cli.zip"
+    assert archive_path.is_file()
+
+    with zipfile.ZipFile(archive_path) as archive:
+        entries = {name.replace("\\", "/"): name for name in archive.namelist()}
+        expected_hashes = {
+            "app/db/seed.py": "23662a2eb499676703f1099b6d47cfcc892a2039a0ac63b0954c2aba5135444c",
+            "scripts/manage.py": "ae5f7eaa00d503797c840a5a7d58f34e522b4e6190d806bbd797ed97041379cc",
+        }
+        actual_hashes = {
+            path: hashlib.sha256(archive.read(entries[path])).hexdigest()
+            for path in expected_hashes
+            if path in entries
+        }
+
+    assert actual_hashes == expected_hashes
+    assert not (_ROOT / "app" / "db" / "seed.py").exists()
