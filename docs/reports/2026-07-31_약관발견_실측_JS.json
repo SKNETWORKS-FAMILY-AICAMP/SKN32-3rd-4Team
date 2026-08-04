@@ -1,0 +1,243 @@
+{
+  "checked_at": "2026-07-31T05:18:28+00:00",
+  "engine": "playwright/chromium headless",
+  "max_pages_per_host": 3,
+  "results": [
+    {
+      "insurer": "삼성화재",
+      "host": "www.samsungfire.com",
+      "robots": "HTTP 200 → allow",
+      "pages": 3,
+      "dom_links": 783,
+      "candidates": 29,
+      "pdf_from_dom": 0,
+      "pdf_from_network": 0,
+      "visited": [
+        "https://www.samsungfire.com/",
+        "https://www.samsungfire.com/v2/html/publication/03/J_030_010_001.html?footer=publ.announce",
+        "https://www.samsungfire.com/vh/page/VH.HPIF0103.do"
+      ],
+      "samples": [],
+      "verdict": "약관 메뉴는 있으나 PDF 미발견",
+      "note": "검색 폼·POST 뒤에 있을 가능성. 사이트별 설정 필요.",
+      "pdf_total": 0
+    },
+    {
+      "insurer": "메리츠화재",
+      "host": "www.meritzfire.com",
+      "robots": "HTTP 200 → allow",
+      "pages": 2,
+      "dom_links": 268,
+      "candidates": 1,
+      "pdf_from_dom": 0,
+      "pdf_from_network": 0,
+      "visited": [
+        "https://www.meritzfire.com/main.do#!/",
+        "https://www.meritzfire.com/disclosure.do#!/"
+      ],
+      "samples": [],
+      "verdict": "약관 메뉴는 있으나 PDF 미발견",
+      "note": "검색 폼·POST 뒤에 있을 가능성. 사이트별 설정 필요.",
+      "pdf_total": 0
+    },
+    {
+      "insurer": "DB손해보험",
+      "host": "www.idbins.com",
+      "robots": "HTTP 200 → allow",
+      "pages": 3,
+      "dom_links": 2143,
+      "candidates": 44,
+      "pdf_from_dom": 0,
+      "pdf_from_network": 0,
+      "visited": [
+        "https://www.idbins.com/FWMAIV0001.do",
+        "https://www.idbins.com/pc/bizxpress/pb/ppb/mnu/FWMAIV1530.shtm",
+        "https://www.idbins.com/FWMAIV1534.do"
+      ],
+      "samples": [],
+      "verdict": "약관 메뉴는 있으나 PDF 미발견",
+      "note": "검색 폼·POST 뒤에 있을 가능성. 사이트별 설정 필요.",
+      "pdf_total": 0
+    },
+    {
+      "insurer": "현대해상",
+      "host": "www.hi.co.kr",
+      "robots": "HTTP 200 → allow",
+      "pages": 1,
+      "dom_links": 1136,
+      "candidates": 0,
+      "pdf_from_dom": 0,
+      "pdf_from_network": 0,
+      "visited": [
+        "https://www.hi.co.kr/serviceAction.do"
+      ],
+      "samples": [],
+      "verdict": "약관 메뉴도 미발견",
+      "note": "첫 페이지에서 약관/공시 링크를 못 찾음.",
+      "pdf_total": 0
+    },
+    {
+      "insurer": "KB손해보험",
+      "host": "www.kbinsure.co.kr",
+      "robots": "HTTP 200 → allow",
+      "pages": 1,
+      "dom_links": 293,
+      "candidates": 0,
+      "pdf_from_dom": 1,
+      "pdf_from_network": 0,
+      "visited": [
+        "https://www.kbinsure.co.kr/main.ec"
+      ],
+      "samples": [
+        "https://www.kbinsure.co.kr/images/common/popup/finan_prdt_sale_agnt_mdtcp.pdf"
+      ],
+      "verdict": "PDF 링크 발견",
+      "note": "",
+      "pdf_total": 1
+    },
+    {
+      "insurer": "한화손해보험",
+      "host": "www.hwgeneralins.com",
+      "robots": "HTTP 200 → allow",
+      "pages": 2,
+      "dom_links": 2489,
+      "candidates": 73,
+      "pdf_from_dom": 3,
+      "pdf_from_network": 0,
+      "visited": [
+        "https://www.hwgeneralins.com/",
+        "https://www.hwgeneralins.com/notice/ir/product-main.do"
+      ],
+      "samples": [
+        "https://www.hwgeneralins.com/upload/download/company/ir/insu_document01.pdf",
+        "https://www.hwgeneralins.com/upload/download/company/ir/insu_document02.pdf",
+        "https://www.hwgeneralins.com/upload/download/company/ir/insu_document03.pdf"
+      ],
+      "verdict": "PDF 링크 발견",
+      "note": "",
+      "pdf_total": 3
+    },
+    {
+      "insurer": "흥국화재",
+      "host": "www.heungkukfire.co.kr",
+      "robots": "HTTP 200 → allow",
+      "pages": 1,
+      "dom_links": 429,
+      "candidates": 0,
+      "pdf_from_dom": 0,
+      "pdf_from_network": 0,
+      "visited": [
+        "https://www.heungkukfire.co.kr/MAW/main1.do"
+      ],
+      "samples": [],
+      "verdict": "약관 메뉴도 미발견",
+      "note": "첫 페이지에서 약관/공시 링크를 못 찾음.",
+      "pdf_total": 0
+    },
+    {
+      "insurer": "롯데손해보험",
+      "host": "www.lotteins.co.kr",
+      "robots": "HTTP 200 → allow",
+      "pages": 1,
+      "dom_links": 0,
+      "candidates": 0,
+      "pdf_from_dom": 0,
+      "pdf_from_network": 0,
+      "visited": [
+        "https://www.lotteins.co.kr/index2.jsp"
+      ],
+      "samples": [],
+      "verdict": "약관 메뉴도 미발견",
+      "note": "첫 페이지에서 약관/공시 링크를 못 찾음.",
+      "pdf_total": 0
+    },
+    {
+      "insurer": "NH농협손해보험",
+      "host": "www.nhfire.co.kr",
+      "robots": "HTTP 200 → allow",
+      "pages": 2,
+      "dom_links": 1553,
+      "candidates": 64,
+      "pdf_from_dom": 0,
+      "pdf_from_network": 0,
+      "visited": [
+        "https://www.nhfire.co.kr/index.nhfire",
+        "https://www.nhfire.co.kr/announce/productAnnounce/announceServiceGuide.nhfire"
+      ],
+      "samples": [],
+      "verdict": "약관 메뉴는 있으나 PDF 미발견",
+      "note": "검색 폼·POST 뒤에 있을 가능성. 사이트별 설정 필요.",
+      "pdf_total": 0
+    },
+    {
+      "insurer": "삼성생명",
+      "host": "www.samsunglife.com",
+      "robots": "HTTP 200 → allow",
+      "pages": 1,
+      "dom_links": 0,
+      "candidates": 0,
+      "pdf_from_dom": 0,
+      "pdf_from_network": 0,
+      "visited": [
+        "https://www.samsunglife.com/"
+      ],
+      "samples": [],
+      "verdict": "약관 메뉴도 미발견",
+      "note": "첫 페이지에서 약관/공시 링크를 못 찾음.",
+      "pdf_total": 0
+    },
+    {
+      "insurer": "흥국생명",
+      "host": "www.heungkuklife.co.kr",
+      "robots": "HTTP 200 → allow",
+      "pages": 1,
+      "dom_links": 0,
+      "candidates": 0,
+      "pdf_from_dom": 0,
+      "pdf_from_network": 0,
+      "visited": [
+        "https://www.heungkuklife.co.kr/"
+      ],
+      "samples": [],
+      "verdict": "약관 메뉴도 미발견",
+      "note": "첫 페이지에서 약관/공시 링크를 못 찾음.",
+      "pdf_total": 0
+    },
+    {
+      "insurer": "동양생명",
+      "host": "www.myangel.co.kr",
+      "robots": "HTTP 200 → allow",
+      "pages": 3,
+      "dom_links": 136,
+      "candidates": 12,
+      "pdf_from_dom": 0,
+      "pdf_from_network": 0,
+      "visited": [
+        "https://www.myangel.co.kr/Mn",
+        "https://www.myangel.co.kr/fcl/csHpgPlyCd",
+        "https://www.myangel.co.kr/fcl/inScNtc5"
+      ],
+      "samples": [],
+      "verdict": "약관 메뉴는 있으나 PDF 미발견",
+      "note": "검색 폼·POST 뒤에 있을 가능성. 사이트별 설정 필요.",
+      "pdf_total": 0
+    },
+    {
+      "insurer": "NH농협생명",
+      "host": "www.nhlife.co.kr",
+      "robots": "HTTP 200 → allow",
+      "pages": 1,
+      "dom_links": 0,
+      "candidates": 0,
+      "pdf_from_dom": 0,
+      "pdf_from_network": 0,
+      "visited": [
+        "https://www.nhlife.co.kr/"
+      ],
+      "samples": [],
+      "verdict": "약관 메뉴도 미발견",
+      "note": "첫 페이지에서 약관/공시 링크를 못 찾음.",
+      "pdf_total": 0
+    }
+  ]
+}

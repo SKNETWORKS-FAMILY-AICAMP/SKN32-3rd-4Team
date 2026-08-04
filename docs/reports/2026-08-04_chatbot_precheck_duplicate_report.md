@@ -27,22 +27,7 @@
 
 ## 검증 결과
 
-관련 회귀 묶음은 모두 통과했다.
-
-```text
-tests/test_terms_api.py
-tests/test_precheck_citation_display.py
-tests/test_policy_version.py
-tests/test_graph.py
-tests/test_chat.py
-tests/test_mcp_parity.py
-tests/test_static_ui.py
-tests/test_s7_chatbot_release.py
-tests/test_requirements_matrix.py
-tests/test_security_cases.py
-```
-
-실데이터 스모크에서 제보된 DB손해보험 세 구절은 안전하게 두 정의 그룹으로 분리됐고, 삼성생명 F32 근거는 특약별 한 건씩 총 두 건으로 유지됐다.
+관련 회귀 묶음은 모두 통과했다. 실데이터 스모크에서 제보된 DB손해보험 세 구절은 안전하게 두 정의 그룹으로 분리됐고, 삼성생명 F32 근거는 특약별 한 건씩 총 두 건으로 유지됐다.
 
 ## 잔여 배포 조건과 위험
 

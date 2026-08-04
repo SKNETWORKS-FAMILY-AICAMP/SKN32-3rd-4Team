@@ -17,7 +17,8 @@
 
 ★승격이 하는 일과 하지 않는 일
 
-    하는 일: `unverified` 인 합성 제출을 `document_backed` 로 올리고,
+    하는 일: `unverified` 인 합성 제출을 `synthetic_admin_review` 또는
+             `synthetic_consistency` 로 올리고,
              그 순간 **합성 코호트 집계에만** 한 줄이 쌓인다(append-only).
     하지 않는 일: 진위 판단. 합성 데이터에 진위는 없다.
              이것이 시연하는 것은 **"정합성만으로는 통계가 안 움직이고,
@@ -33,6 +34,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import shutil
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -44,17 +46,16 @@ _ROOT = Path(__file__).resolve().parents[2]
 #: ★합성 트랙의 경로 **전부**. 여기 없는 곳에는 쓰지 않는다.
 _SUBMISSIONS = _ROOT / "data" / "demo" / "submissions"
 _COHORT_EVENTS = _ROOT / "data" / "cohort" / "synthetic" / "events.jsonl"
+_VERIFICATION_EVENTS = _ROOT / "data" / "demo" / "verifications" / "events.jsonl"
 
 #: 제출은 언제나 미검증으로 들어온다(실제 트랙과 같은 규칙).
 _FIXED_VERIFICATION = "unverified"
 
-#: 승격 후 등급. `file_cohort_stats._COUNTED` 와 맞아야 집계에 들어간다.
-PROMOTED_VERIFICATION = "document_backed"
-
 #: 승격 방법. **지어내지 않는다** — 둘 중 하나만 허용한다.
 METHOD_ADMIN = "admin_review"
-METHOD_SIMULATED = "simulated"
-_METHODS = frozenset({METHOD_ADMIN, METHOD_SIMULATED})
+METHOD_SIMULATED = "simulated"  # 이전 파일 이벤트 호환용
+METHOD_SIMULATED_CONSISTENCY = "simulated_consistency"
+_METHODS = frozenset({METHOD_ADMIN, METHOD_SIMULATED, METHOD_SIMULATED_CONSISTENCY})
 
 _OUTCOMES = frozenset({"paid", "denied", "partial", "pending"})
 
@@ -79,9 +80,24 @@ class DemoStoreResult:
     submission_id: str
     duplicate: bool = False
     path: str = ""
+    promoted: bool = False
+    verification: str = "unverified"
+    reason_codes: tuple[str, ...] = ()
+    rule_version: str = ""
 
 
-def store(payload: dict, *, received_at: datetime | None = None) -> DemoStoreResult:
+def backend_name() -> str:
+    from app.core.config import get_settings
+
+    return get_settings().DEMO_STORE_BACKEND
+
+
+def store(
+    payload: dict,
+    *,
+    received_at: datetime | None = None,
+    auto_validate: bool = False,
+) -> DemoStoreResult:
     """합성 제출 하나를 보관한다. **집계에는 아직 들어가지 않는다.**"""
     outcome = str(payload.get("outcome") or "").strip()
     if outcome not in _OUTCOMES:
@@ -90,6 +106,23 @@ def store(payload: dict, *, received_at: datetime | None = None) -> DemoStoreRes
     now = received_at or datetime.now(timezone.utc)
     client = _safe(str(payload.get("client_ref") or "unknown"))
     key = _idem_key(payload, client)
+    decision = None
+    if auto_validate:
+        from app.core.domain.synthetic_validation import evaluate
+
+        decision = evaluate(payload)
+
+    if backend_name() == "postgres":
+        from app.adapters import pg_demo_submission_store as pg
+
+        return pg.store(
+            payload,
+            client_ref=client,
+            idempotency_key=key,
+            received_at=now,
+            decision=decision,
+        )
+
     day_dir = _SUBMISSIONS / now.strftime("%Y-%m") / client
 
     existing = list(day_dir.glob(f"*_{key}.json")) if day_dir.exists() else []
@@ -123,7 +156,69 @@ def store(payload: dict, *, received_at: datetime | None = None) -> DemoStoreRes
     except OSError as e:
         raise InfraError(f"합성 제출을 저장하지 못했습니다: {e}") from e
 
-    return DemoStoreResult(stored=True, submission_id=key, path=_rel(path))
+    result = DemoStoreResult(stored=True, submission_id=key, path=_rel(path))
+    if decision is None:
+        return result
+    if decision.accepted:
+        promote(
+            key,
+            method=METHOD_SIMULATED_CONSISTENCY,
+            actor="simulator",
+            at=now,
+        )
+        return DemoStoreResult(
+            stored=True,
+            submission_id=key,
+            path=_rel(path),
+            promoted=True,
+            verification="synthetic_consistency",
+            reason_codes=decision.reason_codes,
+            rule_version=decision.rule_version,
+        )
+    _append_file_verification(
+        submission_id=key,
+        decision="rejected",
+        method=METHOD_SIMULATED_CONSISTENCY,
+        level="synthetic_consistency",
+        rule_version=decision.rule_version,
+        reason_codes=decision.reason_codes,
+        evidence=decision.evidence,
+        actor="simulator",
+        at=now,
+    )
+    return DemoStoreResult(
+        stored=True,
+        submission_id=key,
+        path=_rel(path),
+        verification="rejected",
+        reason_codes=decision.reason_codes,
+        rule_version=decision.rule_version,
+    )
+
+
+def _append_file_verification(
+    *, submission_id: str, decision: str, method: str, level: str,
+    rule_version: str, reason_codes: tuple[str, ...], evidence: dict,
+    actor: str, at: datetime,
+) -> None:
+    event = {
+        "submission_id": submission_id,
+        "decision": decision,
+        "verification_method": method,
+        "verification": level,
+        "rule_version": rule_version,
+        "reason_codes": list(reason_codes),
+        "evidence": evidence,
+        "verified_by": actor,
+        "verified_at": at.isoformat(),
+        "data_source": "synthetic",
+    }
+    try:
+        _VERIFICATION_EVENTS.parent.mkdir(parents=True, exist_ok=True)
+        with _VERIFICATION_EVENTS.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(event, ensure_ascii=False) + "\n")
+    except OSError as e:
+        raise InfraError(f"합성 검증 이벤트를 저장하지 못했습니다: {e}") from e
 
 
 def _rel(path: Path) -> str:
@@ -161,6 +256,10 @@ def _promoted_ids() -> set[str]:
 
 def pending(limit: int = 100) -> list[dict]:
     """검수 대기 목록 — 아직 승격되지 않은 합성 제출."""
+    if backend_name() == "postgres":
+        from app.adapters import pg_demo_submission_store as pg
+
+        return pg.pending(limit)
     done = _promoted_ids()
     out: list[dict] = []
     for p in _iter_submission_files():
@@ -185,6 +284,14 @@ def promote(submission_id: str, *, method: str, actor: str,
     """
     if method not in _METHODS:
         raise ValidationErr(f"승격 방법은 {sorted(_METHODS)} 중 하나여야 합니다: {method!r}")
+    if backend_name() == "postgres":
+        if method != METHOD_ADMIN:
+            raise ValidationErr(
+                "PostgreSQL 자동 정합성 검사는 제출 트랜잭션 안에서만 실행할 수 있습니다."
+            )
+        from app.adapters import pg_demo_submission_store as pg
+
+        return pg.promote(submission_id, actor=actor, at=at)
     sid = (submission_id or "").strip()
     if not sid:
         raise ValidationErr("submission_id 가 비어 있습니다.")
@@ -202,6 +309,11 @@ def promote(submission_id: str, *, method: str, actor: str,
         raise ValidationErr(f"합성 제출을 찾을 수 없습니다: {sid}")
 
     now = at or datetime.now(timezone.utc)
+    level = (
+        "synthetic_consistency"
+        if method in {METHOD_SIMULATED, METHOD_SIMULATED_CONSISTENCY}
+        else "synthetic_admin_review"
+    )
     event = {
         "submission_id": sid,
         "client_ref": rec.get("client_ref"),
@@ -211,7 +323,7 @@ def promote(submission_id: str, *, method: str, actor: str,
         "age_band": rec.get("age_band"),
         "outcome": rec.get("outcome"),
         #: ★이 값이 `_COUNTED` 에 들어가야 비로소 집계된다.
-        "verification": PROMOTED_VERIFICATION,
+        "verification": level,
         "verification_method": method,
         "verified_by": actor,
         "verified_at": now.isoformat(),
@@ -228,12 +340,31 @@ def promote(submission_id: str, *, method: str, actor: str,
 
 def counts() -> dict:
     """대시보드용 요약 — 제출 몇 건 중 몇 건이 승격됐나."""
+    if backend_name() == "postgres":
+        from app.adapters import pg_demo_submission_store as pg
+
+        return pg.counts()
     total = sum(1 for _ in _iter_submission_files())
     promoted = len(_promoted_ids())
     return {"submitted": total, "promoted": promoted, "pending": total - promoted}
 
 
+def reset() -> dict:
+    """선택한 합성 백엔드만 비운다. 실제 트랙 경로는 알지 못한다."""
+    if backend_name() == "postgres":
+        from app.adapters import pg_demo_submission_store as pg
+
+        return pg.reset()
+    removed: list[str] = []
+    for d in (_SUBMISSIONS, _COHORT_EVENTS.parent, _VERIFICATION_EVENTS.parent):
+        if d.exists():
+            shutil.rmtree(d)
+            removed.append(_rel(d))
+    return {"reset": True, "removed": removed, "data_source": "synthetic"}
+
+
 __all__ = [
-    "METHOD_ADMIN", "METHOD_SIMULATED", "PROMOTED_VERIFICATION",
-    "DemoStoreResult", "counts", "pending", "promote", "store",
+    "METHOD_ADMIN", "METHOD_SIMULATED", "METHOD_SIMULATED_CONSISTENCY",
+    "DemoStoreResult", "backend_name", "counts",
+    "pending", "promote", "reset", "store",
 ]

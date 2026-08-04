@@ -29,6 +29,10 @@ RATE_TOKEN = re.compile(r"(?<![0-9A-Za-z가-힣])(?:100|[1-9]\d?)(?![0-9A-Za-z�
 HEADER_CLASS = re.compile(r"장해\s*의?\s*분류")
 HEADER_RATE = re.compile(r"지급\s*률")
 SECTION_BREAK = re.compile(r"(?:^|\s)[나-하]\s*[.．]\s*(?:장해판정|판정기준)")
+PAGE_HEADER = re.compile(r"장해\s*의?\s*분류\s*\n\s*지급\s*률\s*\(%\)")
+PAGE_SECTION_BREAK = re.compile(r"(?m)^\s*[나-하]\s*[.．]\s*(?:장해판정|판정기준)")
+LINE_ITEM = re.compile(r"^\s*(\d{1,2})\)\s*(.*)$")
+LINE_RATE = re.compile(r"^\s*(100|[1-9]\d?)\s*%?\s*$")
 
 
 def _s5_files(root: Path) -> list[Path]:
@@ -70,6 +74,49 @@ def _split_items(text: str) -> tuple[list[int], list[str]]:
     return ordinals, descriptions
 
 
+def _vectors_from_page_text(text: str) -> tuple[list[int], list[str], list[int]]:
+    """Read item descriptions followed by the vertical rate vector.
+
+    PyMuPDF's reading-order text preserves these tables better than the
+    rejected coordinate grid: complete descriptions come first and the rate
+    column follows as one standalone number per line.
+    """
+    header = PAGE_HEADER.search(text or "")
+    if not header:
+        return [], [], []
+    body = text[header.end() :]
+    end = PAGE_SECTION_BREAK.search(body)
+    if end:
+        body = body[: end.start()]
+    ordinals: list[int] = []
+    descriptions: list[str] = []
+    rates: list[int] = []
+    rate_started = False
+    for raw_line in body.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        rate = LINE_RATE.match(line)
+        item = LINE_ITEM.match(line)
+        if rate_started:
+            if rate:
+                rates.append(int(rate.group(1)))
+                continue
+            break
+        if item:
+            ordinal = int(item.group(1))
+            ordinals.append(ordinal)
+            descriptions.append(item.group(2).strip())
+            continue
+        if rate and ordinals:
+            rate_started = True
+            rates.append(int(rate.group(1)))
+            continue
+        if descriptions:
+            descriptions[-1] = " ".join((descriptions[-1] + " " + line).split())
+    return ordinals, descriptions, rates
+
+
 def _candidate_from_table(doc: dict, page: dict, table: dict) -> dict | None:
     records = table.get("records") or []
     if not records:
@@ -78,18 +125,19 @@ def _candidate_from_table(doc: dict, page: dict, table: dict) -> dict | None:
     if not (HEADER_CLASS.search(blob) and HEADER_RATE.search(blob)):
         return None
 
+    page_ordinals, page_descriptions, page_rates = _vectors_from_page_text(page.get("text") or "")
     header_index = None
     for index, record in enumerate(records):
         cells = _ordered_cells(record)
         if HEADER_CLASS.search(" ".join(cells)) and HEADER_RATE.search(" ".join(cells)):
             header_index = index
             break
-    if header_index is None:
+    if header_index is None and not (page_ordinals and page_rates):
         return None
 
     left_parts: list[str] = []
     right_parts: list[str] = []
-    for record in records[header_index + 1 :]:
+    for record in records[(header_index + 1 if header_index is not None else 0) :]:
         cells = _ordered_cells(record)
         if len(cells) < 2:
             continue
@@ -98,10 +146,15 @@ def _candidate_from_table(doc: dict, page: dict, table: dict) -> dict | None:
         left_parts.append(cells[0])
         right_parts.append(" ".join(cells[1:]))
 
-    left = " ".join(left_parts)
-    right = " ".join(right_parts)
-    ordinals, descriptions = _split_items(left)
-    rates = [int(token) for token in RATE_TOKEN.findall(right)]
+    if page_ordinals and page_rates:
+        ordinals, descriptions, rates = page_ordinals, page_descriptions, page_rates
+        recovery_basis = "page_reading_order_item_list_plus_vertical_rate_vector"
+    else:
+        left = " ".join(left_parts)
+        right = " ".join(right_parts)
+        ordinals, descriptions = _split_items(left)
+        rates = [int(token) for token in RATE_TOKEN.findall(right)]
+        recovery_basis = "coordinate_columns_fallback"
     expected = list(range(1, len(ordinals) + 1))
     checks = {
         "header_pair": True,
@@ -147,6 +200,7 @@ def _candidate_from_table(doc: dict, page: dict, table: dict) -> dict | None:
         "method": table.get("method"),
         "original_is_table": table.get("is_table"),
         "original_reject_why": table.get("reject_why") or [],
+        "recovery_basis": recovery_basis,
         "checks": checks,
         "facts": facts,
     }
@@ -165,26 +219,36 @@ def scan(files: list[Path], shard_index: int, shard_count: int) -> tuple[list[di
             continue
         for page in doc.get("pages") or []:
             stats["pages_scanned"] += 1
+            header_tables: list[dict] = []
             for table in page.get("tables_coords") or []:
                 stats["coordinate_tables_scanned"] += 1
                 blob = _table_text(table)
                 if not (HEADER_CLASS.search(blob) and HEADER_RATE.search(blob)):
                     continue
                 stats["header_pair_tables"] += 1
-                result = _candidate_from_table(doc, page, table)
-                if not result:
-                    continue
-                if result.get("accepted_by_invariant"):
-                    candidates.append(result)
-                    stats["candidate_tables"] += 1
-                    stats["candidate_facts"] += len(result["facts"])
-                    if table.get("is_table") is False:
-                        stats["recovered_from_rejected_tables"] += 1
-                else:
-                    stats["invariant_rejections"] += 1
-                    for name, passed in result["checks"].items():
-                        if not passed:
-                            stats[f"rejected_{name}"] += 1
+                header_tables.append(table)
+            if not header_tables:
+                continue
+            stats["header_pair_pages"] += 1
+            page_results = [
+                result
+                for table in header_tables
+                if (result := _candidate_from_table(doc, page, table)) is not None
+            ]
+            accepted = next((result for result in page_results if result.get("accepted_by_invariant")), None)
+            if accepted:
+                candidates.append(accepted)
+                stats["candidate_tables"] += 1
+                stats["candidate_facts"] += len(accepted["facts"])
+                if accepted.get("original_is_table") is False:
+                    stats["recovered_from_rejected_tables"] += 1
+                continue
+            if page_results:
+                stats["invariant_rejections"] += 1
+                result = page_results[0]
+                for name, passed in result["checks"].items():
+                    if not passed:
+                        stats[f"rejected_{name}"] += 1
     return candidates, dict(sorted(stats.items()))
 
 
@@ -204,8 +268,33 @@ def main() -> None:
     suffix = f"shard{args.shard_index:02d}-of-{args.shard_count:02d}"
     jsonl_path = args.output / f"candidates_{suffix}.jsonl"
     summary_path = args.output / f"summary_{suffix}.json"
+    review_path = args.output / f"pattern_review_{suffix}.jsonl"
     with jsonl_path.open("w", encoding="utf-8") as stream:
         for row in candidates:
+            stream.write(json.dumps(row, ensure_ascii=False) + "\n")
+    patterns: dict[str, dict] = {}
+    for row in candidates:
+        payload = [
+            (fact["classification"], fact["payment_rate_percent"])
+            for fact in row["facts"]
+        ]
+        signature = hashlib.sha256(
+            json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+        if signature not in patterns:
+            patterns[signature] = {
+                "pattern_id": signature,
+                "occurrences": 0,
+                "review_status": "pending_human_pair_accuracy",
+                "representative": {
+                    key: row.get(key)
+                    for key in ("candidate_id", "source_sha12", "insurer", "product_name", "page", "table_id")
+                },
+                "facts": row["facts"],
+            }
+        patterns[signature]["occurrences"] += 1
+    with review_path.open("w", encoding="utf-8") as stream:
+        for row in sorted(patterns.values(), key=lambda value: value["pattern_id"]):
             stream.write(json.dumps(row, ensure_ascii=False) + "\n")
     summary = {
         "schema_version": "s7-disability-rate-candidate-v1",
@@ -217,7 +306,9 @@ def main() -> None:
         "gate": "header pair + sequential numbered items + nonempty descriptions + equal rate vector + 1..100",
         "release_policy": "candidate_only; serving/citation blocked until human approval",
         "stats": stats,
+        "unique_exact_patterns": len(patterns),
         "candidate_jsonl": str(jsonl_path),
+        "pattern_review_jsonl": str(review_path),
     }
     summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(summary, ensure_ascii=False, indent=2))

@@ -78,6 +78,33 @@ def test_liveness_returns_valid_probability():
     assert isinstance(r["is_live"], bool)
 
 
+def test_실제_얼굴은_기본_임계값에서_라이브니스를_통과한다():
+    """★★**이 시험이 없어서 아무도 얼굴을 등록할 수 없었다(2026-08-04).**
+
+    `_liveness_prob` 이 MiniFASNet 출력의 **0번 축**을 live 로 읽고 있었다.
+    실제 순서는 `[2D-spoof, live, 3D-spoof]` 라 실제 얼굴의 0번 값은 ~0.001 이고,
+    임계값이 0.50 이므로 **모든 실제 얼굴이 위조로 거부됐다.**
+
+    ★기존 시험들은 전부 `relax_liveness`(임계값 0.0)를 쓰거나 값의 **범위만** 봤다.
+      `0.001 >= 0.0` 은 참이므로 초록불이었다 — **임계값을 낮춰 통과시키는 것이
+      이 결함을 정확히 가렸다.** 그래서 이 시험은 fixture 를 쓰지 않는다.
+    """
+    r = analyze_face(_A_REG1)
+    assert r["is_live"] is True, (
+        f"실제 얼굴이 위조로 거부됩니다(live_prob={r['live_prob']}). "
+        "라이브니스 클래스 축이 틀렸을 수 있습니다 — MiniFASNet 은 index 1 이 live 입니다."
+    )
+    #: 축을 틀리면 값이 0 근처로 붙는다. 여유를 두되 "확실히 live 쪽"인지 본다.
+    assert r["live_prob"] > 0.5
+
+
+def test_라이브니스_클래스_축이_상수로_고정돼_있다():
+    """★축 번호가 코드 여기저기 흩어지면 또 틀린다. 한 곳에만 둔다."""
+    from app.ml.face import _LIVE_CLASS
+
+    assert _LIVE_CLASS == 1, "MiniFASNet 의 live 클래스는 index 1 입니다."
+
+
 def test_quality_gate_rejects_blurry_on_register():
     from app.core.errors import ValidationErr
 

@@ -10,7 +10,8 @@
 
     1. **받은 것은 손대지 않고 남긴다**
 
-        data/external/submissions/{YYYY-MM}/{client_ref}/{ts}_{idem}.json
+        공개: data/external/submissions/{YYYY-MM}/{client_ref}/{ts}_{idem}.json
+        등록: data/external/submissions/registered_agent/{YYYY-MM}/{client_ref}/{ts}_{idem}.json
 
        나중에 파싱 규칙이 바뀐다. 정규화한 것만 두면 "그때 뭘 받았나"를
        다시 볼 수 없다. 약관 PDF 를 원본으로 두는 것과 같은 이유다.
@@ -38,16 +39,21 @@ from __future__ import annotations
 
 import hashlib
 import json
+import threading
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-from app.core.errors import InfraError
+from app.core.errors import ConflictErr, InfraError, ValidationErr
 
 _ROOT = Path(__file__).resolve().parents[2]
 _BASE = _ROOT / "data" / "external"
 _SUBMISSIONS = _BASE / "submissions"
 _EVENTS = _BASE / "events"
+_STORE_LOCK = threading.RLock()
+_PUBLIC_CHANNEL = "public"
+_REGISTERED_CHANNEL = "registered_agent"
+_CHANNELS = {_PUBLIC_CHANNEL, _REGISTERED_CHANNEL}
 
 #: ★클라이언트가 무엇을 보내든 이 값으로 고정한다.
 _FIXED_VERIFICATION = "unverified"
@@ -59,6 +65,8 @@ class StoreResult:
 
     stored: bool
     idempotency_key: str
+    submission_id: str
+    channel: str
     #: 이미 있던 것이면 True — 재시도다.
     duplicate: bool = False
     raw_path: str = ""
@@ -76,24 +84,196 @@ def _rel(path: Path) -> str:
         return str(path)
 
 
-def _safe(s: str, *, limit: int = 40) -> str:
-    """경로에 쓸 수 있게 다듬는다. 경로 조작을 막는다."""
+def _legacy_safe(s: str, *, limit: int = 40) -> str:
+    """기존 파일 경로를 찾기 위한 v1 token."""
     out = "".join(ch for ch in (s or "") if ch.isalnum() or ch in "-_")
     return (out or "unknown")[:limit]
+
+
+def _path_token(value: str, *, limit: int = 72) -> str:
+    """경로용 표현과 논리 identity를 분리한다.
+
+    전체 값의 hash suffix를 항상 붙여 잘림·문자 정규화로 서로 다른 값이 합쳐지지 않게 한다.
+    """
+
+    raw = value or "unknown"
+    cleaned = "".join(ch for ch in raw if ch.isalnum() or ch in "-_.~") or "unknown"
+    suffix = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
+    head = cleaned[: max(1, limit - len(suffix) - 1)]
+    return f"{head}-{suffix}"
+
+
+def _payload_for_hash(payload: dict) -> dict:
+    """값 없는 신규 메타필드는 배포 전 payload의 내용 멱등키를 바꾸지 않는다."""
+
+    normalized = dict(payload)
+    if not normalized.get("idempotency_key"):
+        normalized.pop("idempotency_key", None)
+    return normalized
 
 
 def _idem_key(payload: dict, client_ref: str) -> str:
     """멱등키. 클라이언트가 안 주면 내용으로 만든다."""
     given = (payload.get("idempotency_key") or "").strip()
     if given:
-        return _safe(given, limit=64)
+        return given
     raw = json.dumps(
-        {"c": client_ref, "p": payload}, ensure_ascii=False, sort_keys=True
+        {"c": client_ref, "p": _payload_for_hash(payload)},
+        ensure_ascii=False,
+        sort_keys=True,
     )
     return hashlib.sha256(raw.encode()).hexdigest()[:24]
 
 
-def store(payload: dict, *, received_at: datetime | None = None) -> StoreResult:
+def _payload_hash(payload: dict) -> str:
+    raw = json.dumps(
+        _payload_for_hash(payload),
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def _channel_root(channel: str) -> Path:
+    return _SUBMISSIONS if channel == _PUBLIC_CHANNEL else _SUBMISSIONS / _REGISTERED_CHANNEL
+
+
+def _record_channel(record: dict) -> str:
+    provenance = record.get("provenance")
+    if isinstance(provenance, dict):
+        return str(provenance.get("channel") or _PUBLIC_CHANNEL)
+    return _PUBLIC_CHANNEL
+
+
+def _existing_for(client: str, key: str, *, channel: str) -> list[Path]:
+    """월 경계를 넘어 재시도해도 같은 client/key를 다시 쌓지 않는다."""
+
+    root = _channel_root(channel)
+    if not root.exists():
+        return []
+    candidates = list(
+        root.glob(f"*/{_path_token(client)}/*_{_path_token(key)}.json")
+    )
+    if channel == _PUBLIC_CHANNEL:
+        # 배포 전 v1 경로도 논리 identity를 읽어 대조한다.
+        candidates.extend(
+            root.glob(
+                f"*/{_legacy_safe(client)}/*_{_legacy_safe(key, limit=64)}.json"
+            )
+        )
+    matched: list[Path] = []
+    for path in sorted(set(candidates)):
+        try:
+            record = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as e:
+            raise InfraError(f"기존 보고의 멱등성 정보를 읽지 못했습니다: {e}") from e
+        if (
+            str(record.get("client_ref") or "") == client
+            and str(record.get("idempotency_key") or "") == key
+            and _record_channel(record) == channel
+        ):
+            matched.append(path)
+    return matched
+
+
+def _stable_submission_id(*, channel: str, client: str, key: str) -> str:
+    raw = f"{channel}\x1f{client}\x1f{key}"
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:32]
+
+
+def _normalized_event(
+    payload: dict,
+    *,
+    client: str,
+    key: str,
+    submission_id: str,
+    channel: str,
+    at: datetime,
+) -> dict:
+    return {
+        "event": "claim_outcome",
+        "at": at.isoformat(timespec="seconds"),
+        "idempotency_key": key,
+        "submission_id": submission_id,
+        "client_ref": client,
+        "ingest_channel": channel,
+        "insurer": payload.get("insurer", ""),
+        "enrolled_on": payload.get("enrolled_on", ""),
+        "kcd_codes": payload.get("kcd_codes", []),
+        "outcome": payload.get("outcome", ""),
+        "outcome_reason": payload.get("outcome_reason", ""),
+        "precheck_trace_id": payload.get("precheck_trace_id"),
+        "verification": _FIXED_VERIFICATION,
+    }
+
+
+def _event_exists(*, client: str, key: str, channel: str) -> bool:
+    if not _EVENTS.exists():
+        return False
+    for path in sorted(_EVENTS.glob("*.jsonl")):
+        try:
+            lines = path.read_text(encoding="utf-8").splitlines()
+        except OSError as e:
+            raise InfraError(f"기존 보고 이벤트를 읽지 못했습니다: {e}") from e
+        for line in lines:
+            if not line.strip():
+                continue
+            try:
+                event = json.loads(line)
+            except json.JSONDecodeError as e:
+                raise InfraError(f"기존 보고 이벤트가 깨졌습니다: {path.name} — {e}") from e
+            event_channel = event.get("ingest_channel") or _PUBLIC_CHANNEL
+            if (
+                event.get("client_ref") == client
+                and event.get("idempotency_key") == key
+                and event_channel == channel
+            ):
+                return True
+    return False
+
+
+def _append_event(event: dict, *, day: str) -> None:
+    _EVENTS.mkdir(parents=True, exist_ok=True)
+    with (_EVENTS / f"{day}.jsonl").open("a", encoding="utf-8") as f:
+        f.write(json.dumps(event, ensure_ascii=False) + "\n")
+
+
+def store(
+    payload: dict,
+    *,
+    received_at: datetime | None = None,
+    channel: str = _PUBLIC_CHANNEL,
+    authenticated_client_id: str | None = None,
+) -> StoreResult:
+    """프로세스 안의 동시 제출을 직렬화한다.
+
+    등록 에이전트 경로의 다중 프로세스 멱등성 정본은 PostgreSQL
+    ``ops.agent_idempotency``다. 공개 UI 파일 경로도 최소한 같은 프로세스에서는
+    검사와 쓰기가 원자적으로 이어지게 한다.
+    """
+
+    if channel not in _CHANNELS:
+        raise ValidationErr(f"알 수 없는 observation channel입니다: {channel}")
+    logical_client = str(payload.get("client_ref") or "unknown")
+    if channel == _REGISTERED_CHANNEL and authenticated_client_id != logical_client:
+        raise ValidationErr("인증 client와 observation client identity가 다릅니다.")
+    with _STORE_LOCK:
+        return _store_unlocked(
+            payload,
+            received_at=received_at,
+            channel=channel,
+            authenticated_client_id=authenticated_client_id,
+        )
+
+
+def _store_unlocked(
+    payload: dict,
+    *,
+    received_at: datetime | None = None,
+    channel: str,
+    authenticated_client_id: str | None,
+) -> StoreResult:
     """보고 하나를 저장한다.
 
     Args:
@@ -104,27 +284,58 @@ def store(payload: dict, *, received_at: datetime | None = None) -> StoreResult:
         `StoreResult`. `duplicate=True` 면 이미 받은 것이다.
     """
     now = received_at or datetime.now(timezone.utc)
-    client = _safe(str(payload.get("client_ref") or "unknown"))
+    client = str(payload.get("client_ref") or "unknown")
     key = _idem_key(payload, client)
 
     month = now.strftime("%Y-%m")
     day = now.strftime("%Y-%m-%d")
     ts = now.strftime("%Y%m%dT%H%M%SZ")
 
-    raw_dir = _SUBMISSIONS / month / client
-    raw_path = raw_dir / f"{ts}_{key}.json"
+    raw_dir = _channel_root(channel) / month / _path_token(client)
+    raw_path = raw_dir / f"{ts}_{_path_token(key)}.json"
 
     #: ★멱등 — 같은 키가 이미 있으면 새로 쓰지 않는다.
-    existing = list(raw_dir.glob(f"*_{key}.json")) if raw_dir.exists() else []
+    existing = _existing_for(client, key, channel=channel)
     if existing:
+        try:
+            previous = json.loads(existing[0].read_text(encoding="utf-8"))
+            previous_payload = previous.get("payload", previous)
+        except (OSError, json.JSONDecodeError) as e:
+            raise InfraError(f"기존 보고의 멱등성 정보를 읽지 못했습니다: {e}") from e
+        if _payload_hash(previous_payload) != _payload_hash(payload):
+            raise ConflictErr("같은 idempotency_key에 다른 payload가 제출됐습니다.")
+        # 원본 작성 뒤 event append에서 죽었던 부분 기록을 재시도로 복구한다.
+        submission_id = str(previous.get("submission_id") or key)
+        if not _event_exists(client=client, key=key, channel=channel):
+            try:
+                previous_at = datetime.fromisoformat(str(previous.get("received_at") or ""))
+            except ValueError:
+                previous_at = now
+            try:
+                _append_event(
+                    _normalized_event(
+                        previous_payload,
+                        client=client,
+                        key=key,
+                        submission_id=submission_id,
+                        channel=channel,
+                        at=previous_at,
+                    ),
+                    day=previous_at.strftime("%Y-%m-%d"),
+                )
+            except OSError as e:
+                raise InfraError(f"누락된 보고 이벤트를 복구하지 못했습니다: {e}") from e
         return StoreResult(
             stored=False,
             idempotency_key=key,
+            submission_id=submission_id,
+            channel=channel,
             duplicate=True,
             raw_path=_rel(existing[0]),
         )
 
     try:
+        submission_id = _stable_submission_id(channel=channel, client=client, key=key)
         raw_dir.mkdir(parents=True, exist_ok=True)
         #: ① 원본 그대로. 정규화는 따로 한다.
         raw_path.write_text(
@@ -133,6 +344,15 @@ def store(payload: dict, *, received_at: datetime | None = None) -> StoreResult:
                     "received_at": now.isoformat(timespec="seconds"),
                     "client_ref": client,
                     "idempotency_key": key,
+                    "submission_id": submission_id,
+                    "provenance": {
+                        "channel": channel,
+                        "authenticated_client_id": (
+                            authenticated_client_id
+                            if channel == _REGISTERED_CHANNEL
+                            else None
+                        ),
+                    },
                     #: ★손대지 않은 원본.
                     "payload": payload,
                 },
@@ -143,28 +363,26 @@ def store(payload: dict, *, received_at: datetime | None = None) -> StoreResult:
         )
 
         #: ② 정규화 이벤트 — append-only.
-        _EVENTS.mkdir(parents=True, exist_ok=True)
-        event = {
-            "event": "claim_outcome",
-            "at": now.isoformat(timespec="seconds"),
-            "idempotency_key": key,
-            "client_ref": client,
-            "insurer": payload.get("insurer", ""),
-            "enrolled_on": payload.get("enrolled_on", ""),
-            "kcd_codes": payload.get("kcd_codes", []),
-            "outcome": payload.get("outcome", ""),
-            "outcome_reason": payload.get("outcome_reason", ""),
-            "precheck_trace_id": payload.get("precheck_trace_id"),
-            #: ★클라이언트가 뭐라 보내든 미검증이다.
-            "verification": _FIXED_VERIFICATION,
-        }
-        with (_EVENTS / f"{day}.jsonl").open("a", encoding="utf-8") as f:
-            f.write(json.dumps(event, ensure_ascii=False) + "\n")
+        _append_event(
+            _normalized_event(
+                payload,
+                client=client,
+                key=key,
+                submission_id=submission_id,
+                channel=channel,
+                at=now,
+            ),
+            day=day,
+        )
     except OSError as e:
         raise InfraError(f"보고를 저장하지 못했습니다: {e}") from e
 
     return StoreResult(
-        stored=True, idempotency_key=key, raw_path=_rel(raw_path)
+        stored=True,
+        idempotency_key=key,
+        submission_id=submission_id,
+        channel=channel,
+        raw_path=_rel(raw_path),
     )
 
 
@@ -254,6 +472,7 @@ def pending(limit: int = 100) -> list[dict]:
         out.append({
             "submission_id": sid,
             "received_at": rec.get("received_at", ""),
+            "ingest_channel": _record_channel(rec),
             "client_ref": pl.get("client_ref") or rec.get("client_ref"),
             "insurer": pl.get("insurer", ""),
             "kcd_codes": pl.get("kcd_codes") or [],
@@ -309,6 +528,7 @@ def attest(submission_id: str, *, basis: str, actor: str,
     pl = _payload(rec)
     event = {
         "submission_id": sid,
+        "ingest_channel": _record_channel(rec),
         "client_ref": pl.get("client_ref") or rec.get("client_ref"),
         "insurer": pl.get("insurer", ""),
         "kcd_codes": pl.get("kcd_codes") or [],

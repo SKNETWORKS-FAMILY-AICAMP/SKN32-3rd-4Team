@@ -14,7 +14,9 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
+from app.core.config import get_settings
 from app.core.errors import InfraError, ValidationErr
+from app.core.llm_clients import get_active_model
 from app.core.usecases import chat
 
 router = APIRouter(prefix="/v1", tags=["chat"])
@@ -31,8 +33,24 @@ def _source():
     return build_glossary()
 
 
+def _model():
+    from app.adapters.llm_gateway import LlmGateway
+
+    return LlmGateway()
+
+
 @router.post("/chat")
 def chat_turn(body: ChatRequest) -> dict:
+    return _chat_turn(body, record_knowledge_gap=True)
+
+
+def chat_turn_for_registered_agent(body: ChatRequest) -> dict:
+    """보호 기계 채널용. 사용자 질문 원문을 knowledge-gap 로그에 복제하지 않는다."""
+
+    return _chat_turn(body, record_knowledge_gap=False)
+
+
+def _chat_turn(body: ChatRequest, *, record_knowledge_gap: bool) -> dict:
     """용어 질문에 **약관 원문 인용으로** 답한다.
 
     ★보장 질문에는 답하지 않는다. 판정 양식으로 안내한다.
@@ -49,10 +67,37 @@ def chat_turn(body: ChatRequest) -> dict:
         ) from e
 
     ex = turn.explanation
+    message = turn.message
+    llm_used = False
+
+    #: ★★**지식갭 큐를 보험 경로에 연결한다(2026-08-04).**
+    #:
+    #:   그동안 이 큐에 쓰는 곳은 커머스 RAG(`/api/rag/qa`) 하나뿐이었다.
+    #:   그 경로는 고객 포트에 실리지도 않고 어떤 화면도 부르지 않는다 —
+    #:   그래서 관리자 대시보드의 "지식갭" 패널이 **영원히 0건**이었다.
+    #:   계획서 §2-1 은 "근거 인용 + abstention → 지식갭 큐"를 재사용 자산으로 꼽았는데
+    #:   **정작 보험 쪽 abstention 이 큐에 닿지 않고 있었다.**
+    #:
+    #:   용어를 못 찾은 것은 **용어집 보강 대상**이다. 그것이 이 큐의 본래 용도다.
+    if record_knowledge_gap and turn.term and not (ex and ex.found):
+        from app.obs.knowledge_gaps import record_gap_safe
+
+        record_gap_safe(f"[용어] {turn.term}")
+    if ex and ex.found:
+        settings = get_settings()
+        if settings.LLM_CHAT_ENABLED:
+            from app.application.grounded_term_answer import explain_term
+
+            message = explain_term(
+                term=turn.term,
+                quotes=[q.quote for q in ex.quotes],
+                model=_model(),
+            )
+            llm_used = True
     return {
         "schema_version": "v1",
         "intent": turn.intent,
-        "message": turn.message,
+        "message": message,
         "next_action": turn.next_action,
         "term": turn.term,
         "found": bool(ex and ex.found),
@@ -70,6 +115,11 @@ def chat_turn(body: ChatRequest) -> dict:
         "total_passages": ex.total_passages if ex else 0,
         "insurers": list(ex.insurers) if ex else [],
         "warnings": list(turn.warnings),
+        "llm": {
+            "used": llm_used,
+            "provider": get_settings().LLM_PROVIDER if llm_used else None,
+            "model": get_active_model() if llm_used else None,
+        },
     }
 
 

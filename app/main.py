@@ -57,8 +57,10 @@ _STATIC_DIR = Path(__file__).resolve().parent / "static"
 #: ★`rag.html`·`rag.js` 는 2026-08-03 에 `legacy/v6_rag_ui.zip` 으로 격리했다.
 #:   커머스 RAG 화면(`/api/rag/qa`·`/api/rag/search`)이라 보험 서비스와 무관하다.
 #:   **없는 파일을 차단 목록에 남기면 "막고 있다"로 읽힌다** — 막을 것이 없으므로 뺀다.
+#: ★`facebench.html`·`facebench.js` 는 2026-08-04 에 `legacy/v9_facebench.zip` 으로 격리했다.
+#:   **없는 파일을 차단 목록에 남기면 "막고 있다"로 읽힌다** — 막을 것이 없으므로 뺀다.
 _OPS_STATIC = {
-    "admin.html", "admin.js", "facebench.html", "facebench.js",
+    "admin.html", "admin.js",
 }
 
 
@@ -189,8 +191,8 @@ def create_app(role: str = "full") -> FastAPI:
 
 ## MCP
 
-`python -m app.mcp.server` (stdio). 도구 3종 — `precheck` · `cohort_stats` ·
-`submit_observation`. 리소스 — `insurance://support-manifest` ·
+`python -m app.mcp.server` (stdio). 도구 4종 — `precheck` · `explain_term` ·
+`cohort_stats` · `submit_observation`. 리소스 — `insurance://support-manifest` ·
 `insurance://runtime-config`.
 
 ## 하지 않는 것

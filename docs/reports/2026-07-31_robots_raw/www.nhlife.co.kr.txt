@@ -1,0 +1,8 @@
+# source: https://www.nhlife.co.kr/robots.txt
+# fetched_at: 2026-07-31T01:07:10+00:00
+# http: HTTP 200
+# sha256: e68aac1031309f5e21d781c7e41db1f076e711d0ed9b3d41287ae46e0ef1efde
+# ---- 이하 원문(수정 없음) ----
+User-agent: *
+Disallow: /ho/ig/
+Disallow: /ho/zz/

@@ -19,6 +19,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from app.core.domain.insurance import Verdict
@@ -146,9 +148,16 @@ class ExternalCaseSubmission(BaseModel):
     enrolled_on: str = ""
     kcd_codes: list[str] = Field(default_factory=list)
     #: 실제로 어떻게 됐나. `paid` / `denied` / `partial` / `pending`
-    outcome: str
+    outcome: Literal["paid", "denied", "partial", "pending"]
     outcome_reason: str = ""
     #: 우리 판정과 대조할 수 있게 `trace_id` 를 주면 좋다(선택).
     precheck_trace_id: str | None = None
     #: ★검증 상태. 기본은 미검증이다. 검증 없이 통계에 넣지 않는다.
     verification: str = "unverified"
+    #: 공개 UI에서는 선택, 등록 에이전트 `/v1/agent/observations`에서는 헤더로 필수다.
+    idempotency_key: str | None = Field(
+        default=None,
+        min_length=8,
+        max_length=64,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9._~-]{7,63}$",
+    )

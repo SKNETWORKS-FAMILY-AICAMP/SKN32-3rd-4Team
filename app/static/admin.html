@@ -1176,12 +1176,16 @@
           <input id="adminPassword" type="password" placeholder="비밀번호" />
         </label>
         <button id="adminLoginBtn" class="login-btn" type="button">로그인</button>
+        <!-- ★일반 계정(USER)으로만 만들어진다. 관리자 승격은 아래 안내 참조. -->
+        <button id="signupBtn" class="login-btn is-ghost" type="button">계정 만들기</button>
         <button id="logoutBtn" class="login-btn is-ghost" type="button">로그아웃</button>
         <span id="loginStatus" class="login-status"></span>
       </div>
       <p class="login-hint">
-        관리자 승격은 CLI 전용입니다(<code>python -m scripts.manage promote &lt;username&gt;</code>) —
-        UI에는 자기 자신을 관리자로 만드는 버튼이 없습니다(권한 상승 사고 방지, 무폴백 설계).
+        <strong>계정 만들기</strong>는 항상 일반 사용자(USER)로 만듭니다.
+        <strong>최초 관리자</strong> 승격만 CLI 전용입니다(<code>python -m scripts.manage promote &lt;username&gt;</code>) —
+        화면에 "관리자로 가입" 버튼을 두면 가입한 누구나 관리자가 되기 때문입니다(권한 상승 방지).
+        그 뒤의 관리자 추가는 로그인 후 <strong>사용자 관리</strong> 패널에서 합니다.
         <code>/api/admin/*</code> 전 경로는 라우터 전역 fail-closed(<code>require_admin</code>)로 보호됩니다 —
         미인증 401, 일반 사용자 403, 관리자만 200.
       </p>
@@ -1400,6 +1404,40 @@
       </div>
 
       <aside class="right-column">
+        <section class="panel" aria-labelledby="usersTitle">
+          <header class="panel-header">
+            <div>
+              <h2 id="usersTitle" class="panel-title">사용자 관리</h2>
+              <p class="panel-subtitle">
+                관리자 추가·해제. <strong>마지막 관리자는 해제할 수 없습니다</strong>(잠금 방지).
+              </p>
+            </div>
+
+            <span id="usersPanelCount" class="panel-count">0명</span>
+          </header>
+
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th scope="col">계정</th>
+                  <th scope="col">권한</th>
+                  <th scope="col">얼굴</th>
+                  <th scope="col" class="num">변경</th>
+                </tr>
+              </thead>
+
+              <tbody id="usersTableBody">
+                <tr class="loading-row">
+                  <td colspan="4"><span class="skeleton"></span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p class="sim-note" id="usersNote" style="padding:0 18px 16px"></p>
+        </section>
+
         <section class="panel" aria-labelledby="modeTitle">
           <header class="panel-header">
             <div>
@@ -1495,10 +1533,12 @@
 
             <label class="sim-check">
               <input id="simAutoVerify" type="checkbox">
-              <span>자동 승격(<code>simulated</code>) — 끄면 아래 검수 큐에서 직접 승인합니다</span>
+              <span>자동 합성 정합성 검사 — 형식·범위 검사를 통과한 합성 건만 승격합니다</span>
             </label>
 
             <p class="sim-hint" id="simHint">
+              이 검사는 <strong>보험금 지급 진위나 보장 여부를 자동 승인하지 않습니다.</strong>
+              합성 시뮬레이터 입력의 내부 정합성만 확인합니다.<br>
               질병기호를 하나로 좁히면 표본이 몰려 <strong>최소표본 30건 게이트를 넘는 순간</strong>을
               보여줄 수 있습니다. 비워 두면 코드당 10건 남짓이라 게이트에 계속 걸립니다 — 그게 정상입니다.
             </p>

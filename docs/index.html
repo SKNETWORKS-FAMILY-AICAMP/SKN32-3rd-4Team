@@ -95,7 +95,12 @@
   <tr><td>보장 판정</td><td><span class="tag t-ok">동작</span></td>
       <td>가입일 → 판본 확정 → 면책 대조 → 원문 인용. <b>확정된 850건 범위 안에서만</b></td></tr>
   <tr><td>리랭커</td><td><span class="tag t-ok">선정 완료</span></td>
-      <td>5종 비교 → <code>Qwen3-Reranker-4B</code>. Hit@1 <b>84.71%</b> (dense 기준선 대비 +20.06%p)</td></tr>
+      <td>5종 비교 → <code>Qwen3-Reranker-4B</code>.
+          <b>전체 질의(n=417) Hit@1 48.44% → 63.79%</b>(+15.35%p).
+          ★앞서 여기 <b>84.71%</b>만 적혀 있었는데 그건 <b>정답이 후보 20개 안에 있는 질의만</b>
+          고른 <code>retrievable</code> 부분집합(n=314)이다 — 분모가 다르다.
+          가장 크게 오른 것은 <b>다른 말로 물었을 때</b>다(<code>exclusion_alt</code> n=106:
+          16.04% → 67.92%). 벡터가 못 찾던 것을 리랭커가 살린다</td></tr>
   <tr><td>파일 ↔ PG 두 경로 정합</td><td><span class="tag t-ok">일치</span></td>
       <td>표본 6약관 동일 6 · 다름 0</td></tr>
   <tr><td>문서 확정</td><td><span class="tag t-warn">부분</span></td>

@@ -135,20 +135,59 @@ CREATE INDEX policy_clause_occurrence_sha ON policy_clause_occurrence (sha256);
 기본값을 `s5` 가 아니라 **`s5-mixed`** 로 둔 것도 의도다. s5 적재 중간에 s6 발생행이 섞인 적이 있어
 그 안이 순수한 s5 라고 **말할 수 없다.** 모르면 모른다고 적는다.
 
-### 2-3. 실측 적재량 (2026-08-04 · S7.1 증분 적재 후)
+### 2-3. 실측 적재량 — ★**DB 를 직접 조회한 값** (2026-08-04 14:17)
 
-| | 값 |
+```sql
+-- 재현: psycopg 로 PGVECTOR_DSN 에 붙어 그대로 실행하면 같은 값이 나온다
+SELECT index_generation, count(*) FROM policy_clause_occurrence GROUP BY 1;
+SELECT source_kind,      count(*) FROM policy_clause_occurrence
+  WHERE index_generation='s6' GROUP BY 1;
+SELECT embed_model,      count(*) FROM policy_clause_chunk GROUP BY 1;
+```
+
+| 테이블 | 행 |
 |---|---:|
-| Arctic-ko 조각 | **122,772** (승인 fact 75 포함) |
-| 발생(occurrence) | **210,733** (승인 fact 850 포함) |
-| 그중 **벡터가 있는 발생** | 189,306 |
-| 벡터 없는 발생 | 20,577행 / 10,500조항 ← 이전 s6 shadow 적재분 |
-| 옛 `ko-sroberta@128` 조각 | 46,385 (`embed_model` 로 격리) |
-| `bad_sha`(64자 위반) | **0** |
-| `readiness.clause_index.ready` | `true` |
+| `policy_clause_occurrence` **전체** | **368,919** |
+| ├ `index_generation = 's6'` ← ★현재 검색 세대 | **210,733** |
+| └ `index_generation = 's5-mixed'` ← 이전 세대 | 158,186 |
+| `policy_clause_content` | **64,607** |
+| `policy_clause_chunk` | **122,772** |
 
-> ★벡터 없는 20,577행은 게이트 값이 전부 `NULL` 이라 검색에서 막혀 있다 — **누수는 0**이지만
-> **검색에도 안 걸린다.** "적재됐다"와 "검색된다"는 다른 말이라 나눠 적는다.
+**`s6` 발생 210,733의 내역**
+
+| 구분 | 값 |
+|---|---:|
+| `source_kind = clause` | 200,881 |
+| `source_kind = annex` | 9,002 |
+| `source_kind = approved_ocr_table_fact` | **850** ← S7.1 승인 facts |
+| **벡터가 있는 발생** | **190,156** |
+| 벡터 없는 발생 | 20,577 |
+| `citation_eligible = true` | **189,890** |
+
+**임베딩 모델별 청크**
+
+| `embed_model` | 청크 |
+|---|---:|
+| `dragonkue/snowflake-arctic-embed-l-v2.0-ko\|-\|d1024\|L8192\|c448\|o80` | **122,772** |
+
+> ★★**두 가지를 정정한다** (2026-08-04 실측으로 확인).
+>
+> 1. **옛 `ko-sroberta@128` 조각 46,385개는 이 테이블에 없다.** `CLAUDE.md` 는
+>    *"`embed_model` 로 갈려 섞이지 않으므로 지우지 않았다"* 고 적었는데,
+>    지금 `policy_clause_chunk` 의 `embed_model` 은 **Arctic-ko 하나뿐**이다.
+>    이 문서의 이전 판도 그 문장을 그대로 옮겨 적었다 — **옮겨 적기 전에 세지 않았다.**
+>    언제 어떻게 사라졌는지는 **확인하지 못했다.**
+> 2. **벡터가 있는 발생은 189,306 이 아니라 190,156** 이다.
+>    189,306 은 S7.1 승인 fact 850 을 적재하기 **전** 값이고, `189,306 + 850 = 190,156` 이다.
+>    리포트의 숫자가 틀린 게 아니라 **시점이 다르다.**
+
+> ★벡터 없는 20,577행과 `s5-mixed` 158,186행은 게이트 값이 전부 `NULL` 이라 검색에서 막혀 있다.
+> **게이트 값이 채워진 다른 세대 행은 0건**(실측) — 누수는 없다.
+> 다만 "적재됐다"와 "검색된다"는 다른 말이라 나눠 적는다.
+
+> ★`s6` 발생의 고유 `content_hash` 는 **72,723** 인데 `policy_clause_content` 는 **64,607** 행이다.
+> 차이 8,116 은 `clause` 4,044 + `annex` 4,162 다 — **본문이 없는 발생**이 그만큼 있다.
+> 원인은 **확인하지 못했다.** 이 행들은 부모 조항 복원이 안 되므로 인용에 쓸 수 없다.
 
 ### 2-4. 검색 지연 — HNSW 를 못 쓰던 SQL 을 고쳤다
 

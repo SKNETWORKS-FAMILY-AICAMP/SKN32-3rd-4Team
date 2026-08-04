@@ -34,12 +34,35 @@ def rerank_hits(
     hits: list[ClauseHit],
     *,
     top_n: int | None = None,
+    score_body: str = "chunk",
+    score_chars: int = 1200,
 ) -> list[ClauseHit]:
     """`ClauseHit` 목록을 질의 관련도로 다시 줄 세운다.
 
-    ★채점에 넣는 본문은 `citable_text`(조 전체)다. 조각이 아니다 —
-      법률문은 예외가 뒤에 오므로 조각만 보면 뜻이 반대로 읽힌다.
-      다만 조가 매우 길 수 있어 앞부분만 넣는다(프롬프트 예산).
+    ★★**채점에 무엇을 넣는지가 성능을 가른다** — 실측으로 뒤집힌 자리다(2026-08-05).
+
+        여기 「채점에는 조각이 아니라 조 전체를 넣는다」고 적혀 있었다.
+        이유도 적혀 있었다 — 법률문은 예외가 뒤에 오므로 조각만 보면 뜻이 반대로 읽힌다고.
+        **그 이유는 맞지만 이 자리에 적용할 이유가 아니었다.**
+
+        417질의 · Qwen3-Reranker-4B 실측:
+            조각        hit@1 0.6379
+            조 전체     hit@1 0.5875   ← 5.04%p 낮다
+        면책을 **다른 말로** 물으면 격차가 +19.81%p 까지 벌어진다(0.6792 ↔ 0.4811).
+        조 전체에는 여러 주제가 함께 들어 있어 면책 신호가 묻히기 때문이다.
+        `max_length` 를 1536 으로 올려도 차이는 그대로였다 — 절단 탓이 아니다.
+
+        「예외가 뒤에 온다」는 **최종 답이 맞는가**에 관한 것이지
+        **순위가 맞는가**에 관한 것이 아니었다. 두 관심사를 한 곳에서 처리하려다
+        랭킹을 잃고 있었다.
+
+    ★그래서 **순위는 조각으로, 인용·판정은 조 전체로** 나눈다.
+      이 함수는 순서만 바꾸고, 돌려주는 것은 `ClauseHit` 그대로다 —
+      부르는 쪽은 여전히 `citable_text` 전체를 근거로 쓴다(`citation_guard`).
+
+    `score_body`
+        `"chunk"`        조각(`ClauseHit.text`) — 실측 우세, 기본값
+        `"full_clause"`  조 전체(`citable_text`) — 옛 동작. 비교·회귀용으로 남긴다
     """
     from app.application.ports import Evidence
 
@@ -53,9 +76,19 @@ def rerank_hits(
         #: ★조용히 넘기지 않는다. 같은 `clause_id` 가 둘이면 검색이 이미 이상하다.
         raise ValueError(f"clause_id 가 겹칩니다: {len(hits)}건 중 고유 {len(by_id)}건")
 
+    if score_body not in ("chunk", "full_clause"):
+        #: 오타를 조용히 기본값으로 흘리지 않는다 — 어느 쪽으로 쟀는지 모르게 된다.
+        raise ValueError(f"score_body 는 chunk|full_clause 여야 합니다: {score_body!r}")
+
+    def _body(h: ClauseHit) -> str:
+        #: ★조각이 비면 조 전체로 떨어진다. 그 반대는 하지 않는다 —
+        #:   조각은 항상 있지만, `full_text` 는 적재가 반쪽이면 빈다.
+        text = (h.text if score_body == "chunk" else h.citable_text) or h.citable_text
+        return (text or "")[:score_chars]
+
     evidence = [
         Evidence(
-            content=(h.citable_text or "")[:_SCORE_CHARS],
+            content=_body(h),
             source=h.sha256,
             locator=h.clause_id,
             score=0.0,

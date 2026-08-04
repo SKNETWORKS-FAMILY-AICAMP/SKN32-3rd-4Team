@@ -40,6 +40,10 @@ class DemoObservation(BaseModel):
     outcome_reason: str = ""
     precheck_trace_id: str | None = None
     idempotency_key: str | None = None
+    simulation_run_id: str = ""
+    simulation_case_no: int | None = None
+    #: 보험금 진위 검증이 아니라 합성 시뮬레이터 형식의 결정론적 정합성 검사다.
+    auto_validate: bool = False
 
 
 @router.post("/observations", status_code=status.HTTP_202_ACCEPTED)
@@ -49,7 +53,7 @@ def submit_demo_observation(body: DemoObservation) -> dict:
     from app.obs import agent_stream
 
     try:
-        res = demo.store(body.model_dump())
+        res = demo.store(body.model_dump(), auto_validate=body.auto_validate)
     except ValidationErr as e:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e)
@@ -63,20 +67,32 @@ def submit_demo_observation(body: DemoObservation) -> dict:
         "agent.observe",
         client_ref=body.client_ref,
         track="synthetic",
-        detail={"outcome": body.outcome, "codes": body.kcd_codes[:3],
+        detail={"outcome": body.outcome, "code_count": len(body.kcd_codes),
                 "duplicate": res.duplicate},
     )
     return {
-        "accepted": True,
+        # 접수(received)와 코호트 승격(accepted_for_cohort)을 같은 말로 두면
+        # 게이트 거절도 승인처럼 보인다. accepted는 정확한 의미로만 유지한다.
+        "received": True,
+        "accepted": res.promoted,
+        "accepted_for_cohort": res.promoted,
         "data_source": "synthetic",
         "stored": res.stored,
         "duplicate": res.duplicate,
         "submission_id": res.submission_id,
-        "verification": "unverified",
+        "promoted": res.promoted,
+        "verification": res.verification,
+        "reason_codes": list(res.reason_codes),
+        "rule_version": res.rule_version,
         "note": (
             "이미 접수된 보고입니다(재시도로 판단해 새로 쌓지 않았습니다)."
             if res.duplicate
-            else "접수했습니다. **합성 데이터**이며, 검수로 승격되기 전까지 "
-                 "통계에 반영되지 않습니다."
+            else (
+                "합성 정합성 검사를 통과해 합성 코호트에 반영했습니다. "
+                "실제 지급 진위나 보험금 승인을 확인한 것은 아닙니다."
+                if res.promoted
+                else "접수했습니다. **합성 데이터**이며, 검수로 승격되기 전까지 "
+                     "통계에 반영되지 않습니다."
+            )
         ),
     }

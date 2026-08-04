@@ -1,0 +1,1423 @@
+[
+ {
+  "insurer": "DB손해보험",
+  "name": "표준화 실손의료비보장 안정화 할인 특별약관",
+  "sha": "c4089fd0bc4c",
+  "saved_as": "data/raw/insurance_terms/dbins/c4089fd0bc4c_AAE_20150102_약관_표준화 실손의료비보장 안정화 할인 특별약관.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "DB손해보험",
+  "name": "표준화Ⅱ 실손의료비보장 안정화 할인 특별약관1904",
+  "sha": "daa2030d3e41",
+  "saved_as": "data/raw/insurance_terms/dbins/daa2030d3e41_AAO_20190401_약관_표준화Ⅱ 실손의료비보장 안정화 할인 특별약관1904.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "DB손해보험",
+  "name": "실손의료비보장 안정화 할인 특별약관2601",
+  "sha": "4e916dc8c2cb",
+  "saved_as": "data/raw/insurance_terms/dbins/4e916dc8c2cb_약관_ACV(00)_20260101.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "흥국화재",
+  "name": "실손의료비보장 계약전환제도Ⅳ(26.05) 특별약관",
+  "sha": "85f0e02455fc",
+  "saved_as": "data/raw/insurance_terms/heungkukfire/85f0e02455fc_2026-05-06_실손의료비보장 계약전환제도Ⅳ(26.05) 특별약관.pdf",
+  "mark": "【사업방법서"
+ },
+ {
+  "insurer": "흥국화재",
+  "name": "실손의료보험 중지 및 재개(26.05) 특별약관",
+  "sha": "4021f43fb2b6",
+  "saved_as": "data/raw/insurance_terms/heungkukfire/4021f43fb2b6_2026-05-06_실손의료보험 중지 및 재개(26.05) 특별약관.pdf",
+  "mark": "【사업방법서"
+ },
+ {
+  "insurer": "흥국화재",
+  "name": "4세대 실손의료비보장 전환 특별할인(23.01) 특별약관_20230301이후",
+  "sha": "4928b65fd019",
+  "saved_as": "data/raw/insurance_terms/heungkukfire/4928b65fd019_2023-03-01_4세대 실손의료비보장 전환 특별할인(23.01) 특별약관_20230301이후.pdf",
+  "mark": "【사업방법서"
+ },
+ {
+  "insurer": "흥국화재",
+  "name": "4세대 실손의료비보장 전환 특별할인(23.01) 특별약관",
+  "sha": "cc5d127f6f0f",
+  "saved_as": "data/raw/insurance_terms/heungkukfire/cc5d127f6f0f_2023-01-01_4세대 실손의료비보장 전환 특별할인(23.01) 특별약관.pdf",
+  "mark": "【사업방법서"
+ },
+ {
+  "insurer": "흥국화재",
+  "name": "실손의료비보장 안정화 할인Ⅲ(23.01) 특별약관",
+  "sha": "3c5115fa0c62",
+  "saved_as": "data/raw/insurance_terms/heungkukfire/3c5115fa0c62_2023-01-01_실손의료비보장 안정화 할인Ⅲ(23.01) 특별약관.pdf",
+  "mark": "【사업방법서"
+ },
+ {
+  "insurer": "흥국화재",
+  "name": "실손의료비보장 안정화 할인Ⅱ(23.01) 특별약관",
+  "sha": "f1ab7199692e",
+  "saved_as": "data/raw/insurance_terms/heungkukfire/f1ab7199692e_2023-01-01_실손의료비보장 안정화 할인Ⅱ(23.01) 특별약관.pdf",
+  "mark": "【사업방법서"
+ },
+ {
+  "insurer": "흥국화재",
+  "name": "표준화 실손의료비보장 안정화 할인(23.01) 특별약관",
+  "sha": "e2a36120779e",
+  "saved_as": "data/raw/insurance_terms/heungkukfire/e2a36120779e_2023-01-01_표준화 실손의료비보장 안정화 할인(23.01) 특별약관.pdf",
+  "mark": "【사업방법서"
+ },
+ {
+  "insurer": "흥국화재",
+  "name": "실손의료보험 중지 및 재개(23.01) 특별약관",
+  "sha": "44c2bfbedf74",
+  "saved_as": "data/raw/insurance_terms/heungkukfire/44c2bfbedf74_2023-01-01_실손의료보험 중지 및 재개(23.01) 특별약관.pdf",
+  "mark": "【사업방법서"
+ },
+ {
+  "insurer": "흥국화재",
+  "name": "실손의료비보장 계약전환제도Ⅲ(22.10) 특별약관",
+  "sha": "14531ea1287c",
+  "saved_as": "data/raw/insurance_terms/heungkukfire/14531ea1287c_2022-10-01_실손의료비보장 계약전환제도Ⅲ(22.10) 특별약관.pdf",
+  "mark": "【사업방법서"
+ },
+ {
+  "insurer": "흥국화재",
+  "name": "표준화 실손의료비보장 안정화 할인(2001) 특별약관",
+  "sha": "402e38f93eab",
+  "saved_as": "data/raw/insurance_terms/heungkukfire/402e38f93eab_2020-01-01_표준화 실손의료비보장 안정화 할인(2001) 특별약관.pdf",
+  "mark": "【사업방법서"
+ },
+ {
+  "insurer": "흥국화재",
+  "name": "표준화 실손의료비보장 안정화 할인(1901) 특별약관",
+  "sha": "de1ae1d30260",
+  "saved_as": "data/raw/insurance_terms/heungkukfire/de1ae1d30260_2019-01-01_표준화 실손의료비보장 안정화 할인(1901) 특별약관.pdf",
+  "mark": "【사업방법서"
+ },
+ {
+  "insurer": "흥국화재",
+  "name": "표준화 실손의료비보장 안정화 할인 특별약관(1601)",
+  "sha": "a5b66dc232dc",
+  "saved_as": "data/raw/insurance_terms/heungkukfire/a5b66dc232dc_2016-01-01_표준화 실손의료비보장 안정화 할인 특별약관(1601).pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "흥국화재",
+  "name": "표준화 실손의료비보장 안정화 할인 특별약관",
+  "sha": "677ef5a380bf",
+  "saved_as": "data/raw/insurance_terms/heungkukfire/677ef5a380bf_2015-01-01_표준화 실손의료비보장 안정화 할인 특별약관.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "현대해상",
+  "name": "실손의료비보장 보험료 안정화 할인 특별약관",
+  "sha": "00eb260bb1c1",
+  "saved_as": "data/raw/insurance_terms/hyundaimarine/00eb260bb1c1_20260701_실손의료비보장 보험료 안정화 할인 특별약관.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "현대해상",
+  "name": "실손의료비보장 보험료 안정화 할인 특별약관",
+  "sha": "1a6a51c47465",
+  "saved_as": "data/raw/insurance_terms/hyundaimarine/1a6a51c47465_20260401_실손의료비보장 보험료 안정화 할인 특별약관.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "현대해상",
+  "name": "실손의료비보장 보험료 안정화 할인 특별약관",
+  "sha": "1a0ae6e6a4d7",
+  "saved_as": "data/raw/insurance_terms/hyundaimarine/1a0ae6e6a4d7_20260101_실손의료비보장 보험료 안정화 할인 특별약관.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "현대해상",
+  "name": "실손의료비보장 보험료 안정화 할인 특별약관",
+  "sha": "36d90fa51be5",
+  "saved_as": "data/raw/insurance_terms/hyundaimarine/36d90fa51be5_20250701_실손의료비보장 보험료 안정화 할인 특별약관.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "현대해상",
+  "name": "실손의료비보장 보험료 안정화 할인 특별약관",
+  "sha": "a69f1a2152a0",
+  "saved_as": "data/raw/insurance_terms/hyundaimarine/a69f1a2152a0_20250401_실손의료비보장 보험료 안정화 할인 특별약관.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "현대해상",
+  "name": "실손의료비보장 보험료 안정화 할인 특별약관",
+  "sha": "64c6386a2d46",
+  "saved_as": "data/raw/insurance_terms/hyundaimarine/64c6386a2d46_20250101_실손의료비보장 보험료 안정화 할인 특별약관.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "현대해상",
+  "name": "실손의료비보장 보험료 안정화 할인 특별약관",
+  "sha": "d9f6ae07fc82",
+  "saved_as": "data/raw/insurance_terms/hyundaimarine/d9f6ae07fc82_20240701_실손의료비보장 보험료 안정화 할인 특별약관.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "현대해상",
+  "name": "실손의료비보장 보험료 안정화 할인 특별약관",
+  "sha": "14f9a7528cc2",
+  "saved_as": "data/raw/insurance_terms/hyundaimarine/14f9a7528cc2_20240401_실손의료비보장 보험료 안정화 할인 특별약관.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "현대해상",
+  "name": "실손의료비보장 보험료 안정화 할인 특별약관",
+  "sha": "760e1d680205",
+  "saved_as": "data/raw/insurance_terms/hyundaimarine/760e1d680205_20240101_실손의료비보장 보험료 안정화 할인 특별약관.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "현대해상",
+  "name": "실손의료비보장 안정화 할인 특별약관",
+  "sha": "e7286778803c",
+  "saved_as": "data/raw/insurance_terms/hyundaimarine/e7286778803c_20230701_실손의료비보장 안정화 할인 특별약관.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "현대해상",
+  "name": "실손의료비보장 안정화 할인 특별약관",
+  "sha": "47e0ec2b323e",
+  "saved_as": "data/raw/insurance_terms/hyundaimarine/47e0ec2b323e_20230101_실손의료비보장 안정화 할인 특별약관.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "현대해상",
+  "name": "실손의료비보장 안정화 할인 특별약관",
+  "sha": "e799722b0435",
+  "saved_as": "data/raw/insurance_terms/hyundaimarine/e799722b0435_20220701_실손의료비보장 안정화 할인 특별약관.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "현대해상",
+  "name": "실손의료비보장 안정화 할인 특별약관",
+  "sha": "de68590edcb7",
+  "saved_as": "data/raw/insurance_terms/hyundaimarine/de68590edcb7_20220401_실손의료비보장 안정화 할인 특별약관.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "현대해상",
+  "name": "실손의료비보장 안정화 할인 특약",
+  "sha": "4961b989606f",
+  "saved_as": "data/raw/insurance_terms/hyundaimarine/4961b989606f_20220101_실손의료비보장 안정화 할인 특약.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "현대해상",
+  "name": "실손의료비보장 안정화 할인 특약",
+  "sha": "4aae67b09b7b",
+  "saved_as": "data/raw/insurance_terms/hyundaimarine/4aae67b09b7b_20210701_실손의료비보장 안정화 할인 특약.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "현대해상",
+  "name": "실손의료비보장 안정화 할인 특약",
+  "sha": "d8efece54b15",
+  "saved_as": "data/raw/insurance_terms/hyundaimarine/d8efece54b15_20210101_실손의료비보장 안정화 할인 특약.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "현대해상",
+  "name": "실손의료비 안정화 할인 특별약관",
+  "sha": "4faa8bc85836",
+  "saved_as": "data/raw/insurance_terms/hyundaimarine/4faa8bc85836_20200401_실손의료비 안정화 할인 특별약관.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "현대해상",
+  "name": "표준화 실손의료비보장 안정화 할인 제도 특별약관",
+  "sha": "d27373cc3a54",
+  "saved_as": "data/raw/insurance_terms/hyundaimarine/d27373cc3a54_20150101_표준화 실손의료비보장 안정화 할인 제도 특별약관.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "현대해상",
+  "name": "무배당 현대닥터코리아의료보험(Hi0910)_실손의료비 1,2,4종",
+  "sha": "6f15725621d5",
+  "saved_as": "data/raw/insurance_terms/hyundaimarine/6f15725621d5_20091001_무배당 현대닥터코리아의료보험(Hi0910)_실손의료비 1,2,4종.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "롯데손해보험",
+  "name": "표준화 실손의료비보장 안정화 할인(2021) 특별약관",
+  "sha": "447edebd22df",
+  "saved_as": "data/raw/insurance_terms/lotteins/447edebd22df_20210101_표준화 실손의료비보장 안정화 할인(2021) 특별약관.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "롯데손해보험",
+  "name": "신표준화 실손의료비보장 안정화 할인Ⅱ(2021) 특별약관",
+  "sha": "20409c9645f9",
+  "saved_as": "data/raw/insurance_terms/lotteins/20409c9645f9_20210101_신표준화 실손의료비보장 안정화 할인Ⅱ(2021) 특별약관.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "롯데손해보험",
+  "name": "신표준화 실손의료비보장 안정화 할인Ⅱ(2021) 특별약관",
+  "sha": "cf329db5a484",
+  "saved_as": "data/raw/insurance_terms/lotteins/cf329db5a484_20210614_신표준화 실손의료비보장 안정화 할인Ⅱ(2021) 특별약관.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "롯데손해보험",
+  "name": "신표준화 실손의료비보장 안정화 할인Ⅲ(2021) 추가특별약관",
+  "sha": "1badc0e1e83f",
+  "saved_as": "data/raw/insurance_terms/lotteins/1badc0e1e83f_20210101_신표준화 실손의료비보장 안정화 할인Ⅲ(2021) 추가특별약관.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "롯데손해보험",
+  "name": "신표준화 실손의료비보장 안정화 할인Ⅲ(2021) 추가특별약관",
+  "sha": "7d32ee2b149a",
+  "saved_as": "data/raw/insurance_terms/lotteins/7d32ee2b149a_20210614_신표준화 실손의료비보장 안정화 할인Ⅲ(2021) 추가특별약관.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "롯데손해보험",
+  "name": "4세대 실손의료비보장 안정화할인Ⅳ(2024) 특별약관",
+  "sha": "4d8e6431506b",
+  "saved_as": "data/raw/insurance_terms/lotteins/4d8e6431506b_20240101_4세대 실손의료비보장 안정화할인Ⅳ(2024) 특별약관.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "롯데손해보험",
+  "name": "신표준화 실손의료비보장 안정화 할인Ⅱ(2024) 특별약관",
+  "sha": "d4733d0c5bf3",
+  "saved_as": "data/raw/insurance_terms/lotteins/d4733d0c5bf3_20240101_신표준화 실손의료비보장 안정화 할인Ⅱ(2024) 특별약관.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "롯데손해보험",
+  "name": "표준화 실손의료비보장 안정화 할인(2024) 특별약관",
+  "sha": "4d39d10db184",
+  "saved_as": "data/raw/insurance_terms/lotteins/4d39d10db184_20240101_표준화 실손의료비보장 안정화 할인(2024) 특별약관.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "롯데손해보험",
+  "name": "4세대 실손의료비보장 안정화할인Ⅴ(2024) 추가특별약관",
+  "sha": "758b54aff9c7",
+  "saved_as": "data/raw/insurance_terms/lotteins/758b54aff9c7_20240101_4세대 실손의료비보장 안정화할인Ⅴ(2024) 추가특별약관.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "메리츠화재",
+  "name": "실손의료비보장 안정화 할인 특별약관2607",
+  "sha": "c33bd8697c6f",
+  "saved_as": "data/raw/insurance_terms/meritzfire/c33bd8697c6f_실손의료비보장 안정화 할인 특별약관2607.pdf",
+  "mark": "【사업방법서"
+ },
+ {
+  "insurer": "메리츠화재",
+  "name": "노후실손의료비보험 중지 및 재개 특별약관",
+  "sha": "0501f6d7a695",
+  "saved_as": "data/raw/insurance_terms/meritzfire/0501f6d7a695_노후실손의료비보험 중지 및 재개 특별약관.pdf",
+  "mark": "【사업방법서"
+ },
+ {
+  "insurer": "메리츠화재",
+  "name": "유병력자실손의료비보험 중지 및 재개 특별약관",
+  "sha": "c3f582ac0496",
+  "saved_as": "data/raw/insurance_terms/meritzfire/c3f582ac0496_유병력자실손의료비보험 중지 및 재개 특별약관.pdf",
+  "mark": "【사업방법서"
+ },
+ {
+  "insurer": "메리츠화재",
+  "name": "실손의료비보장 안정화 할인(Ⅴ) 특별약관2605",
+  "sha": "3eeca524be29",
+  "saved_as": "data/raw/insurance_terms/meritzfire/3eeca524be29_실손의료비보장 안정화 할인(Ⅴ) 특별약관2605.pdf",
+  "mark": "【사업방법서"
+ },
+ {
+  "insurer": "메리츠화재",
+  "name": "실손의료보험 중지 및 재개 특별약관",
+  "sha": "b540436489a2",
+  "saved_as": "data/raw/insurance_terms/meritzfire/b540436489a2_실손의료보험 중지 및 재개 특별약관.pdf",
+  "mark": "【사업방법서"
+ },
+ {
+  "insurer": "메리츠화재",
+  "name": "실손의료보험 개인실손전환(단체→개인) 특별약관",
+  "sha": "e24098b7db63",
+  "saved_as": "data/raw/insurance_terms/meritzfire/e24098b7db63_실손의료보험 개인실손전환(단체→개인) 특별약관.pdf",
+  "mark": "【사업방법서"
+ },
+ {
+  "insurer": "메리츠화재",
+  "name": "실손의료비보장 계약전환제도 특별약관",
+  "sha": "2ddc5d11c544",
+  "saved_as": "data/raw/insurance_terms/meritzfire/2ddc5d11c544_실손의료비보장 계약전환제도 특별약관.pdf",
+  "mark": "【사업방법서"
+ },
+ {
+  "insurer": "메리츠화재",
+  "name": "군장병 실손의료보험 중지제도 특별약관",
+  "sha": "1bf615b15c82",
+  "saved_as": "data/raw/insurance_terms/meritzfire/1bf615b15c82_군장병 실손의료보험 중지제도 특별약관.pdf",
+  "mark": "【사업방법서"
+ },
+ {
+  "insurer": "동양생명",
+  "name": "무배당우리WON하는급여실손의료비보장보험(갱신형)",
+  "sha": "7f6a2e1c2160",
+  "saved_as": "data/raw/insurance_terms/myangel/7f6a2e1c2160_무배당우리WON하는급여실손의료비보장보험(갱신형).pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "동양생명",
+  "name": "무배당우리WON하는급여실손의료비보장보험(계약전환용·계약재개용·재가입용)(갱신형)",
+  "sha": "62baf8226b10",
+  "saved_as": "data/raw/insurance_terms/myangel/62baf8226b10_무배당우리WON하는급여실손의료비보장보험(계약전환용·계약재개용·재가입용)(갱신형).pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 다이렉트실손의료비보험 (1404.2)",
+  "sha": "0e2223ec0567",
+  "saved_as": "data/raw/insurance_terms/samsungfire/0e2223ec0567_95796_0_20140401_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 다이렉트실손의료비보험(1404.2)",
+  "sha": "8904831d43b5",
+  "saved_as": "data/raw/insurance_terms/samsungfire/8904831d43b5_95796_0_20140701_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 노후실손의료비보험(1408.1)",
+  "sha": "0458baec6ffd",
+  "saved_as": "data/raw/insurance_terms/samsungfire/0458baec6ffd_95798_0_20140801_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 다이렉트 실손의료비보험 (1501.3)",
+  "sha": "c67b23778906",
+  "saved_as": "data/raw/insurance_terms/samsungfire/c67b23778906_95862_0_20150101_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 노후실손의료비보험 (1501.2)",
+  "sha": "5ad67b45d727",
+  "saved_as": "data/raw/insurance_terms/samsungfire/5ad67b45d727_95863_0_20150901_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 실손의료비보험(1509.5)",
+  "sha": "768aba268e34",
+  "saved_as": "data/raw/insurance_terms/samsungfire/768aba268e34_96058_0_21050901_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 다이렉트 실손의료비보험(1509.4)",
+  "sha": "da71379fd12c",
+  "saved_as": "data/raw/insurance_terms/samsungfire/da71379fd12c_96059_0_20150901_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 실손의료비보험(1601.6)",
+  "sha": "1d94dc5660bb",
+  "saved_as": "data/raw/insurance_terms/samsungfire/1d94dc5660bb_96078_0_20160101_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 노후실손의료비보험(1601.3)",
+  "sha": "e0534b6eae10",
+  "saved_as": "data/raw/insurance_terms/samsungfire/e0534b6eae10_96079_0_20160101_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 다이렉트 실손의료비보험 (1601.5)",
+  "sha": "01d17da13fe7",
+  "saved_as": "data/raw/insurance_terms/samsungfire/01d17da13fe7_96108_0_20160101_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 실손의료비보험(1603.1) [계약전환용]",
+  "sha": "89d2d4d65315",
+  "saved_as": "data/raw/insurance_terms/samsungfire/89d2d4d65315_96121_0_20160314_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 실손의료비보험(1611.7)",
+  "sha": "425e9e6e0c3b",
+  "saved_as": "data/raw/insurance_terms/samsungfire/425e9e6e0c3b_96178_0_20161101_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 실손의료비보험(1611.2) [계약전환용]",
+  "sha": "7fb838f41063",
+  "saved_as": "data/raw/insurance_terms/samsungfire/7fb838f41063_96179_0_20161101_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 다이렉트 실손의료비보험(1611.6)",
+  "sha": "3963c30647a6",
+  "saved_as": "data/raw/insurance_terms/samsungfire/3963c30647a6_96180_0_20161101_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 노후실손의료비보험(1611.4)",
+  "sha": "6883e3123b33",
+  "saved_as": "data/raw/insurance_terms/samsungfire/6883e3123b33_96181_0_20161101_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 실손의료비보험 (1611.7)",
+  "sha": "2f7c8e6bdfbd",
+  "saved_as": "data/raw/insurance_terms/samsungfire/2f7c8e6bdfbd_96178_0_20170101_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 실손의료비보험 (1611.2)[계약전환용]",
+  "sha": "be2060faa956",
+  "saved_as": "data/raw/insurance_terms/samsungfire/be2060faa956_96179_0_20170101_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 다이렉트 실손의료비보험 (1611.6)",
+  "sha": "e28a671eff3a",
+  "saved_as": "data/raw/insurance_terms/samsungfire/e28a671eff3a_96180_0_20170101_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 노후실손의료비보험 (1611.4)",
+  "sha": "1eaa252ad4af",
+  "saved_as": "data/raw/insurance_terms/samsungfire/1eaa252ad4af_96181_0_20170101_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 실손의료비보험(1704.1)",
+  "sha": "838a66bd7cdd",
+  "saved_as": "data/raw/insurance_terms/samsungfire/838a66bd7cdd_96228_0_20170401_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 실손의료비보험(1704.1) [계약전환용]",
+  "sha": "6c67b9ae265f",
+  "saved_as": "data/raw/insurance_terms/samsungfire/6c67b9ae265f_96229_0_20170401_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 노후실손의료비보험(1704.5)",
+  "sha": "24537678d8ed",
+  "saved_as": "data/raw/insurance_terms/samsungfire/24537678d8ed_96230_0_20170401_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 다이렉트 실손의료비보험(1704.1)",
+  "sha": "8cbe683d8551",
+  "saved_as": "data/raw/insurance_terms/samsungfire/8cbe683d8551_96260_0_20170401_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 노후실손의료비보험(1801.6)",
+  "sha": "4e8d9a74ec15",
+  "saved_as": "data/raw/insurance_terms/samsungfire/4e8d9a74ec15_ZPB167060_0_20180101_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 다이렉트 실손의료비보험(1704.1)",
+  "sha": "f141df760716",
+  "saved_as": "data/raw/insurance_terms/samsungfire/f141df760716_ZPB035080_0_20180401_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 실손의료비보험(1704.1)",
+  "sha": "059ddf455253",
+  "saved_as": "data/raw/insurance_terms/samsungfire/059ddf455253_ZPB057090_0_20180401_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 실손의료비보험(1704.1) [계약전환용]",
+  "sha": "937ef4f32333",
+  "saved_as": "data/raw/insurance_terms/samsungfire/937ef4f32333_ZPB099030_0_20180401_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 노후실손의료비보험(1801.6)",
+  "sha": "fb239c8cb49f",
+  "saved_as": "data/raw/insurance_terms/samsungfire/fb239c8cb49f_ZPB167060_0_20180401_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 유병력자 실손의료비보험(1804.1)",
+  "sha": "04c08230f158",
+  "saved_as": "data/raw/insurance_terms/samsungfire/04c08230f158_ZPB215010_0_20180401_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 유병력자 실손의료비보험(1804.1)",
+  "sha": "bb157b84e741",
+  "saved_as": "data/raw/insurance_terms/samsungfire/bb157b84e741_ZPB215010_0_20180516_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 다이렉트 실손의료비보험(1704.1)",
+  "sha": "9c73f41923a2",
+  "saved_as": "data/raw/insurance_terms/samsungfire/9c73f41923a2_ZPB035080_0_20181001_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 실손의료비보험(1704.1)",
+  "sha": "6ef1418c9a65",
+  "saved_as": "data/raw/insurance_terms/samsungfire/6ef1418c9a65_ZPB057090_0_20181001_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 실손의료비보험(1704.1) [계약전환용]",
+  "sha": "102273d386e1",
+  "saved_as": "data/raw/insurance_terms/samsungfire/102273d386e1_ZPB099030_0_20181001_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 노후실손의료비보험(1801.6)",
+  "sha": "237b00c7fc71",
+  "saved_as": "data/raw/insurance_terms/samsungfire/237b00c7fc71_ZPB167060_0_20181001_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 유병력자 실손의료비보험(1804.1)",
+  "sha": "8dc19e823d17",
+  "saved_as": "data/raw/insurance_terms/samsungfire/8dc19e823d17_ZPB215010_0_20181001_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 실손의료비보험(1812.1) [전환재개용]",
+  "sha": "0de5bc86b57f",
+  "saved_as": "data/raw/insurance_terms/samsungfire/0de5bc86b57f_ZPB220010_0_20181201_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 다이렉트 실손의료비보험(1901.2)",
+  "sha": "7f7f6233b254",
+  "saved_as": "data/raw/insurance_terms/samsungfire/7f7f6233b254_ZPB035090_0_20190101_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 실손의료비보험(1901.2)",
+  "sha": "95de10e7df2f",
+  "saved_as": "data/raw/insurance_terms/samsungfire/95de10e7df2f_ZPB057100_0_20190101_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 실손의료비보험(1901.2) [계약전환용]",
+  "sha": "cc0f5ad76931",
+  "saved_as": "data/raw/insurance_terms/samsungfire/cc0f5ad76931_ZPB099040_0_20190101_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 노후실손의료비보험(1901.7)",
+  "sha": "2708e52aa467",
+  "saved_as": "data/raw/insurance_terms/samsungfire/2708e52aa467_ZPB167070_0_20190101_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 유병력자 실손의료비보험(1901.2)",
+  "sha": "43627a57db50",
+  "saved_as": "data/raw/insurance_terms/samsungfire/43627a57db50_ZPB215020_0_20190101_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 실손의료비보험(1901.2) [전환재개용]",
+  "sha": "375363f84abe",
+  "saved_as": "data/raw/insurance_terms/samsungfire/375363f84abe_ZPB220020_0_20190101_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 다이렉트 실손의료비보험(1904.3)",
+  "sha": "eb778fa68b56",
+  "saved_as": "data/raw/insurance_terms/samsungfire/eb778fa68b56_ZPB035100_0_20190401_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 실손의료비보험(1904.3)",
+  "sha": "5920fc5baff1",
+  "saved_as": "data/raw/insurance_terms/samsungfire/5920fc5baff1_ZPB057110_0_20190401_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 실손의료비보험(1904.3) [계약전환용]",
+  "sha": "21fab07d53f9",
+  "saved_as": "data/raw/insurance_terms/samsungfire/21fab07d53f9_ZPB099050_0_20190401_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 노후실손의료비보험(1904.8)",
+  "sha": "14b3e9fdbadb",
+  "saved_as": "data/raw/insurance_terms/samsungfire/14b3e9fdbadb_ZPB167080_0_20190401_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 유병력자 실손의료비보험(1904.3)",
+  "sha": "986e38b0a6dc",
+  "saved_as": "data/raw/insurance_terms/samsungfire/986e38b0a6dc_ZPB215030_0_20190401_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 실손의료비보험(1904.3) [전환재개용]",
+  "sha": "5d172fa5b0e3",
+  "saved_as": "data/raw/insurance_terms/samsungfire/5d172fa5b0e3_ZPB220030_0_20190401_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 실손의료비보험(1909.1) [자녀보험전환용]",
+  "sha": "5fe77ab3821b",
+  "saved_as": "data/raw/insurance_terms/samsungfire/5fe77ab3821b_ZPB245010_0_20190904_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 다이렉트 실손의료비보험(1904.3)",
+  "sha": "44214b21c043",
+  "saved_as": "data/raw/insurance_terms/samsungfire/44214b21c043_ZPB035100_0_20191001_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 실손의료비보험(1904.3)",
+  "sha": "a3dc29e2fdde",
+  "saved_as": "data/raw/insurance_terms/samsungfire/a3dc29e2fdde_ZPB057110_0_20191001_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 실손의료비보험(1904.3) [계약전환용]",
+  "sha": "f109067888e2",
+  "saved_as": "data/raw/insurance_terms/samsungfire/f109067888e2_ZPB099050_0_20191001_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 노후실손의료비보험(1904.8)",
+  "sha": "6222fad97f57",
+  "saved_as": "data/raw/insurance_terms/samsungfire/6222fad97f57_ZPB167080_0_20191001_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 유병력자 실손의료비보험(1904.3)",
+  "sha": "1d437a59e5a5",
+  "saved_as": "data/raw/insurance_terms/samsungfire/1d437a59e5a5_ZPB215030_0_20191001_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 실손의료비보험(1904.3) [전환재개용]",
+  "sha": "d40db2d800ef",
+  "saved_as": "data/raw/insurance_terms/samsungfire/d40db2d800ef_ZPB220030_0_20191001_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 실손의료비보험(1909.1) [자녀보험전환용]",
+  "sha": "d18d7cf36d5d",
+  "saved_as": "data/raw/insurance_terms/samsungfire/d18d7cf36d5d_ZPB245010_0_20191001_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "신실손의료비보장 안정화 할인 특별약관",
+  "sha": "891bd79fe024",
+  "saved_as": "data/raw/insurance_terms/samsungfire/891bd79fe024_99990_0_20200101_file1.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 다이렉트 실손의료비보험(2001.4)",
+  "sha": "bc9c5b7045f9",
+  "saved_as": "data/raw/insurance_terms/samsungfire/bc9c5b7045f9_ZPB035110_0_20200101_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 실손의료비보험(2001.4)",
+  "sha": "f44d7347a512",
+  "saved_as": "data/raw/insurance_terms/samsungfire/f44d7347a512_ZPB057120_0_20200101_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 실손의료비보험(2001.4)[계약전환용]",
+  "sha": "fb2882279900",
+  "saved_as": "data/raw/insurance_terms/samsungfire/fb2882279900_ZPB099060_0_20200101_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 노후실손의료비보험(2001.9)",
+  "sha": "2e60ef68c0b5",
+  "saved_as": "data/raw/insurance_terms/samsungfire/2e60ef68c0b5_ZPB167090_0_20200101_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 실손의료비보험(2001.4)[전환재개용]",
+  "sha": "7e55540db688",
+  "saved_as": "data/raw/insurance_terms/samsungfire/7e55540db688_ZPB220040_0_20200101_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 실손의료비보험(2001.2)[자녀보험전환용]",
+  "sha": "fe1331c23014",
+  "saved_as": "data/raw/insurance_terms/samsungfire/fe1331c23014_ZPB245020_0_20200101_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 다이렉트 유병력자 실손의료비보험(2001.1)",
+  "sha": "a4861be6978c",
+  "saved_as": "data/raw/insurance_terms/samsungfire/a4861be6978c_ZPB252010_0_20200108_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "신실손의료비보장 안정화 할인 특별약관",
+  "sha": "24133cb3d686",
+  "saved_as": "data/raw/insurance_terms/samsungfire/24133cb3d686_99990_0_20200401_file1.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 다이렉트 실손의료비보험(2004.5)",
+  "sha": "6bfd70604170",
+  "saved_as": "data/raw/insurance_terms/samsungfire/6bfd70604170_ZPB035120_0_20200401_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 실손의료비보험(2004.5)",
+  "sha": "df58a4485c55",
+  "saved_as": "data/raw/insurance_terms/samsungfire/df58a4485c55_ZPB057130_0_20200401_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 실손의료비보험(2004.5) [계약전환용]",
+  "sha": "c624eec55f51",
+  "saved_as": "data/raw/insurance_terms/samsungfire/c624eec55f51_ZPB099070_0_20200401_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 노후실손의료비보험(2004.10)",
+  "sha": "bcd79826613c",
+  "saved_as": "data/raw/insurance_terms/samsungfire/bcd79826613c_ZPB167100_0_20200401_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 유병력자 실손의료비보험(2004.4)",
+  "sha": "9cb17792dbab",
+  "saved_as": "data/raw/insurance_terms/samsungfire/9cb17792dbab_ZPB215040_0_20200401_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 실손의료비보험(2004.5) [전환재개용]",
+  "sha": "a9a26d1d2a75",
+  "saved_as": "data/raw/insurance_terms/samsungfire/a9a26d1d2a75_ZPB220050_0_20200401_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 실손의료비보험(2004.3)[자녀보험전환용]",
+  "sha": "b456d8b527a1",
+  "saved_as": "data/raw/insurance_terms/samsungfire/b456d8b527a1_ZPB245030_0_20200401_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "무배당 삼성화재 다이렉트 유병력자 실손의료비보험(2004.2)",
+  "sha": "6dab869c26f6",
+  "saved_as": "data/raw/insurance_terms/samsungfire/6dab869c26f6_ZPB252020_0_20200401_file1.pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "신실손의료비보장 안정화 할인 특별약관",
+  "sha": "448a04c16036",
+  "saved_as": "data/raw/insurance_terms/samsungfire/448a04c16036_99990_0_20210101_file1.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "4세대 실손의료비보장 안정화 할인 특별약관",
+  "sha": "916a1cc616f7",
+  "saved_as": "data/raw/insurance_terms/samsungfire/916a1cc616f7_40001_0_20210701_file1.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "4세대 실손의료비보장 안정화 할인 특별약관",
+  "sha": "23e9431aea56",
+  "saved_as": "data/raw/insurance_terms/samsungfire/23e9431aea56_40001_0_20220101_file1.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "4세대 실손의료비전환 특별할인 특별약관",
+  "sha": "98d5bba0e730",
+  "saved_as": "data/raw/insurance_terms/samsungfire/98d5bba0e730_40002_0_20220101_file1.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "4세대 실손의료비보장 안정화 할인 특별약관",
+  "sha": "f108d3e68ba6",
+  "saved_as": "data/raw/insurance_terms/samsungfire/f108d3e68ba6_40001_0_20220429_file1.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "4세대 실손의료비전환 특별할인 특별약관",
+  "sha": "2002963a7d01",
+  "saved_as": "data/raw/insurance_terms/samsungfire/2002963a7d01_40002_0_20220429_file1.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "4세대 실손의료비전환 특별할인 특별약관",
+  "sha": "f42619f10c11",
+  "saved_as": "data/raw/insurance_terms/samsungfire/f42619f10c11_40002_0_20220701_file1.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "4세대 실손의료비전환 특별할인 특별약관",
+  "sha": "cf613e485dd1",
+  "saved_as": "data/raw/insurance_terms/samsungfire/cf613e485dd1_40002_0_20230101_file1.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "4세대 실손의료비전환 특별할인 특별약관",
+  "sha": "e141d0b92e89",
+  "saved_as": "data/raw/insurance_terms/samsungfire/e141d0b92e89_40002_0_20230424_file1.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "삼성화재",
+  "name": "4세대 실손의료비전환 특별할인 특별약관",
+  "sha": "b834be49e291",
+  "saved_as": "data/raw/insurance_terms/samsungfire/b834be49e291_40002_0_20230701_file1.pdf",
+  "mark": "사업방법서별지"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명노후실손의료비보장보험2.0(갱신형,무배당)",
+  "sha": "4656aed7bb82",
+  "saved_as": "data/raw/insurance_terms/samsunglife/4656aed7bb82_삼성생명노후실손의료비보장보험2.0(갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명노후실손의료비보장보험1.0(갱신형,무배당)",
+  "sha": "7097d7998a5f",
+  "saved_as": "data/raw/insurance_terms/samsunglife/7097d7998a5f_삼성생명노후실손의료비보장보험1.0(갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명노후실손의료비보장보험3.0(갱신형,무배당)",
+  "sha": "809660738b65",
+  "saved_as": "data/raw/insurance_terms/samsunglife/809660738b65_삼성생명노후실손의료비보장보험3.0(갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명노후실손의료비보장보험2.0(갱신형,무배당)",
+  "sha": "8e71f61f90d7",
+  "saved_as": "data/raw/insurance_terms/samsunglife/8e71f61f90d7_삼성생명노후실손의료비보장보험2.0(갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "실손의료비보장보험2.0(갱신형,무배당)",
+  "sha": "9a6d57d45c68",
+  "saved_as": "data/raw/insurance_terms/samsunglife/9a6d57d45c68_실손의료비보장보험2.0(갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명노후실손의료비보장보험2.0(갱신형,무배당)",
+  "sha": "dcfc0211030a",
+  "saved_as": "data/raw/insurance_terms/samsunglife/dcfc0211030a_삼성생명노후실손의료비보장보험2.0(갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명실손의료비보장보험5.0(갱신형,무배당)",
+  "sha": "2aa164fa3e64",
+  "saved_as": "data/raw/insurance_terms/samsunglife/2aa164fa3e64_삼성생명실손의료비보장보험5.0(갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명노후실손의료비보장보험6.0(갱신형,무배당)",
+  "sha": "fcd1a31e991a",
+  "saved_as": "data/raw/insurance_terms/samsunglife/fcd1a31e991a_삼성생명노후실손의료비보장보험6.0(갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명노후실손의료비보장보험5.0(갱신형,무배당)",
+  "sha": "65a004b0e08f",
+  "saved_as": "data/raw/insurance_terms/samsunglife/65a004b0e08f_삼성생명노후실손의료비보장보험5.0(갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명노후실손의료비보장보험4.0(갱신형,무배당)",
+  "sha": "9b7387c926b5",
+  "saved_as": "data/raw/insurance_terms/samsunglife/9b7387c926b5_삼성생명노후실손의료비보장보험4.0(갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명노후실손의료비보장보험3.0(갱신형,무배당)",
+  "sha": "aa502ce1550f",
+  "saved_as": "data/raw/insurance_terms/samsunglife/aa502ce1550f_삼성생명노후실손의료비보장보험3.0(갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명노후실손의료비보장보험3.0(갱신형,무배당)",
+  "sha": "dbacc328d694",
+  "saved_as": "data/raw/insurance_terms/samsunglife/dbacc328d694_삼성생명노후실손의료비보장보험3.0(갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명노후실손의료비보장보험3.0(갱신형,무배당)",
+  "sha": "dede64bd741e",
+  "saved_as": "data/raw/insurance_terms/samsunglife/dede64bd741e_삼성생명노후실손의료비보장보험3.0(갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명노후실손의료비보장보험3.0(갱신형,무배당)",
+  "sha": "046f8c4d78bc",
+  "saved_as": "data/raw/insurance_terms/samsunglife/046f8c4d78bc_삼성생명노후실손의료비보장보험3.0(갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "samsunglife",
+  "name": "",
+  "sha": "6102824c8655",
+  "saved_as": "data\\raw\\insurance_terms\\samsunglife\\6102824c8655_희망사랑보험5.0(무).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명인터넷실손의료비보장보험4.0(기본형,갱신형,무배당)",
+  "sha": "ab7c370af299",
+  "saved_as": "data/raw/insurance_terms/samsunglife/ab7c370af299_삼성생명인터넷실손의료비보장보험4.0(기본형,갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명인터넷실손의료비보장보험4.0(기본형,갱신형,무배당)",
+  "sha": "3999ed54b393",
+  "saved_as": "data/raw/insurance_terms/samsunglife/3999ed54b393_삼성생명인터넷실손의료비보장보험4.0(기본형,갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명인터넷실손의료비보장보험4.0(기본형,갱신형,무배당)",
+  "sha": "94e2979e29a5",
+  "saved_as": "data/raw/insurance_terms/samsunglife/94e2979e29a5_삼성생명인터넷실손의료비보장보험4.0(기본형,갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명인터넷실손의료비보장보험3.0(기본형,갱신형,무배당)",
+  "sha": "0531631a1255",
+  "saved_as": "data/raw/insurance_terms/samsunglife/0531631a1255_삼성생명인터넷실손의료비보장보험3.0(기본형,갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명인터넷실손의료비보장보험3.0(기본형,갱신형,무배당)",
+  "sha": "c33e695fde30",
+  "saved_as": "data/raw/insurance_terms/samsunglife/c33e695fde30_삼성생명인터넷실손의료비보장보험3.0(기본형,갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명인터넷실손의료비보장보험3.0(기본형,갱신형,무배당)",
+  "sha": "24c71245e9be",
+  "saved_as": "data/raw/insurance_terms/samsunglife/24c71245e9be_삼성생명인터넷실손의료비보장보험3.0(기본형,갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명인터넷실손의료비보장보험2.0(기본형,갱신형,무배당)",
+  "sha": "6f5e9d40f620",
+  "saved_as": "data/raw/insurance_terms/samsunglife/6f5e9d40f620_삼성생명인터넷실손의료비보장보험2.0(기본형,갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명인터넷실손의료비보장보험1.0(기본형,갱신형,무배당)",
+  "sha": "f21dab22d47b",
+  "saved_as": "data/raw/insurance_terms/samsunglife/f21dab22d47b_삼성생명인터넷실손의료비보장보험1.0(기본형,갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명인터넷실손의료비보장보험1.0(기본형,갱신형,무배당)",
+  "sha": "46bb9751af28",
+  "saved_as": "data/raw/insurance_terms/samsunglife/46bb9751af28_삼성생명인터넷실손의료비보장보험1.0(기본형,갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명인터넷실손의료비보장보험1.0(기본형,갱신형,무배당)",
+  "sha": "affed6850a33",
+  "saved_as": "data/raw/insurance_terms/samsunglife/affed6850a33_삼성생명인터넷실손의료비보장보험1.0(기본형,갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명인터넷실손의료비보장보험(기본형,갱신형,무배당)",
+  "sha": "5d7818ffe252",
+  "saved_as": "data/raw/insurance_terms/samsunglife/5d7818ffe252_삼성생명인터넷실손의료비보장보험(기본형,갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명인터넷실손의료비보장보험(기본형,갱신형,무배당)",
+  "sha": "7c0768d19024",
+  "saved_as": "data/raw/insurance_terms/samsunglife/7c0768d19024_삼성생명인터넷실손의료비보장보험(기본형,갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명실손의료비보장보험5.0(갱신형,무배당)",
+  "sha": "c4205ad02f0e",
+  "saved_as": "data/raw/insurance_terms/samsunglife/c4205ad02f0e_삼성생명실손의료비보장보험5.0(갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명실손의료비보장보험4.0(기본형,갱신형,무배당)",
+  "sha": "922c7af0a757",
+  "saved_as": "data/raw/insurance_terms/samsunglife/922c7af0a757_삼성생명실손의료비보장보험4.0(기본형,갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명실손의료비보장보험4.0(기본형,갱신형,무배당)",
+  "sha": "8cfa38043411",
+  "saved_as": "data/raw/insurance_terms/samsunglife/8cfa38043411_삼성생명실손의료비보장보험4.0(기본형,갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명실손의료비보장보험4.0(갱신형,무배당)",
+  "sha": "96a755374993",
+  "saved_as": "data/raw/insurance_terms/samsunglife/96a755374993_삼성생명실손의료비보장보험4.0(갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명실손의료비보장보험3.0(기본형,갱신형,무배당)[단체전환용]",
+  "sha": "ea36877b12c5",
+  "saved_as": "data/raw/insurance_terms/samsunglife/ea36877b12c5_삼성생명실손의료비보장보험3.0(기본형,갱신형,무배당)[단체전환용].pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명실손의료비보장보험3.0(기본형,갱신형,무배당)[단체전환용]",
+  "sha": "f30172dff292",
+  "saved_as": "data/raw/insurance_terms/samsunglife/f30172dff292_삼성생명실손의료비보장보험3.0(기본형,갱신형,무배당)[단체전환용].pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명실손의료비보장보험3.0(기본형,갱신형,무배당)[계약전환용]",
+  "sha": "4332ce1011bc",
+  "saved_as": "data/raw/insurance_terms/samsunglife/4332ce1011bc_삼성생명실손의료비보장보험3.0(기본형,갱신형,무배당)[계약전환용].pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명실손의료비보장보험3.0(기본형,갱신형,무배당)[계약전환용]",
+  "sha": "f2b319bdee57",
+  "saved_as": "data/raw/insurance_terms/samsunglife/f2b319bdee57_삼성생명실손의료비보장보험3.0(기본형,갱신형,무배당)[계약전환용].pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명실손의료비보장보험3.0(기본형,갱신형,무배당)",
+  "sha": "0934f6ff46f2",
+  "saved_as": "data/raw/insurance_terms/samsunglife/0934f6ff46f2_삼성생명실손의료비보장보험3.0(기본형,갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명실손의료비보장보험3.0(기본형,갱신형,무배당)",
+  "sha": "a18d748a8eeb",
+  "saved_as": "data/raw/insurance_terms/samsunglife/a18d748a8eeb_삼성생명실손의료비보장보험3.0(기본형,갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명실손의료비보장보험3.0(기본형,갱신형,무배당)",
+  "sha": "203260293757",
+  "saved_as": "data/raw/insurance_terms/samsunglife/203260293757_삼성생명실손의료비보장보험3.0(기본형,갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명실손의료비보장보험3.0(갱신형,무배당)",
+  "sha": "2ffa572f4e67",
+  "saved_as": "data/raw/insurance_terms/samsunglife/2ffa572f4e67_삼성생명실손의료비보장보험3.0(갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명실손의료비보장보험2.0(기본형,갱신형,무배당)[단체전환용]",
+  "sha": "74dee959726d",
+  "saved_as": "data/raw/insurance_terms/samsunglife/74dee959726d_삼성생명실손의료비보장보험2.0(기본형,갱신형,무배당)[단체전환용].pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명실손의료비보장보험2.0(기본형,갱신형,무배당)[계약전환용]",
+  "sha": "010d042bf502",
+  "saved_as": "data/raw/insurance_terms/samsunglife/010d042bf502_삼성생명실손의료비보장보험2.0(기본형,갱신형,무배당)[계약전환용].pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명실손의료비보장보험2.0(기본형,갱신형,무배당)[계약재개용]",
+  "sha": "484d424f9db9",
+  "saved_as": "data/raw/insurance_terms/samsunglife/484d424f9db9_삼성생명실손의료비보장보험2.0(기본형,갱신형,무배당)[계약재개용].pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명실손의료비보장보험2.0(기본형,갱신형,무배당)",
+  "sha": "69113e05c57e",
+  "saved_as": "data/raw/insurance_terms/samsunglife/69113e05c57e_삼성생명실손의료비보장보험2.0(기본형,갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명실손의료비보장보험1.0(기본형,갱신형,무배당)[단체전환용]",
+  "sha": "f1851f382d50",
+  "saved_as": "data/raw/insurance_terms/samsunglife/f1851f382d50_삼성생명실손의료비보장보험1.0(기본형,갱신형,무배당)[단체전환용].pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명실손의료비보장보험1.0(기본형,갱신형,무배당)[계약전환용]",
+  "sha": "39ec206814fd",
+  "saved_as": "data/raw/insurance_terms/samsunglife/39ec206814fd_삼성생명실손의료비보장보험1.0(기본형,갱신형,무배당)[계약전환용].pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명실손의료비보장보험1.0(기본형,갱신형,무배당)",
+  "sha": "7f7b044d9aef",
+  "saved_as": "data/raw/insurance_terms/samsunglife/7f7b044d9aef_삼성생명실손의료비보장보험1.0(기본형,갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명실손의료비보장보험1.0(기본형,갱신형,무배당)",
+  "sha": "9ec141f1cdcd",
+  "saved_as": "data/raw/insurance_terms/samsunglife/9ec141f1cdcd_삼성생명실손의료비보장보험1.0(기본형,갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명실손의료비보장보험1.0(기본형,갱신형,무배당)",
+  "sha": "896d701b010d",
+  "saved_as": "data/raw/insurance_terms/samsunglife/896d701b010d_삼성생명실손의료비보장보험1.0(기본형,갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명실손의료비보장보험(기본형,갱신형,무배당)[단체전환용]",
+  "sha": "ce635378736d",
+  "saved_as": "data/raw/insurance_terms/samsunglife/ce635378736d_삼성생명실손의료비보장보험(기본형,갱신형,무배당)[단체전환용].pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명실손의료비보장보험(기본형,갱신형,무배당)[계약전환용]",
+  "sha": "6a880c133d16",
+  "saved_as": "data/raw/insurance_terms/samsunglife/6a880c133d16_삼성생명실손의료비보장보험(기본형,갱신형,무배당)[계약전환용].pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명실손의료비보장보험(기본형,갱신형,무배당)[계약전환용]",
+  "sha": "bffb44a63ac9",
+  "saved_as": "data/raw/insurance_terms/samsunglife/bffb44a63ac9_삼성생명실손의료비보장보험(기본형,갱신형,무배당)[계약전환용].pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명실손의료비보장보험(기본형,갱신형,무배당)[계약전환용]",
+  "sha": "d9fe57708f95",
+  "saved_as": "data/raw/insurance_terms/samsunglife/d9fe57708f95_삼성생명실손의료비보장보험(기본형,갱신형,무배당)[계약전환용].pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명실손의료비보장보험(기본형,갱신형,무배당)[계약전환용]",
+  "sha": "620c0dff52f1",
+  "saved_as": "data/raw/insurance_terms/samsunglife/620c0dff52f1_삼성생명실손의료비보장보험(기본형,갱신형,무배당)[계약전환용].pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명실손의료비보장보험(기본형,갱신형,무배당)[계약전환용]",
+  "sha": "e811a3ebe074",
+  "saved_as": "data/raw/insurance_terms/samsunglife/e811a3ebe074_삼성생명실손의료비보장보험(기본형,갱신형,무배당)[계약전환용].pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명실손의료비보장보험(기본형,갱신형,무배당)[계약재개용]",
+  "sha": "5697d3d90280",
+  "saved_as": "data/raw/insurance_terms/samsunglife/5697d3d90280_삼성생명실손의료비보장보험(기본형,갱신형,무배당)[계약재개용].pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명실손의료비보장보험(기본형,갱신형,무배당)",
+  "sha": "729688c72bd3",
+  "saved_as": "data/raw/insurance_terms/samsunglife/729688c72bd3_삼성생명실손의료비보장보험(기본형,갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명실손의료비보장보험(기본형,갱신형,무배당)",
+  "sha": "c6a828f353e3",
+  "saved_as": "data/raw/insurance_terms/samsunglife/c6a828f353e3_삼성생명실손의료비보장보험(기본형,갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명노후실손의료비보장보험7.0(갱신형,무배당)",
+  "sha": "aaa29c921a53",
+  "saved_as": "data/raw/insurance_terms/samsunglife/aaa29c921a53_삼성생명노후실손의료비보장보험7.0(갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명노후실손의료비보장보험7.0(갱신형,무배당)",
+  "sha": "9cf7e0f27a31",
+  "saved_as": "data/raw/insurance_terms/samsunglife/9cf7e0f27a31_삼성생명노후실손의료비보장보험7.0(갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명간편가입실손의료비보장보험3.0(기본형,갱신형,무배당)",
+  "sha": "c1a9015dde28",
+  "saved_as": "data/raw/insurance_terms/samsunglife/c1a9015dde28_삼성생명간편가입실손의료비보장보험3.0(기본형,갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명간편가입실손의료비보장보험3.0(기본형,갱신형,무배당)",
+  "sha": "881b9d2a310e",
+  "saved_as": "data/raw/insurance_terms/samsunglife/881b9d2a310e_삼성생명간편가입실손의료비보장보험3.0(기본형,갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명간편가입실손의료비보장보험2.0(기본형,갱신형,무배당)",
+  "sha": "a5e2c5bbfc56",
+  "saved_as": "data/raw/insurance_terms/samsunglife/a5e2c5bbfc56_삼성생명간편가입실손의료비보장보험2.0(기본형,갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명간편가입실손의료비보장보험1.0(기본형,갱신형,무배당)",
+  "sha": "2f1381483d59",
+  "saved_as": "data/raw/insurance_terms/samsunglife/2f1381483d59_삼성생명간편가입실손의료비보장보험1.0(기본형,갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명간편가입실손의료비보장보험(기본형,갱신형,무배당)",
+  "sha": "e82fd5adfde8",
+  "saved_as": "data/raw/insurance_terms/samsunglife/e82fd5adfde8_삼성생명간편가입실손의료비보장보험(기본형,갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "삼성생명간편가입실손의료비보장보험(기본형,갱신형,무배당)",
+  "sha": "11835926e61c",
+  "saved_as": "data/raw/insurance_terms/samsunglife/11835926e61c_삼성생명간편가입실손의료비보장보험(기본형,갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ },
+ {
+  "insurer": "삼성생명",
+  "name": "노후실손의료비보장보험(갱신형,무배당)",
+  "sha": "9696a2f1a8c8",
+  "saved_as": "data/raw/insurance_terms/samsunglife/9696a2f1a8c8_노후실손의료비보장보험(갱신형,무배당).pdf",
+  "mark": "상품요약서"
+ }
+]

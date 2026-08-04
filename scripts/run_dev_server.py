@@ -17,7 +17,6 @@ os.chdir(_PROJECT_ROOT)
 sys.path.insert(0, str(_PROJECT_ROOT))
 
 os.environ.setdefault("SECRET_KEY", "demo-only-key-do-not-use-in-prod")
-os.environ.setdefault("LLM_PROVIDER", "local")
 
 import uvicorn  # noqa: E402
 

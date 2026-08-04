@@ -38,3 +38,25 @@ def test_missing_t6_has_explicit_unmeasured_reason():
     ok, why = verdict({"T1_corridor": 0.0})
     assert ok is False
     assert "T6 본문 지문을 재지 못함" in why
+
+
+def test_split_interest_rate_cells_cannot_be_attached_as_partial_evidence():
+    """Regression: base rate and +4% suffix must never be cited separately."""
+    table = {
+        "method": "선",
+        "is_table": False,
+        "reject_why": ["T8 괘선이 표 높이의 0.215 만 뻗음"],
+        "records": [
+            {
+                "no": 5,
+                "cols": {
+                    "1": "지급기일의 31일 이후부터 60일 이내 기간",
+                    "3": "보험계약대출이율",
+                    "5": "+ 가산이율(4%)",
+                },
+            }
+        ],
+    }
+    ok, why = attachment_verdict(table)
+    assert ok is False
+    assert any("0.215" in reason for reason in why)

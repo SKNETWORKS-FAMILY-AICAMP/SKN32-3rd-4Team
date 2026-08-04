@@ -421,6 +421,8 @@ GPU 상자: `Ryzen 5 8600G 12스레드 · RTX 4070 SUPER 12GB`.
 
 ## 참조
 
+- ★**발표용 그림**: [`docs/delivery/presentation_visuals.html`](../delivery/presentation_visuals.html)
+  — 그림 3(리랭커 5종 막대) · 그림 4(임베딩 잘림)가 이 문서 §3·§4 를 그림으로 옮긴 것이다
 - 임베딩 선정 브리핑(측정 21회): [`docs/handoff/13_임베딩모델_선정_브리핑.md`](../handoff/13_임베딩모델_선정_브리핑.md)
 - 리랭커 5종 실측: [`docs/reports/2026-08-04_S6_Arctic-ko_리랭커5종_실측과_운영반영.md`](../reports/2026-08-04_S6_Arctic-ko_리랭커5종_실측과_운영반영.md)
 - S7.1 승격·비회귀·지연: [`docs/reports/2026-08-04_S7.1_OCR승격_최종결과.md`](../reports/2026-08-04_S7.1_OCR승격_최종결과.md)

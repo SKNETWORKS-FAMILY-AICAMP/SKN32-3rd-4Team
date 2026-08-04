@@ -23,8 +23,11 @@
 |---|---|---|
 | `docs/delivery/storyboard.html` | 보험 판정 **6컷 실캡처** | ★**제출 정본** |
 | `docs/delivery/screenshots/` | PNG 6장 + `cuts.json`(화면 문구 전문) | 정본의 원본 자산 |
+| `docs/delivery/presentation_visuals.html` | 발표용 **인라인 SVG 5장** | ★제출 정본 — 화면이 아니라 **설계·측정** 그림 |
 | `docs/handoff/storyboard.html` | 사람 화면 ‖ 에이전트 JSON **9컷** | 보조 — 팀 내부 계약용 |
 | ~~`docs/screen_walkthrough.html`~~ | ★**커머스 시절 화면 18장** — 주문/장바구니/얼굴인식/화상상담/facebench | ★**제출물에서 링크 금지** |
+
+전체 그림 목록(보조·금지 포함)은 [08_시각화_자료_목록.md](08_시각화_자료_목록.md).
 
 > ★`screen_walkthrough.html` 은 이 저장소가 쇼핑몰 실습(`_unified_mall`)이던 시절 산출물이다
 > (`04_orders_preview.png` · `15_shop_cart.png` · `16_mypage_face_login.png` · `18_facebench.png` …).

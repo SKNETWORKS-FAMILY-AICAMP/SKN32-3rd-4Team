@@ -44,7 +44,6 @@ def test_같은_제4조라도_실제_담보_범위를_표시한다():
 
     cites = [_excluded_citation(room), _excluded_citation(nursing)]
     assert [c.scope for c in cites] == ["상급병실료차액보험금", "요양병원 의료비"]
-    # 서로 다른 특약 근거를 화면 중복으로 오인해 제거하면 안 된다.
     assert len(_dedupe(cites)) == 2
 
 

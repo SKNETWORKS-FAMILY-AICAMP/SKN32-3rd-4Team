@@ -1,6 +1,11 @@
 # 인터페이스 계약 — Agent (LangGraph · MCP · 외부 에이전트)
 
-담당 **정재희** · 버전 v1 · 2026-08-02
+담당 **정재희** · 버전 v1.1 · 2026-08-04
+
+| 버전 | 변경 |
+|---|---|
+| v1.0 | LangGraph·MCP·클라이언트 관리 목표 계약 |
+| v1.1 | 구현된 등록 에이전트 전용 앱·보호 경로·헤더·운영 경계 반영 |
 
 ---
 
@@ -60,19 +65,20 @@
 
 ```
 외부 에이전트
-   ├─ REST  POST /v1/prechecks   ← 정본
+   ├─ REST  POST /v1/agent/prechecks   ← 등록 클라이언트 보호 입구
    └─ MCP   insurance_precheck   ← 어댑터
               ↓
         precheck.run()  (동일한 application service)
 ```
 
-### 노출할 도구 — **3개면 충분하다**
+### 노출할 도구 — **4개**
 
 | 도구 | 대응 REST | scope |
 |---|---|---|
-| `insurance_precheck` | `POST /v1/prechecks` | `precheck:read` |
-| `policy_clause_search` | `POST /v1/terms/search` | `terms:read` |
-| `submit_case_observation` | `POST /v1/observations` | `observations:write` |
+| `precheck` | `POST /v1/agent/prechecks` | `precheck:read` |
+| `explain_term` | `POST /v1/agent/terms/explain` | `terms:read` |
+| `cohort_stats` | `GET /v1/agent/cohorts` | `cohort:read` |
+| `submit_observation` | `POST /v1/agent/observations` | `observations:write` |
 
 ### 리소스
 
@@ -85,8 +91,9 @@ insurance://schemas/precheck-v1   응답 스키마
 
 ### 기존 코드 주의
 
-`app/routers/mcp.py` 는 MCP 서버가 아니라 **클라이언트 시연용 프록시**다.
-공개 서버는 `/mcp` 의 Streamable HTTP 로 따로 세워야 한다.
+현행 `app/mcp/server.py`는 로컬 stdio MCP이며 도구 인자에 API 키를 받지 않는다.
+원격 Streamable HTTP MCP 인증·배포는 아직 구현하지 않았다. 따라서 외부 기계 연결의 현행 정본은
+보호 REST `/v1/agent/*`이고, stdio MCP를 인터넷에 그대로 노출하면 안 된다.
 
 ---
 
@@ -112,6 +119,17 @@ insurance://schemas/precheck-v1   응답 스키마
 | 레이트리밋 | `client_id + subject_hash + operation` 기준 |
 | 감사 | 요청마다 client, trace_id, verdict, latency 기록. **원문 대신 해시** |
 
+멱등 원장은 호출자가 준 키 원문 대신 `AGENT_HASH_SECRET` HMAC을 저장한다. stale 작업을
+재예약할 때마다 `lease_token`을 바꾸고 완료·실패는 해당 token 소유자만 갱신한다. 운영
+runtime 역할은 client·audit 원장을 수정하거나 지울 수 없고, 등록·회전·비활성화·보존기간
+파기는 admin CLI에서만 수행한다.
+
+추가 헤더 계약:
+
+- 모든 보호 요청: `X-Agent-Subject: <opaque-ref>` — 이름·주민번호·질병명 금지
+- 쓰기 요청: `Idempotency-Key` 필수
+- 인증/DB/audit 장애는 fail-closed `503`, scope 부족 `403`, 한도 초과 `429 + Retry-After`
+
 ---
 
 ## 5. 데모용 에이전트
@@ -120,10 +138,10 @@ insurance://schemas/precheck-v1   응답 스키마
 
 ```
 scripts/demo/agent_client.py
-  1. GET  /v1/support-manifest      무엇을 지원하는지 확인
-  2. POST /v1/prechecks             판정 요청
+  1. GET  /v1/agent/support-manifest      무엇을 지원하는지 확인
+  2. POST /v1/agent/prechecks             판정 요청
   3. 결과의 trace_id 를 들고
-  4. POST /v1/observations          나중에 실제 결과 보고
+  4. POST /v1/agent/observations          나중에 실제 결과 보고
 ```
 
 MCP 클라이언트 버전도 같이 두면 "에이전트가 도구로 쓴다"를 보여줄 수 있다.
@@ -135,7 +153,12 @@ MCP 클라이언트 버전도 같이 두면 "에이전트가 도구로 쓴다"�
 | 산출물 | 형태 |
 |---|---|
 | `app/workflow/precheck_graph.py` | LangGraph 파이프라인 — ★**이미 존재한다.** 새 위치에 다시 만들지 말 것(`11_AI_구조_지도.md`) |
-| `app/mcp_server/` | MCP 서버(도구 3개 + 리소스 2개) |
-| `app/auth/agent_client.py` | 키·scope·레이트리밋 |
-| `scripts/demo/agent_client.py` | 데모 에이전트 |
+| `app/mcp/server.py` | 로컬 stdio MCP(도구 4개 + 리소스 2개) — 원격 인증은 미구현 |
+| `app/agent_main.py`·`app/routers/agent.py` | 별도 보호 REST 앱과 5개 endpoint |
+| `app/auth/agent_client.py`·`app/adapters/pg_agent_access.py` | 키·scope·rate·멱등·감사 |
+| `scripts/agent_clients.py` | 키 create/rotate/disable/list CLI |
+| `scripts/run_agent_server.py` | 기본 loopback, 원격 bind 명시 승인 |
+| `scripts/demo/agent_client.py` | 보호 API용 데모 클라이언트 — **미구현** |
 | `tests/test_graph.py` | 재시도·기권 경로 테스트 |
+
+실제 DNS·TLS 종료·WAF·키 전달 및 원격 MCP/A2A는 이 버전에 포함하지 않는다.

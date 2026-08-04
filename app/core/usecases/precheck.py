@@ -61,6 +61,32 @@ RULE_ENGINE_VERSION = "rules-2026.08.02"
 _USABLE_PARSE_STATUS = {"ok"}
 
 
+def _assessment_message(verdict: Verdict, assessments: list[CodeVerdict]) -> str:
+    """채팅 요약에 사용할 판정 설명을 만든다.
+
+    상세 근거는 ``per_code``와 ``citations``로 별도 제공하지만, 성공 응답의
+    ``message``를 비워 두면 프론트가 의미 없는 기본 문구로 대체하게 된다.
+    판정의 의미와 다음 행동을 한 문단에 고정해 HTTP·채팅 양쪽에서 같은 설명을
+    사용한다.
+    """
+    codes = ", ".join(a.code for a in assessments) or "입력한 질병기호"
+    if verdict is Verdict.UNLIKELY:
+        return (
+            f"{codes}에 대해 약관의 면책 조항과 일치하는 내용이 확인되었습니다. "
+            "면책 가능성이 있는 결과이며, 아래에서 질병기호별 판단과 약관 원문 근거를 확인하세요. "
+            "최종 지급 여부는 실제 사고 내용과 청구 서류에 따라 달라질 수 있습니다."
+        )
+    if verdict is Verdict.NEEDS_DOCUMENTS:
+        return (
+            f"{codes}에 대해 면책 예외 조건과 관련된 조항이 확인되었습니다. "
+            "요양급여 해당 여부 등 추가 서류와 조건을 확인해야 하며, 아래에 세부 근거를 표시했습니다."
+        )
+    return (
+        f"{codes}는 현재 확인한 면책 조항만으로는 보장 여부를 확정할 수 없습니다. "
+        "면책 목록에 없다는 사실만으로 보장된다고 단정하지 않으며, 아래의 근거와 약관 정보를 확인하세요."
+    )
+
+
 def _trace_id(req: PrecheckInput) -> str:
     """같은 요청이면 같은 값. 감사·재현에 쓴다."""
     raw = json.dumps(
@@ -309,7 +335,7 @@ def _run(
         verdict=overall,
         abstained=overall == Verdict.NEEDS_EXPERT,
         reason_code=rc,
-        message="",
+        message=_assessment_message(overall, per_code),
         applied_policy=applied,
         per_code=per_code,
         citations=_dedupe(all_cites),

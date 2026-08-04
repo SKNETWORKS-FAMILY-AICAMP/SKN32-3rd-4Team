@@ -86,37 +86,21 @@ def cmd_ready() -> None:
 
 
 def set_role(username: str, role: str) -> str:
-    """사용자 역할을 명시적으로 변경한다(멱등). 감사 이벤트를 남긴다.
+    """사용자 역할을 변경한다(멱등). **규칙은 `app.auth.roles.change_role` 한 벌뿐이다.**
 
-    부트스트랩은 이 CLI **하나뿐**이다 — 환경변수·가입 시 자동 승격 같은 암묵 경로를 두면
-    권한 상승 사고가 난다. 마지막 ADMIN 강등은 거부해 잠금(lockout)을 막는다.
+    ★전에는 이 함수가 규칙(마지막 관리자 강등 금지·감사 기록)을 **직접** 들고 있었다.
+      그러다 관리자 화면에서도 역할을 바꾸게 되면서 규칙이 두 곳이 될 뻔했다 —
+      두 곳이면 느슨한 쪽이 실질 규칙이 된다. 그래서 도메인으로 옮기고 여기서는 부른다.
+
+    부트스트랩은 여전히 **이 CLI 하나뿐**이다. 최초 관리자를 화면에서 만들 수 있게 하면
+    가입한 누구나 관리자가 된다(권한 상승). 그 뒤의 추가는 관리자가 화면에서 한다.
     """
-    from app.auth.roles import ROLE_ADMIN, validate_role
-    from app.core.errors import NotFoundErr, ValidationErr
+    from app.auth.roles import change_role
     from app.db.database import SessionLocal
-    from app.db.models import User
-    from app.obs.events import record_event
 
-    validate_role(role)
     db = SessionLocal()
     try:
-        user = db.query(User).filter(User.username == username).first()
-        if user is None:
-            raise NotFoundErr(f"사용자를 찾을 수 없습니다: {username}")
-        before = user.role
-        if before == role:
-            return f"변경 없음(이미 {role}): {username}"
-        if before == ROLE_ADMIN and role != ROLE_ADMIN:
-            remaining = (
-                db.query(User).filter(User.role == ROLE_ADMIN, User.id != user.id).count()
-            )
-            if remaining == 0:
-                raise ValidationErr("마지막 관리자는 강등할 수 없습니다(잠금 방지).")
-        user.role = role
-        db.commit()
-        # 감사 기록: 누가/무엇을 바꿨는지 남긴다(원문·비밀 없음).
-        record_event(db, "role_change", {"username": username, "from": before, "to": role})
-        return f"역할 변경: {username} {before} → {role}"
+        return change_role(db, username, role, actor="cli")["message"]
     finally:
         db.close()
 
@@ -158,20 +142,65 @@ def cmd_purge_gaps(days: int) -> None:
     print(f"[purge-gaps] {purge_gaps(days)}건 파기(보존 {days}일).")
 
 
+def reset_face(username: str) -> str:
+    """등록된 얼굴을 지운다 — **잠금 복구 수단**.
+
+    ★★왜 필요한가 — 얼굴 2FA 는 **되돌릴 수 없는 잠금**이 될 수 있다.
+
+        얼굴을 등록하면 다음 로그인부터 반드시 얼굴이 필요하다. 그런데
+        카메라가 없는 PC 로 옮기거나, 조명·외모가 바뀌어 임계값을 못 넘거나,
+        남의 얼굴로 잘못 등록하면 **그 계정으로는 영영 못 들어간다.**
+        해제하려면 로그인해야 하고, 로그인하려면 얼굴이 필요하다.
+
+        실제로 겪었다(2026-08-04): 검증용으로 등록한 샘플 얼굴 때문에
+        `demo_admin` 로그인이 2차 인증에서 멈췄다. DB 를 직접 건드려 풀었는데,
+        **그건 운영 절차가 아니라 응급처치**다. 명령으로 만들어 둔다.
+
+    ★비밀번호는 건드리지 않는다. 얼굴만 지운다 — 지운 뒤에는
+      비밀번호만으로 로그인되고, 원하면 다시 등록하면 된다.
+    """
+    from app.core.errors import NotFoundErr
+    from app.db.database import SessionLocal
+    from app.db.models import FaceCredential, User
+    from app.obs.events import record_event
+
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.username == username).first()
+        if user is None:
+            raise NotFoundErr(f"사용자를 찾을 수 없습니다: {username}")
+        n = db.query(FaceCredential).filter(FaceCredential.user_id == user.id).delete()
+        db.commit()
+        if n == 0:
+            return f"등록된 얼굴이 없습니다: {username}"
+        #: 감사 기록 — 인증 수단을 없앤 것은 반드시 남는다.
+        record_event(db, "face_reset", {"username": username, "by": "cli"})
+        return f"얼굴 등록 해제: {username} (이제 비밀번호로 로그인)"
+    finally:
+        db.close()
+
+
+def cmd_face_reset(username: str) -> None:
+    print(f"[face-reset] {reset_face(username)}")
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="운영 관리 명령")
     parser.add_argument(
         "command",
-        choices=["migrate", "ingest", "ready", "promote", "demote", "purge-gaps"],
+        choices=["migrate", "ingest", "ready", "promote", "demote", "face-reset",
+                 "purge-gaps"],
     )
-    parser.add_argument("target", nargs="?", help="promote/demote의 username")
+    parser.add_argument("target", nargs="?",
+                        help="promote/demote/face-reset 의 username")
     parser.add_argument("--days", type=int, default=90, help="purge-gaps 보존기간(일)")
     args = parser.parse_args(argv)
 
-    if args.command in ("promote", "demote"):
+    if args.command in ("promote", "demote", "face-reset"):
         if not args.target:
             parser.error(f"{args.command}에는 username이 필요합니다.")
-        (cmd_promote if args.command == "promote" else cmd_demote)(args.target)
+        {"promote": cmd_promote, "demote": cmd_demote,
+         "face-reset": cmd_face_reset}[args.command](args.target)
         return
     if args.command == "purge-gaps":
         cmd_purge_gaps(args.days)
