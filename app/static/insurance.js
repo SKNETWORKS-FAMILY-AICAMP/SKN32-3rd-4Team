@@ -23,6 +23,10 @@ const VERDICT_KO = {
   needs_expert: ['전문가 확인 필요', 'warn'],
 };
 
+// 개인 진료기록의 KCD 상병코드 형식. 약관 분류 범위(C30~C39)는 입력값이 아니다.
+// 소수점 세분류(S72.0, N39.3)는 정상 입력으로 받는다.
+const SINGLE_KCD_CODE = /^[A-Z]\d{2}(?:\.\d{1,2})?$/i;
+
 async function api(path, opts) {
   const res = await fetch(path, opts);
   let body = null;
@@ -48,7 +52,17 @@ function updateSessionCard() {
 function showChat() {
   updateSessionCard();
   $('appShell').classList.add('show-chat');
-  requestAnimationFrame(() => $('chatIn').focus({ preventScroll: true }));
+  requestAnimationFrame(() => {
+    $('chatIn').focus({ preventScroll: true });
+    //: ★★**보일 때 다시 잰다.** 숨은 요소는 `scrollWidth`·`clientWidth` 가 0 이라
+    //:   넘침 판정이 늘 false 가 된다 — 실측 2026-08-04, 칩 26개인데 페이드가 안 붙었다.
+    //:
+    //:   ★`requestAnimationFrame` 으로는 **모자랐다.** 이 창은 CSS 전환으로 나타나서
+    //:     다음 프레임에도 폭이 아직 옛 값이다(실측: scrollWidth 2069 · clientWidth 582
+    //:     인데 판정이 false). 그래서 몇 번 나눠 잰다 — 한 번이라도 제대로 잡히면 된다.
+    //:     늦게 재는 것은 해롭지 않고, 안 재는 것이 해롭다.
+    markQuickScrollable();
+  });
 }
 
 function updateRegisterState() {
@@ -195,23 +209,122 @@ async function loadCodeList() {
   }
   const frag = document.createDocumentFragment();
   for (const it of items) {
-    //: 누르면 입력창에 넣어 준다 — 그게 「입력 도우미」의 목적이다.
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'chip';
     b.style.cursor = 'pointer';
-    b.textContent = `${it.code} · ${it.chapter}`;
-    b.title = `약관 ${it.policies}건에 등장`;
-    b.addEventListener('click', () => {
-      const box = $('codes');
-      const cur = box.value.trim();
-      box.value = cur ? `${cur}, ${it.code}` : it.code;
-      box.dispatchEvent(new Event('input', { bubbles: true }));
-    });
+    if (it.input_allowed) {
+      // 단일 코드만 입력창에 넣는다.
+      b.textContent = `${it.code} · ${it.chapter}`;
+      b.title = `약관 ${it.policies}건에 등장 · 눌러서 입력`;
+      b.addEventListener('click', () => {
+        const box = $('codes');
+        const cur = box.value.trim();
+        box.value = cur ? `${cur}, ${it.code}` : it.code;
+        box.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+    } else {
+      // C30~C39는 약관이 묶어서 표기한 범위다. 이를 개인 상병코드로 보내지 않는다.
+      b.textContent = `${it.code} · ${it.chapter} · 약관 범위`;
+      b.title = '범위는 선택할 수 없습니다. 진단서의 개별 상병코드를 입력하세요.';
+      b.setAttribute('aria-disabled', 'true');
+      b.addEventListener('click', () => {
+        if (summary) {
+          summary.textContent =
+            `${it.code}는 약관의 분류 범위이므로 판정 입력값이 아닙니다. ` +
+            '진료비 세부내역서나 진단서에 적힌 개별 상병코드(예: C34.1)를 입력하세요.';
+        }
+      });
+    }
     frag.appendChild(b);
   }
   body.appendChild(frag);
 }
+
+/* ── 챗봇 용어 도우미 ─────────────────────────────────────────────
+ *
+ * ★★**용어 사전이 아니다.** 뜻은 여기 담지 않고 챗봇이 약관 원문으로 답한다.
+ *   여기 쓰는 것은 「이 낱말은 약관에 정의가 있다」는 사실뿐이다.
+ *
+ * ★칩을 **하드코딩하지 않는다.** 4개가 박혀 있었는데, 약관이 바뀌면 눌렀을 때
+ *   못 찾는 칩이 생긴다. 서버 목록은 `scripts/eval/glossary_terms.py` 가
+ *   **실제 검색으로 검증한 것만** 담는다.
+ *
+ * ★목록에 **없는 낱말도 물어볼 수 있다.** 자동완성은 거들 뿐 막지 않는다 —
+ *   막으면 사용자가 질문 자체를 포기한다.
+ */
+async function loadChatTerms() {
+  const list = $('chatTerms');
+  const chips = $('quickPrompts');
+  const wrap = $('quickWrap');
+  if (!list || !chips) return;
+
+  const { status, body } = await api('/v1/chat/terms?limit=120');
+  if (status !== 200 || !body) {
+    //: ★못 불러온 것을 "용어가 없다"로 그리지 않는다. 직접 물어보면 된다.
+    markQuickScrollable();
+    return;
+  }
+  const items = body.items || [];
+
+  //: 입력창 자동완성 — 낱말만 넣는다. 문장을 넣으면 그대로 전송돼 의도가 흐려진다.
+  list.replaceChildren();
+  for (const it of items) {
+    const opt = document.createElement('option');
+    opt.value = it.term;
+    opt.label = `약관 ${it.policies}건에 정의`;
+    list.appendChild(opt);
+  }
+
+  //: 칩 — 널리 쓰이는 용어부터. 앞의 하드코딩 3개는 남겨 둔다(대표 질문 형태).
+  const seen = new Set([...chips.querySelectorAll('button')].map((b) => b.dataset.q));
+  const frag = document.createDocumentFragment();
+  for (const it of items.slice(0, 24)) {
+    const q = `${it.term} 뜻`;
+    if (seen.has(q) || seen.has(it.term)) continue;
+    seen.add(q);
+    const b = document.createElement('button');
+    b.className = 'chip-btn';
+    b.type = 'button';
+    b.dataset.q = q;
+    b.textContent = q;
+    b.title = `약관 ${it.policies}건에 정의가 있습니다`;
+    b.addEventListener('click', () => sendChat(q));
+    frag.appendChild(b);
+  }
+  chips.appendChild(frag);
+  //: ★붙인 직후엔 아직 레이아웃 전일 수 있다. 지금과 다음 프레임 둘 다 잰다.
+  markQuickScrollable();
+  if (wrap) {
+    wrap.title =
+      `약관에 정의가 있는 용어 ${body.total_terms}종에서 골랐습니다. ` +
+      '목록에 없는 낱말도 물어보실 수 있습니다.';
+  }
+}
+
+//: ★★**레이아웃을 재지 않고 「칩 개수」로 판단한다.**
+//:
+//:   원래 `scrollWidth > clientWidth` 로 넘침을 쟀다. 그런데 이 창은 CSS 전환으로
+//:   나타나서 **언제 재도 폭이 옛 값이거나 0** 이었다 — `requestAnimationFrame`,
+//:   `ResizeObserver`, 60/200/500ms 타이머를 다 붙여도 판정이 안 걸렸다
+//:   (실측 2026-08-04: `scrollWidth 2069 · clientWidth 582` 인데 계속 false).
+//:
+//:   ★재는 시점을 더 찾아 헤매는 대신 **확실히 아는 것**을 쓴다.
+//:     칩이 8개를 넘으면 어떤 현실적 폭에서도 한 줄에 안 들어간다.
+//:     추측이 아니라 우리가 만든 개수다. 틀릴 여지가 없고 설명도 쉽다.
+//:
+//:   ★페이드는 「더 있다」는 신호일 뿐이라, 몇 개에서 켜지느냐가 정확할 필요는 없다.
+//:     정확해야 하는 것은 **없는데 있다고 말하지 않는 것**이고 그건 지켜진다.
+const _QUICK_SCROLL_MIN_CHIPS = 8;
+
+function markQuickScrollable() {
+  const wrap = $('quickWrap');
+  const chips = $('quickPrompts');
+  if (!wrap || !chips) return;
+  const n = chips.querySelectorAll('.chip-btn').length;
+  wrap.classList.toggle('is-scrollable', n > _QUICK_SCROLL_MIN_CHIPS);
+}
+
 
 /* ── 컷① 지원범위 ─────────────────────────────────────────────── */
 
@@ -351,9 +464,71 @@ function bindCandidates() {
     b.addEventListener('click', () => runPrecheck(b.dataset.name)));
 }
 
-async function runPrecheck(productName) {
-  const codes = $('codes').value.split(',').map((s) => s.trim()).filter(Boolean);
-  const selectedProduct = productName || $('productName').value.trim();
+function renderPrecheckChat(body) {
+  const [label] = VERDICT_KO[body.verdict] || [body.verdict];
+  const assessments = (body.per_code || []).map((a) => `
+    <div class="precheck-chat-line"><strong>${esc(a.code)}</strong> ·
+      ${esc((VERDICT_KO[a.verdict] || [a.verdict])[0])}
+      ${a.note ? `<br><span class="small">${esc(a.note)}</span>` : ''}
+    </div>`).join('');
+  const warnings = (body.warnings || []).map((w) =>
+    `<div class="small precheck-chat-warning">⚠ ${esc(w)}</div>`).join('');
+  const citationCount = (body.citations || []).length;
+
+  return `<strong>${esc(label)}</strong><br>
+    <div style="margin-top:6px">${esc(body.message || '판정 결과를 확인했습니다.')}</div>
+    ${assessments ? `<div class="precheck-chat-details"><strong>질병기호별 판단</strong>${assessments}</div>` : ''}
+    ${warnings}
+    <div class="small muted" style="margin-top:8px">
+      약관 원문 근거 ${citationCount}건을 아래 상세 결과에 표시했습니다.
+    </div>
+    <button class="chat-detail-link" type="button" data-scroll-result>상세 근거 보기 ↓</button>`;
+}
+
+function bindResultLink(message) {
+  const button = message?.querySelector('[data-scroll-result]');
+  if (!button) return;
+  button.addEventListener('click', () => {
+    $('detailTitle').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    $('result').focus({ preventScroll: true });
+  });
+}
+
+function productLineFromChat(text) {
+  const normalized = String(text || '').toLowerCase().replace(/[^0-9가-힣a-z]/g, '');
+  if (normalized.includes('유병력자실손')) return 'simplified_issue';
+  if (normalized.includes('노후실손')) return 'senior';
+  if (normalized.includes('일반실손')) return 'standard';
+  return null;
+}
+
+function sameProductLine(candidate, line) {
+  const value = String(candidate?.product_line || candidate?.product_name || '')
+    .toLowerCase().replace(/[^0-9가-힣a-z]/g, '');
+  return value.includes(line);
+}
+
+async function runPrecheck(productName, options = {}) {
+  const codes = $('codes').value.split(',').map((s) => s.trim().toUpperCase()).filter(Boolean);
+  const selectedProduct = productName === undefined
+    ? $('productName').value.trim()
+    : productName;
+
+  // 입력 도우미뿐 아니라 붙여넣기·직접 입력 경로도 막는다. 범위를 임의로
+  // 여러 코드로 펼치면 실제 환자의 진단코드를 추측하게 되므로 자동 확장하지 않는다.
+  const invalidCode = codes.find((code) => !SINGLE_KCD_CODE.test(code));
+  if (invalidCode) {
+    const detail = /[~∼～-]/.test(invalidCode)
+      ? `${invalidCode}는 개별 질병기호가 아니라 약관의 코드 범위입니다. ` +
+        '진료비 세부내역서나 진단서에 적힌 단일 코드(예: C34.1)를 입력하세요.'
+      : `${invalidCode}의 형식이 올바르지 않습니다. 단일 질병기호(예: F32, S72.0)를 입력하세요.`;
+    $('status').textContent = '';
+    updateRegisterState();
+    renderResult(422, { detail });
+    if (!options.silentChat) bubble('bot', detail);
+    showChat();
+    return { status: 422, body: { detail } };
+  }
   $('status').textContent = '판정 중…';
   $('go').disabled = true;
 
@@ -375,13 +550,26 @@ async function runPrecheck(productName) {
   bindCandidates();
   if (codes.length) loadCohorts(codes[0]);
 
-  if (status === 200 && body) {
-    const [label] = VERDICT_KO[body.verdict] || [body.verdict];
-    bubble('bot', `<strong>${esc(label)}</strong><br>${esc(body.message || '상세 결과를 확인했습니다.')}`);
-  } else {
+  if (status === 200 && body && !options.silentChat) {
+    const message = bubble('bot', renderPrecheckChat(body));
+    bindResultLink(message);
+  } else if (!options.silentChat) {
     bubble('bot', '입력하신 보험정보를 확인하지 못했습니다. 입력값을 다시 확인해주세요.');
   }
   showChat();
+  return { status, body };
+}
+
+async function runPrecheckForChatProductLine(line) {
+  // 먼저 상품명을 비워 후보 목록을 받아 product_line으로 정확히 고른다.
+  const initial = await runPrecheck('', { fromChat: true, silentChat: true });
+  const candidate = (initial.body?.candidates || []).find((item) =>
+    sameProductLine(item, line));
+
+  if (candidate?.product_name) {
+    return runPrecheck(candidate.product_name, { fromChat: true });
+  }
+  return initial;
 }
 
 /* ── 컷⑧ 코호트 — ★실제와 합성을 각각 제 구역에만 그린다 ────────── */
@@ -443,6 +631,14 @@ async function sendChat(text) {
   if (!msg) return;
   $('chatIn').value = '';
   bubble('me', esc(msg));
+
+  const productLine = productLineFromChat(msg);
+  if (productLine) {
+    bubble('bot', `${esc(msg)}을(를) 상품 유형으로 인식했습니다. 해당 후보를 확인하는 중입니다…`);
+    await runPrecheckForChatProductLine(productLine);
+    return;
+  }
+
   const thinking = bubble('bot muted', '약관에서 찾는 중…');
 
   const { status, body } = await api('/v1/chat', {
@@ -452,8 +648,9 @@ async function sendChat(text) {
   });
   thinking.remove();
 
-  if (status === 503) {
-    bubble('bot', `<span style="color:var(--danger)">용어 색인을 사용할 수 없습니다 — ${esc(body?.detail || '')}</span>`);
+  if (status === 502 || status === 503) {
+    const reason = body?.message || body?.detail || '모델 또는 용어 색인이 준비되지 않았습니다.';
+    bubble('bot', `<span style="color:var(--danger)">AI 설명 서비스를 사용할 수 없습니다 — ${esc(reason)}</span>`);
     return;
   }
   if (status !== 200 || !body) {
@@ -462,6 +659,10 @@ async function sendChat(text) {
   }
 
   let html = esc(body.message).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+  if (body.llm?.used) {
+    html += `<div class="small muted" style="margin-top:8px">AI 설명 · ${esc(body.llm.provider)} · ${esc(body.llm.model)}</div>`;
+  }
 
   if (body.found && body.quotes.length) {
     html += `<div class="small muted" style="margin-top:8px">정의 구절 ${body.total_passages}개 · 보험사 ${body.insurers.length}곳</div>`;
@@ -564,7 +765,10 @@ $('codeListQuery').addEventListener('input', () => {
   _codeListQueryTimer = setTimeout(loadCodeList, 250);
 });
 
+window.addEventListener('resize', markQuickScrollable);
+
 updateSessionCard();
 updateRegisterState();
 loadProducts();
+loadChatTerms();
 loadScope();
