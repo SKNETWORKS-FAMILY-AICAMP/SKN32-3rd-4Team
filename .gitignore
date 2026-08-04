@@ -52,9 +52,13 @@ data/raw/excluded/
 # 레거시 보관소 — 현행 프로젝트와 분리된 **압축본만** 추적한다.
 # 폴더 전체를 ignore 하면 활성 파일을 zip 으로 옮긴 커밋에서 zip 은 빠지고 삭제만
 # 전달되는 사고가 난다. README와 zip 이외의 loose 파일은 숨기되 압축본은 저장소에 남긴다.
-/legacy/*
-!/legacy/README.md
-!/legacy/*.zip
+legacy/
+
+# 로컬 AI 도구 설정은 저장소에 포함하지 않는다.
+.claude/
+
+# 이전 작업 백업은 제출 저장소에 포함하지 않는다.
+backups/
 
 # 외부 에이전트 보고 — 개인정보가 섞일 수 있다. 저장소에 올리지 않는다.
 data/external/
