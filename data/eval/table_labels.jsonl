@@ -1,0 +1,60 @@
+{"_meta": true, "source": "_3rd_project_4\\ai-1\\table_true_false.json", "source_sha256": "b93b62c58b8c0a1f4030c8af05b767bf34df7e2091b426bf7d22889a974ec3a8", "imported_at": "2026-08-03", "labeled_by": "팀원(_3rd_project_4/ai-1) · 원문 육안 확인", "★주의": ["원본이 유효한 JSON 이 아니라 줄 단위로 복구해 들여왔다.", "`check` 는 '원문 확인 필요' 다 — true 로 반올림하지 말 것.", "라벨 단위는 **(문서, 쪽)** 이다. 한 쪽에 표가 여럿이면 구분되지 않는다."], "counts": {"true": 5, "check": 3, "false": 51}, "parse_failed_lines": 0, "duplicates_dropped": 2, "not_in_corpus": 0}
+{"label": "true", "sha12": "e05cbfdbdf6d", "page": 25, "why": "용어 설명표 · 원문 확인 필요성 보임", "source_line": 1, "in_corpus": true}
+{"label": "check", "sha12": "a0d58d7f357a", "page": 184, "why": "질병 분류표 · 격자 뚜렷(참). 단 3열 설명 잘림 — preview 절단인지 추출 실패인지 미확인", "source_line": 2, "in_corpus": true}
+{"label": "check", "sha12": "e4fc11cdbff0", "page": 69, "why": "질병 분류표 · 격자 뚜렷(참). 단 3열 설명 잘림 — preview 절단인지 추출 실패인지 미확인", "source_line": 3, "in_corpus": true}
+{"label": "check", "sha12": "4abe26860e63", "page": 71, "why": "장기 별 질병 설명표 · 하지만 줄 깨짐, 데이터 깨져서 확인 불가", "source_line": 4, "in_corpus": true}
+{"label": "false", "sha12": "69f0f5d848c7", "page": 60, "why": "약관 본문이 2열로 쪼개짐 · 이상한 데이터 포함됨", "source_line": 5, "in_corpus": true}
+{"label": "true", "sha12": "21b4c72eedc6", "page": 105, "why": "질병코드정의표 · 순서 배치 정규화시 규칙적인 데이터", "source_line": 8, "in_corpus": true}
+{"label": "true", "sha12": "443e03252244", "page": 72, "why": "질병코드정의표 · 순서 배치 정규화시 규칙적인 데이터", "source_line": 9, "in_corpus": true}
+{"label": "true", "sha12": "914701875724", "page": 176, "why": "질병설명표 · 순서 배치 정규화시 규칙적인 데이터", "source_line": 10, "in_corpus": true}
+{"label": "true", "sha12": "68e46cfdc2fd", "page": 80, "why": "질병코드정의표 · 순서 배치 정규화시 규칙적인 데이터", "source_line": 11, "in_corpus": true}
+{"label": "false", "sha12": "092f9cac3760", "page": 2, "why": "위험 코드가 나뉘어져야 한다고 보임", "source_line": 14, "in_corpus": true}
+{"label": "false", "sha12": "d3b94e055a18", "page": 2, "why": "위험 코드가 나뉘어져야 한다고 보임", "source_line": 15, "in_corpus": true}
+{"label": "false", "sha12": "9356d793a2da", "page": 2, "why": "위험 코드가 나뉘어져야 한다고 보임", "source_line": 16, "in_corpus": true}
+{"label": "false", "sha12": "d759c5142fef", "page": 14, "why": "셀 분류가 잘 못됨", "source_line": 18, "in_corpus": true}
+{"label": "false", "sha12": "e60978d0aad7", "page": 14, "why": "셀 분류가 잘 못됨", "source_line": 19, "in_corpus": true}
+{"label": "false", "sha12": "c297d0ec6bd2", "page": 14, "why": "셀 분류가 잘 못됨", "source_line": 20, "in_corpus": true}
+{"label": "false", "sha12": "002496fe7873", "page": 273, "why": "약관 본문이 2열로 쪼개짐 · ", "source_line": 22, "in_corpus": true}
+{"label": "false", "sha12": "07d6ae65b22d", "page": 281, "why": "본문 내용이 전체가 깨지고, 2열로 쪼개짐.", "source_line": 23, "in_corpus": true}
+{"label": "false", "sha12": "aaa29c921a53", "page": 133, "why": "쪼개져야 할 내용이 합쳐짐", "source_line": 25, "in_corpus": true}
+{"label": "false", "sha12": "4332ce1011bc", "page": 116, "why": "쪼개져야 할 내용이 합쳐짐", "source_line": 26, "in_corpus": true}
+{"label": "false", "sha12": "fcd1a31e991a", "page": 80, "why": "쪼개져야 할 내용이 합쳐짐", "source_line": 27, "in_corpus": true}
+{"label": "false", "sha12": "ae005e420b90", "page": 104, "why": "'주)'라는 글씨가 잘못 들어감", "source_line": 29, "in_corpus": true}
+{"label": "false", "sha12": "a49d9acb65c8", "page": 103, "why": "'주)'라는 글씨가 잘못 들어감", "source_line": 30, "in_corpus": true}
+{"label": "false", "sha12": "f8d559d4ac25", "page": 80, "why": "질병만 나열됨 · 실질 데이터 알 수 없음", "source_line": 32, "in_corpus": true}
+{"label": "false", "sha12": "0149a994930a", "page": 112, "why": "질병만 나열됨 질병만 나열됨 · 실질 데이터 알 수 없음", "source_line": 33, "in_corpus": true}
+{"label": "false", "sha12": "a2742d9a5d9c", "page": 54, "why": "약관 본문이 2열로 쪼개짐", "source_line": 36, "in_corpus": true}
+{"label": "false", "sha12": "3c8ae5de2d11", "page": 80, "why": "약관 본문이 2열로 쪼개짐", "source_line": 37, "in_corpus": true}
+{"label": "false", "sha12": "25a782f8b146", "page": 64, "why": "약관 본문이 2열로 쪼개짐", "source_line": 38, "in_corpus": true}
+{"label": "false", "sha12": "3d8126b28d97", "page": 380, "why": "약관 본문이 2열로 쪼개짐 · 페이지 푸터(380/401·회사명)까지 셀에 혼입", "source_line": 39, "in_corpus": true}
+{"label": "false", "sha12": "db24ea2e2dbf", "page": 4, "why": "본문이 2열로 쪼개짐", "source_line": 40, "in_corpus": true}
+{"label": "false", "sha12": "d575afffbb1c", "page": 23, "why": "약관 본문이 2열로 쪼개짐 · ", "source_line": 41, "in_corpus": true}
+{"label": "false", "sha12": "2c33af9fdc0b", "page": 4, "why": "약관 본문이 2열로 쪼개짐 · ", "source_line": 42, "in_corpus": true}
+{"label": "false", "sha12": "955a996740b0", "page": 11, "why": "약관 본문이 2열로 쪼개짐 · ", "source_line": 43, "in_corpus": true}
+{"label": "false", "sha12": "3f5b74f96355", "page": 4, "why": "약관 본문이 2열로 쪼개짐 · 페이지 잘못 삽입됨", "source_line": 44, "in_corpus": true}
+{"label": "false", "sha12": "86c536ac20ac", "page": 25, "why": "약관 본문이 여러개의 열로 쪼개짐 · ", "source_line": 45, "in_corpus": true}
+{"label": "false", "sha12": "8173dda1db87", "page": 4, "why": "약관 본문이 2열로 쪼개짐 · 페이지 삽입됨", "source_line": 46, "in_corpus": true}
+{"label": "false", "sha12": "302c7c393e22", "page": 22, "why": "약관 본문이 2열로 쪼개짐 · 데이터 깨짐", "source_line": 48, "in_corpus": true}
+{"label": "false", "sha12": "b07cfa3cf02f", "page": 114, "why": "약관 본문이 2열로 쪼개짐 · 쉼표 나열 같은 데이터 깨짐", "source_line": 49, "in_corpus": true}
+{"label": "false", "sha12": "2651a7aa36b2", "page": 84, "why": "심각한 데이터 깨짐으로 알 수 없지만 약관이 쪼개짐", "source_line": 50, "in_corpus": true}
+{"label": "false", "sha12": "955a996740b0", "page": 134, "why": "심각한 데이터 깨짐으로 알 수 없지만 약관이 쪼개짐", "source_line": 52, "in_corpus": true}
+{"label": "false", "sha12": "f2fcc3a5a776", "page": 5, "why": "심각한 데이터 깨짐으로 알 수 없지만 약관이 쪼개짐", "source_line": 53, "in_corpus": true}
+{"label": "false", "sha12": "1dcfc11af1e6", "page": 9, "why": "약관 본문이 2열로 쪼개짐 · ", "source_line": 54, "in_corpus": true}
+{"label": "false", "sha12": "48aad031faea", "page": 124, "why": "약관 본문이 2열로 쪼개짐 · ", "source_line": 55, "in_corpus": true}
+{"label": "false", "sha12": "2bb90fe123ad", "page": 91, "why": "심각한 데이터 깨짐으로 알 수 없지만 약관이 쪼개짐", "source_line": 56, "in_corpus": true}
+{"label": "false", "sha12": "652b501fb5d9", "page": 22, "why": "심각한 데이터 깨짐으로 알 수 없지만 약관이 쪼개짐", "source_line": 57, "in_corpus": true}
+{"label": "false", "sha12": "82b88baafcbc", "page": 83, "why": "약관 본문이 2열로 쪼개짐 · ", "source_line": 58, "in_corpus": true}
+{"label": "false", "sha12": "663e48304814", "page": 125, "why": "약관 본문이 2열로 쪼개짐 · ", "source_line": 59, "in_corpus": true}
+{"label": "false", "sha12": "7dc92815b141", "page": 74, "why": "약관 본문이 2열로 쪼개짐 · ", "source_line": 60, "in_corpus": true}
+{"label": "false", "sha12": "aae17d581404", "page": 133, "why": "약관 본문이 2열로 쪼개짐 · ", "source_line": 61, "in_corpus": true}
+{"label": "false", "sha12": "62baf8226b10", "page": 5, "why": "심각한 데이터 깨짐으로 알 수 없지만 약관이 쪼개짐", "source_line": 62, "in_corpus": true}
+{"label": "false", "sha12": "ba396b382a73", "page": 224, "why": "심각한 데이터 깨짐으로 알 수 없지만 약관이 쪼개짐", "source_line": 63, "in_corpus": true}
+{"label": "false", "sha12": "a0a6fc49e762", "page": 5, "why": "심각한 데이터 깨짐으로 알 수 없지만 약관이 쪼개짐", "source_line": 64, "in_corpus": true}
+{"label": "false", "sha12": "3bf51e2c55e8", "page": 76, "why": "심각한 데이터 깨짐으로 알 수 없지만 약관이 쪼개짐", "source_line": 65, "in_corpus": true}
+{"label": "false", "sha12": "57a63de08f48", "page": 107, "why": "약관 본문이 2열로 쪼개짐 · 데이터도 깨짐", "source_line": 66, "in_corpus": true}
+{"label": "false", "sha12": "d3d7440fc1a4", "page": 95, "why": "약관 본문이 2열로 쪼개짐 · ", "source_line": 67, "in_corpus": true}
+{"label": "false", "sha12": "4af262bb979f", "page": 22, "why": "심각한 데이터 깨짐으로 알 수 없지만 약관이 쪼개짐", "source_line": 68, "in_corpus": true}
+{"label": "false", "sha12": "9356d793a2da", "page": 122, "why": "약관 본문이 2열로 쪼개짐 · ", "source_line": 69, "in_corpus": true}
+{"label": "false", "sha12": "4917bccebbf1", "page": 10, "why": "심각한 데이터 깨짐으로 알 수 없지만 약관이 쪼개짐", "source_line": 70, "in_corpus": true}
+{"label": "false", "sha12": "755c366d3316", "page": 75, "why": "약관 본문이 2열로 쪼개짐 · ", "source_line": 71, "in_corpus": true}
+{"label": "false", "sha12": "cc60d0492fae", "page": 127, "why": "심각한 데이터 깨짐으로 알 수 없지만 약관이 쪼개짐", "source_line": 72, "in_corpus": true}

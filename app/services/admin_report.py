@@ -1,6 +1,6 @@
 """관리자 대시보드 요약 보고서 PDF 생성 (Phase 14).
 
-현재 대시보드가 보여주는 것과 같은 데이터(준비상태·주문·이벤트·지식갭)를 요약해 PDF로
+현재 대시보드가 보여주는 것과 같은 데이터(준비상태·코호트 표본·이벤트·지식갭)를 요약해 PDF로
 만든다. 한글은 시스템 폰트(맑은 고딕)를 임베딩하며, 폰트가 없으면 조용히 깨진 글자로 만들지
 않고 ConfigError로 실패한다(무폴백). 브랜드명은 config 단일 소스에서 읽는다.
 """
@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.errors import ConfigError
-from app.db.models import KnowledgeGap, Order, RunEvent
+from app.db.models import KnowledgeGap, RunEvent
 
 def _register_fonts():
     from reportlab.pdfbase import pdfmetrics
@@ -39,11 +39,29 @@ def _collect(db: Session) -> dict:
 
     readiness = check_readiness()
 
-    order_total = db.query(func.count(Order.id)).scalar() or 0
-    order_amount = db.query(func.coalesce(func.sum(Order.total_amount), 0)).scalar() or 0
-    order_by_status = dict(
-        db.query(Order.status, func.count(Order.id)).group_by(Order.status).all()
-    )
+    #: ★주문 요약을 **코호트 요약으로 교체했다**(2026-08-04).
+    #:   보험 보고서에 "총 결제금액"이 실려 있으면 읽는 사람이 이 제품을 오해한다.
+    #:   두 트랙을 나란히 싣되 **합계를 만들지 않는다** — 합치면 합성이 실제로 샌다.
+    from app.adapters import demo_submission_store as demo
+    from app.composition import build_cohort
+    from app.core.domain.insurance import DataSource, KcdCode
+
+    cohort: dict[str, dict] = {}
+    try:
+        q = build_cohort()
+        kc = KcdCode(version_label="", code="", name_ko="")
+        for src in (DataSource.VERIFIED_REAL, DataSource.SYNTHETIC):
+            ans = q.run(kcd_code=kc, product_id="", age_band=None, data_source=src)
+            cohort[src.value] = {"n": ans.stats.n, "approved": ans.stats.approved_n,
+                                 "denied": ans.stats.denied_n,
+                                 "min_sample": ans.stats.min_sample}
+    except Exception as e:  # noqa: BLE001
+        #: ★0 으로 때우지 않는다. "못 셌다"와 "0건"은 다르다.
+        cohort = {"error": str(e)[:120]}
+    try:
+        demo_counts = demo.counts()
+    except Exception as e:  # noqa: BLE001
+        demo_counts = {"error": str(e)[:120]}
 
     event_total = db.query(func.count(RunEvent.id)).scalar() or 0
     event_by_kind = (
@@ -61,9 +79,8 @@ def _collect(db: Session) -> dict:
 
     return {
         "readiness": readiness,
-        "order_total": int(order_total),
-        "order_amount": int(order_amount),
-        "order_by_status": {str(k): int(v) for k, v in order_by_status.items()},
+        "cohort": cohort,
+        "demo_counts": demo_counts,
         "event_total": int(event_total),
         "event_by_kind": [(str(k), int(v)) for k, v in event_by_kind],
         "gap_total": int(gap_total),
@@ -125,13 +142,28 @@ def build_admin_report_pdf(db: Session, generated_at: datetime | None = None) ->
         ["벡터 인덱스", yn(r.get("vector_index_ready"))],
     ], [70 * mm, 40 * mm]))
 
-    story.append(Paragraph("2. 주문 요약", h2))
-    story.append(Paragraph(
-        f"총 주문 {data['order_total']}건 · 총 결제금액 {data['order_amount']:,}원", body))
-    if data["order_by_status"]:
-        rows = [["상태", "건수"]] + [[k, str(v)] for k, v in data["order_by_status"].items()]
+    story.append(Paragraph("2. 코호트 표본 현황 (트랙별 — 합계를 내지 않음)", h2))
+    c = data["cohort"]
+    if "error" in c:
+        story.append(Paragraph(f"집계하지 못했습니다: {c['error']}", body))
+    else:
+        rows = [["트랙", "표본 n", "지급", "부지급", "최소표본"]]
+        for key, label in (("verified_real", "실제(검증됨)"), ("synthetic", "합성(데모)")):
+            v = c.get(key, {})
+            rows.append([label, str(v.get("n", "-")), str(v.get("approved", "-")),
+                         str(v.get("denied", "-")), str(v.get("min_sample", "-"))])
+        story.append(table(rows, [38 * mm, 22 * mm, 20 * mm, 22 * mm, 24 * mm]))
         story.append(Spacer(1, 3))
-        story.append(table(rows, [70 * mm, 40 * mm]))
+        #: ★수치 옆에 항상 붙는다. 표만 보고 "승인율"을 읽어 가지 않게.
+        story.append(Paragraph(
+            "합성 트랙은 시연용 생성 데이터이며 실제 지급 통계가 아닙니다. "
+            "최소표본 미만이면 비율을 계산하지 않습니다.", body))
+    dc = data["demo_counts"]
+    if "error" not in dc:
+        story.append(Spacer(1, 3))
+        story.append(Paragraph(
+            f"합성 제출 {dc['submitted']}건 중 검수 승격 {dc['promoted']}건 "
+            f"(대기 {dc['pending']}건) — 승격된 것만 표본에 들어갑니다.", body))
 
     story.append(Paragraph("3. 에이전트 이벤트 요약", h2))
     story.append(Paragraph(f"총 이벤트 {data['event_total']}건 (상위 종류)", body))

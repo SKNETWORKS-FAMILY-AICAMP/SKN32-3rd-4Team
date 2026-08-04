@@ -157,7 +157,7 @@
 
     .summary-grid {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 18px;
       margin-bottom: 22px;
     }
@@ -288,6 +288,20 @@
       box-shadow: var(--shadow);
     }
 
+    /* ★★`style.css` 의 **요소 선택자** `header { background:#2f3640; color:#fff }` 가
+       `<header class="panel-header">` 까지 어둡게 칠한다. 거기에 `.panel h2 { color:#2f3640 }`
+       가 겹쳐 **패널 제목이 어두운 배경에 어두운 글자**로 안 보였다(2026-08-04 실제 화면에서 발견).
+       테스트는 전부 통과하고 있었다 — 화면을 열어 봐야 보이는 종류의 결함이다.
+       그래서 배경·글자색을 여기서 **명시로 되돌린다.** */
+    .panel > .panel-header {
+      color: var(--text);
+      background: var(--surface);
+    }
+
+    .panel .panel-title {
+      color: var(--text);
+    }
+
     .panel-header {
       min-height: 64px;
       display: flex;
@@ -321,22 +335,23 @@
       overflow: auto;
     }
 
-    .orders-table {
+    /* ★`.orders-table` 에서 이름을 바꿨다 — 주문 표가 아니라 일반 데이터 표다. */
+    .data-table {
       width: 100%;
       border-collapse: collapse;
       table-layout: fixed;
     }
 
-    .orders-table th,
-    .orders-table td {
-      height: 50px;
+    .data-table th,
+    .data-table td {
+      height: 46px;
       padding: 0 15px;
       border-bottom: 1px solid #edf0f3;
       text-align: left;
       vertical-align: middle;
     }
 
-    .orders-table th {
+    .data-table th {
       height: 43px;
       color: var(--muted);
       background: #fafbfc;
@@ -344,44 +359,434 @@
       font-weight: 650;
     }
 
-    .orders-table tbody tr:hover {
+    .data-table tbody tr:hover {
       background: #f8f9fc;
     }
 
-    .orders-table tbody tr:last-child td {
+    .data-table tbody tr:last-child td {
       border-bottom: 0;
     }
 
-    .orders-table th:nth-child(1) {
-      width: 25%;
-    }
-
-    .orders-table th:nth-child(2) {
-      width: 21%;
-    }
-
-    .orders-table th:nth-child(3) {
-      width: 18%;
-    }
-
-    .orders-table th:nth-child(4) {
-      width: 13%;
+    .data-table .num {
       text-align: right;
     }
 
-    .orders-table th:nth-child(5) {
-      width: 23%;
-      text-align: right;
-    }
-
-    .orders-table td:nth-child(4),
-    .orders-table td:nth-child(5) {
-      text-align: right;
-    }
-
-    .order-number {
+    .agent-ref {
       color: var(--accent-dark);
       font-weight: 700;
+      overflow-wrap: anywhere;
+    }
+
+    /* ── 트랙 배지 — 화면 어디서든 합성/실제가 한눈에 갈려야 한다 ───────── */
+    .track-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 750;
+      letter-spacing: 0.2px;
+      white-space: nowrap;
+    }
+
+    .track-synthetic {
+      color: #8a5a00;
+      background: #fff2d6;
+      border: 1px solid #f0d9a8;
+    }
+
+    .track-real {
+      color: #176d59;
+      background: var(--success-bg);
+      border: 1px solid #b9e0d3;
+    }
+
+    .track-none {
+      color: #596275;
+      background: #eef0f3;
+      border: 1px solid var(--border);
+    }
+
+    /* 살아있음 표시 — "접속 중"이 아니라 "최근 요청" 이다 */
+    .live-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #c3c9d2;
+      margin-right: 6px;
+    }
+
+    .live-dot.is-active {
+      background: var(--success);
+      box-shadow: 0 0 0 3px rgba(33, 140, 116, 0.16);
+    }
+
+    /* ── 코호트 두 트랙 나란히 ─────────────────────────────────────────── */
+    .cohort-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0;
+    }
+
+    .cohort-cell {
+      padding: 18px 19px;
+      border-right: 1px solid var(--border);
+    }
+
+    .cohort-cell:last-child {
+      border-right: 0;
+    }
+
+    .cohort-n {
+      margin: 10px 0 0;
+      font-size: 32px;
+      font-weight: 750;
+      line-height: 1;
+      letter-spacing: -1px;
+    }
+
+    .cohort-note {
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .cohort-bump {
+      animation: bump 0.9s ease;
+    }
+
+    @keyframes bump {
+      0% { background: #fff2d6; }
+      100% { background: transparent; }
+    }
+
+    /* ── 검수 큐 ───────────────────────────────────────────────────────── */
+    .queue-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      max-height: 420px;
+      overflow: auto;
+    }
+
+    .queue-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 13px 18px;
+      border-bottom: 1px solid #edf0f3;
+    }
+
+    .queue-item:last-child {
+      border-bottom: 0;
+    }
+
+    .queue-main {
+      min-width: 0;
+    }
+
+    .queue-title {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 650;
+      overflow-wrap: anywhere;
+    }
+
+    .queue-meta {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .verify-btn {
+      flex: 0 0 auto;
+      height: 32px;
+      padding: 0 13px;
+      border: 0;
+      border-radius: 6px;
+      color: #fff;
+      background: var(--success);
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .verify-btn:hover {
+      background: #1b7361;
+    }
+
+    .verify-btn:disabled {
+      cursor: wait;
+      opacity: 0.55;
+    }
+
+    /* ── 판정 모드 ─────────────────────────────────────────────────────── */
+    .mode-switch {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      color: var(--text);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .mode-switch input {
+      margin-top: 2px;
+      width: 16px;
+      height: 16px;
+    }
+
+    .mode-desc {
+      margin: 11px 0 0;
+      padding: 10px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      line-height: 1.55;
+      color: #8a5a00;
+      background: #fff2d6;
+      border: 1px solid #f0d9a8;
+    }
+
+    .mode-desc.is-strict {
+      color: #176d59;
+      background: var(--success-bg);
+      border-color: #b9e0d3;
+    }
+
+    .mode-counts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 16px;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .mode-counts strong {
+      color: var(--text);
+    }
+
+    /* ── 시뮬레이션 제어 ───────────────────────────────────────────────── */
+    .sim-body {
+      padding: 16px 18px 18px;
+    }
+
+    .sim-progress {
+      margin-bottom: 14px;
+    }
+
+    .sim-bar {
+      height: 8px;
+      border-radius: 999px;
+      background: #edf0f3;
+      overflow: hidden;
+    }
+
+    .sim-bar span {
+      display: block;
+      width: 0;
+      height: 100%;
+      background: var(--success);
+      transition: width 0.3s ease;
+    }
+
+    .sim-progress-text {
+      margin: 7px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .sim-fields {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .sim-fields label {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      color: var(--muted);
+      font-size: 11.5px;
+    }
+
+    .sim-fields .sim-wide {
+      grid-column: 1 / -1;
+    }
+
+    .sim-fields input {
+      height: 32px;
+      padding: 0 9px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    .sim-fields input:focus {
+      border-color: var(--accent);
+      outline: 0;
+      box-shadow: 0 0 0 2px rgba(74, 105, 189, 0.12);
+    }
+
+    .sim-check {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      margin-top: 13px;
+      color: var(--text);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .sim-check code {
+      padding: 1px 5px;
+      border-radius: 4px;
+      background: #f1f2f6;
+      font-size: 11px;
+    }
+
+    .sim-hint {
+      margin: 11px 0 0;
+      color: var(--muted);
+      font-size: 11.5px;
+      line-height: 1.55;
+    }
+
+    .sim-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 15px;
+    }
+
+    .sim-btn {
+      height: 36px;
+      padding: 0 15px;
+      border: 0;
+      border-radius: 6px;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .sim-btn.is-start {
+      background: var(--success);
+    }
+
+    .sim-btn.is-start:hover:not(:disabled) {
+      background: #1b7361;
+    }
+
+    .sim-btn.is-stop {
+      background: var(--danger);
+    }
+
+    .sim-btn.is-stop:hover:not(:disabled) {
+      background: #a52d12;
+    }
+
+    .sim-btn.is-reset {
+      margin-left: auto;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      background: #f7f8f9;
+    }
+
+    .sim-btn.is-reset:hover:not(:disabled) {
+      color: var(--danger);
+      border-color: #f0c8be;
+      background: var(--danger-bg);
+    }
+
+    .sim-btn:disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+    }
+
+    .sim-note {
+      margin: 11px 0 0;
+      font-size: 12px;
+      line-height: 1.5;
+      min-height: 18px;
+    }
+
+    .sim-note.is-error {
+      color: var(--danger);
+    }
+
+    .sim-note.is-ok {
+      color: var(--success);
+    }
+
+    .status-running {
+      color: #176d59;
+      background: var(--success-bg);
+    }
+
+    .status-stopped {
+      color: #596275;
+      background: #eef0f3;
+    }
+
+    .status-error {
+      color: #9d2f19;
+      background: var(--danger-bg);
+    }
+
+    /* ── 실시간 스트림 ─────────────────────────────────────────────────── */
+    .stream-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      max-height: 430px;
+      overflow: auto;
+      font-family: Consolas, "SFMono-Regular", monospace;
+      font-size: 12px;
+    }
+
+    .stream-item {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      padding: 9px 18px;
+      border-bottom: 1px solid #f2f4f6;
+    }
+
+    .stream-item.is-new {
+      animation: bump 1.1s ease;
+    }
+
+    .stream-time {
+      flex: 0 0 auto;
+      color: var(--muted);
+    }
+
+    .stream-kind {
+      flex: 0 0 auto;
+      font-weight: 700;
+      color: var(--accent-dark);
+    }
+
+    .stream-kind.is-verify {
+      color: var(--success);
+    }
+
+    .stream-body {
+      color: #4b5563;
+      overflow-wrap: anywhere;
+    }
+
+    .stream-state {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .stream-state.is-live {
+      color: var(--success);
+      font-weight: 650;
     }
 
     .secondary-text {
@@ -724,11 +1129,7 @@
 <body>
   <nav class="top-nav">
       <a href="/static/admin.html" class="active">🛡️ 관리자</a>
-      <a href="/static/rag.html">🔎 RAG 검색</a>
-      <a href="/static/orders.html">🛒 주문·승인</a>
       <a href="/static/facebench.html">🧪 인식 비교</a>
-      <a href="/static/mcp.html">🔌 MCP</a>
-      <a href="/static/shop.html" style="margin-left:auto">🏠 스토어(고객)</a>
     </nav>
 
   <section class="login-panel">
@@ -747,8 +1148,8 @@
       <p class="login-hint">
         관리자 승격은 CLI 전용입니다(<code>python -m scripts.manage promote &lt;username&gt;</code>) —
         UI에는 자기 자신을 관리자로 만드는 버튼이 없습니다(권한 상승 사고 방지, 무폴백 설계).
-        아래 4개 API는 라우터 전역 fail-closed(<code>require_admin</code>)로 보호됩니다 — 미인증 401,
-        일반 사용자 403, 관리자만 200.
+        <code>/api/admin/*</code> 전 경로는 라우터 전역 fail-closed(<code>require_admin</code>)로 보호됩니다 —
+        미인증 401, 일반 사용자 403, 관리자만 200.
       </p>
     </div>
   </section>
@@ -756,7 +1157,7 @@
   <div id="loggedOutGate" class="logged-out-gate">
     <p>🔒 관리자 로그인이 필요합니다.</p>
     <p class="logged-out-gate-sub">위 로그인 폼에서 인증하면 대시보드가 표시됩니다. 로그인 전에는
-      주문·이벤트·지식갭 데이터를 요청하지 않습니다.</p>
+      에이전트·코호트·검수·지식갭 데이터를 요청하지 않습니다.</p>
   </div>
 
   <header id="dashboardHeader" class="app-header" hidden>
@@ -765,7 +1166,7 @@
 
       <div>
         <h1>AI Agent Operations</h1>
-        <p>주문 · 관측 이벤트 · 인덱스 · 지식갭</p>
+        <p>에이전트 · 코호트 표본 · 증빙 검수 · 인덱스 · 지식갭</p>
       </div>
     </div>
 
@@ -813,16 +1214,30 @@
         </p>
       </article>
 
-      <article class="summary-card">
-        <p class="summary-label">최근 주문</p>
+      <article id="agentSummaryCard" class="summary-card">
+        <p class="summary-label">에이전트 (최근 30초 요청)</p>
 
         <p class="summary-value">
-          <span id="orderCount">-</span>
+          <span id="activeAgentCount">-</span>
+          <span class="summary-unit">/ <span id="totalAgentCount">-</span>대</span>
+        </p>
+
+        <p class="summary-description">
+          HTTP는 연결을 유지하지 않으므로 “접속 중”이 아니라
+          <strong>마지막 요청 시각</strong>으로 판단합니다.
+        </p>
+      </article>
+
+      <article id="queueSummaryCard" class="summary-card">
+        <p class="summary-label">검수 대기 (합성)</p>
+
+        <p class="summary-value">
+          <span id="pendingReviewCount">-</span>
           <span class="summary-unit">건</span>
         </p>
 
         <p class="summary-description">
-          관리자 주문 API가 반환한 현재 주문 수입니다.
+          승격되기 전까지 <strong>통계에 들어가지 않습니다.</strong>
         </p>
       </article>
 
@@ -842,35 +1257,52 @@
 
     <div class="dashboard-grid">
       <div class="left-column">
-        <section class="panel" aria-labelledby="ordersTitle">
+        <section class="panel" aria-labelledby="cohortTitle">
           <header class="panel-header">
             <div>
-              <h2 id="ordersTitle" class="panel-title">주문 현황</h2>
-              <p class="panel-subtitle">주문 처리 상태와 결제 규모</p>
+              <h2 id="cohortTitle" class="panel-title">코호트 표본 현황</h2>
+              <p class="panel-subtitle">
+                두 트랙을 <strong>나란히</strong> 봅니다 — 합치지 않습니다. 합계 숫자는 만들지 않습니다.
+              </p>
             </div>
 
-            <span id="ordersPanelCount" class="panel-count">0건</span>
+            <label class="secondary-text">질병기호
+              <input id="cohortCode" class="filter-input" type="text" value="S72.0"
+                     style="width:120px;margin-left:6px" aria-label="코호트 질병기호">
+            </label>
           </header>
 
-          <div class="table-wrap">
-            <table class="orders-table">
-              <thead>
-                <tr>
-                  <th scope="col">주문번호</th>
-                  <th scope="col">사용자</th>
-                  <th scope="col">상태</th>
-                  <th scope="col">상품 수</th>
-                  <th scope="col">주문금액</th>
-                </tr>
-              </thead>
+          <div class="cohort-grid">
+            <div class="cohort-cell" id="cohortRealCell">
+              <span class="track-badge track-real">실제 · verified_real</span>
+              <p class="cohort-n" id="cohortRealN">-</p>
+              <p class="cohort-note" id="cohortRealNote">불러오는 중…</p>
+            </div>
 
-              <tbody id="ordersTableBody">
-                <tr class="loading-row">
-                  <td colspan="5"><span class="skeleton"></span></td>
-                </tr>
-              </tbody>
-            </table>
+            <div class="cohort-cell" id="cohortDemoCell">
+              <span class="track-badge track-synthetic">합성 · DEMO</span>
+              <p class="cohort-n" id="cohortDemoN">-</p>
+              <p class="cohort-note" id="cohortDemoNote">불러오는 중…</p>
+            </div>
           </div>
+        </section>
+
+        <section class="panel" aria-labelledby="streamTitle">
+          <header class="panel-header">
+            <div>
+              <h2 id="streamTitle" class="panel-title">에이전트 상호작용 (실시간)</h2>
+              <p class="panel-subtitle">
+                SSE 구독. <strong>인메모리 관측용</strong>이라 서버가 재시작하면 사라집니다 —
+                기록이 없다는 것이 “그런 일이 없었다”는 뜻은 아닙니다(감사는 run_events).
+              </p>
+            </div>
+
+            <span id="streamState" class="stream-state">연결 안 됨</span>
+          </header>
+
+          <ul id="agentStream" class="stream-list">
+            <li class="empty-state">스트림에 연결하는 중입니다.</li>
+          </ul>
         </section>
 
         <section class="panel" aria-labelledby="eventsTitle">
@@ -892,6 +1324,167 @@
       </div>
 
       <aside class="right-column">
+        <section class="panel" aria-labelledby="modeTitle">
+          <header class="panel-header">
+            <div>
+              <h2 id="modeTitle" class="panel-title">판정 모드</h2>
+              <p class="panel-subtitle">
+                <strong>고객이 받는 답이 바뀝니다.</strong> 시뮬레이션 제어와 성격이 다릅니다.
+              </p>
+            </div>
+
+            <span id="modeBadge" class="status-badge status-unknown">확인 중</span>
+          </header>
+
+          <div class="sim-body">
+            <label class="mode-switch">
+              <input id="modeAuto" type="checkbox">
+              <span><strong>자동승인</strong> — 기계 대조까지만 끝난 약관도 판정에 사용</span>
+            </label>
+
+            <p class="mode-desc" id="modeDesc">-</p>
+
+            <div class="mode-counts">
+              <span>판정 가능 <strong id="modeUsable">-</strong>건</span>
+              <span>확정 <strong id="modeConfirmed">-</strong>건</span>
+              <span>사람 승인 대기 <strong id="modePending">-</strong>건</span>
+              <span>수집 <strong id="modeCollected">-</strong>건</span>
+            </div>
+
+            <p class="sim-note" id="modeNote"></p>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="realQueueTitle">
+          <header class="panel-header">
+            <div>
+              <h2 id="realQueueTitle" class="panel-title">실제 증빙 검수
+                <span class="track-badge track-real">실제 트랙</span>
+              </h2>
+              <p class="panel-subtitle">
+                승인하면 <code>admin_attested</code> 등급으로 집계에 들어갑니다 —
+                <strong>발행처 확인이 아닙니다.</strong> 근거를 적어야 승인됩니다.
+              </p>
+            </div>
+
+            <span id="realQueueCount" class="panel-count">0건</span>
+          </header>
+
+          <ul id="realQueue" class="queue-list">
+            <li class="empty-state">검수 큐를 불러오는 중입니다.</li>
+          </ul>
+        </section>
+
+        <section class="panel" aria-labelledby="simTitle">
+          <header class="panel-header">
+            <div>
+              <h2 id="simTitle" class="panel-title">시뮬레이션 제어
+                <span class="track-badge track-synthetic">합성 전용</span>
+              </h2>
+              <p class="panel-subtitle">
+                가상 에이전트가 <strong>실제 HTTP로</strong> 고객 서버에 붙어 보고합니다.
+                실제 트랙을 만들거나 지우는 버튼은 없습니다.
+              </p>
+            </div>
+
+            <span id="simStateBadge" class="status-badge status-unknown">확인 중</span>
+          </header>
+
+          <div class="sim-body">
+            <div class="sim-progress" id="simProgressWrap" hidden>
+              <div class="sim-bar"><span id="simBar"></span></div>
+              <p class="sim-progress-text" id="simProgressText">-</p>
+            </div>
+
+            <div class="sim-fields">
+              <label>에이전트
+                <input id="simAgents" type="number" min="1" max="200" value="12">
+              </label>
+              <label>건수/대
+                <input id="simCases" type="number" min="1" max="50" value="3">
+              </label>
+              <label>간격(ms)
+                <input id="simDelay" type="number" min="0" max="5000" step="50" value="150">
+              </label>
+              <label>시드
+                <input id="simSeed" type="number" value="20260804">
+              </label>
+              <label class="sim-wide">질병기호 (쉼표 구분 · 비우면 8종 무작위)
+                <input id="simCodes" type="text" placeholder="S72.0, J20.9">
+              </label>
+            </div>
+
+            <label class="sim-check">
+              <input id="simAutoVerify" type="checkbox">
+              <span>자동 승격(<code>simulated</code>) — 끄면 아래 검수 큐에서 직접 승인합니다</span>
+            </label>
+
+            <p class="sim-hint" id="simHint">
+              질병기호를 하나로 좁히면 표본이 몰려 <strong>최소표본 30건 게이트를 넘는 순간</strong>을
+              보여줄 수 있습니다. 비워 두면 코드당 10건 남짓이라 게이트에 계속 걸립니다 — 그게 정상입니다.
+            </p>
+
+            <div class="sim-actions">
+              <button id="simStartBtn" class="sim-btn is-start" type="button">▶ 시작</button>
+              <button id="simStopBtn" class="sim-btn is-stop" type="button" disabled>■ 정지</button>
+              <button id="simResetBtn" class="sim-btn is-reset" type="button">합성 트랙 초기화</button>
+            </div>
+
+            <p class="sim-note" id="simNote"></p>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="queueTitle">
+          <header class="panel-header">
+            <div>
+              <h2 id="queueTitle" class="panel-title">증빙 검수 큐
+                <span class="track-badge track-synthetic">합성 전용</span>
+              </h2>
+              <p class="panel-subtitle">
+                승인하면 <strong>그 순간</strong> 합성 코호트 n이 +1 됩니다.
+                실제 트랙에는 이 버튼이 없습니다 — 발행처 확인 절차가 정해지기 전에는
+                “관리자가 눌렀다”가 “검증됐다”가 되면 안 됩니다.
+              </p>
+            </div>
+
+            <span id="queuePanelCount" class="panel-count">0건</span>
+          </header>
+
+          <ul id="reviewQueue" class="queue-list">
+            <li class="empty-state">검수 큐를 불러오는 중입니다.</li>
+          </ul>
+        </section>
+
+        <section class="panel" aria-labelledby="agentsTitle">
+          <header class="panel-header">
+            <div>
+              <h2 id="agentsTitle" class="panel-title">에이전트 목록</h2>
+              <p class="panel-subtitle">가상 에이전트 포함 · 마지막 요청 기준</p>
+            </div>
+
+            <span id="agentsPanelCount" class="panel-count">0대</span>
+          </header>
+
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th scope="col">에이전트</th>
+                  <th scope="col">트랙</th>
+                  <th scope="col" class="num">요청</th>
+                  <th scope="col" class="num">유휴</th>
+                </tr>
+              </thead>
+
+              <tbody id="agentsTableBody">
+                <tr class="loading-row">
+                  <td colspan="4"><span class="skeleton"></span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
         <section class="panel" aria-labelledby="gapsTitle">
           <header class="panel-header">
             <div>

@@ -11,7 +11,7 @@ import tempfile
 import uuid
 
 # --- 앱 import 이전에 환경 설정 (엔진이 이 값으로 바인딩됨) ---
-_TMP_DB = os.path.join(tempfile.gettempdir(), f"mall_test_{uuid.uuid4().hex}.db")
+_TMP_DB = os.path.join(tempfile.gettempdir(), f"insurance_test_{uuid.uuid4().hex}.sqlite3")
 os.environ["DATABASE_URL"] = f"sqlite:///{_TMP_DB}"
 os.environ["SECRET_KEY"] = "test-secret-key-do-not-use-in-prod"
 os.environ["LLM_PROVIDER"] = "local"

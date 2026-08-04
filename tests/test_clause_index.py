@@ -109,7 +109,11 @@ def test_스키마와_적재와_검색이_이어진다():
     ix.ensure_schema(conn)
 
     h = "테스트해시_" + "0" * 10
-    vec = [0.0] * 768
+    #: ★차원을 상수로 박지 않는다 — `ix.embed_dim()` 과 같은 이유다(adapter §_EMBED_DIM_FALLBACK).
+    #:   768 을 박아 두었더니 승인 릴리스가 arctic-ko(1024d) 로 올라간 순간
+    #:   테이블은 `vector(1024)` 인데 테스트만 768 을 넣어 **DataException** 이 났다(2026-08-04).
+    #:   차원은 **승인 프로필이 정한다.** 테스트도 같은 출처를 봐야 한다.
+    vec = [0.0] * ix.embed_dim()
     vec[0] = 1.0
     body = "상해라 함은 급격하고 우연한 외래의 사고를 말합니다."
     ix.upsert_content(conn, [(h, body, 1)])
@@ -150,7 +154,7 @@ def test_반쪽으로_남은_조항은_완료로_치지_않는다():
     conn = _conn_or_skip()
     ix.ensure_schema(conn)
     h = "반쪽테스트해시"
-    vec = [0.0] * 768
+    vec = [0.0] * ix.embed_dim()  # 상수 금지 — 위 테스트의 주석 참조
     #: 3조각이라고 선언하고 1조각만 넣는다 = 중간에 죽은 상태
     ix.upsert_content(conn, [(h, "본문", 3)])
     ix.upsert_chunks(conn, [(h, 0, 3, "조각0", vec)])

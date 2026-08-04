@@ -333,11 +333,20 @@
       21
     ]
   },
-  "proviso_delta_mean": 0.004286,
-  "proviso_delta_min": -0.004567,
-  "proviso_blind_count": 11,
+  "proviso_delta_mean": 0.00488,
+  "proviso_delta_min": 0.000274,
+  "proviso_blind_count": 0,
   "proviso_probes": 60,
   "sec_per_1k": 313.5,
   "q_prefix": "query: ",
-  "d_prefix": "passage: "
+  "d_prefix": "passage: ",
+  "probe_norm_min": 0.998076,
+  "probe_norm_max": 1.00347,
+  "blind_eps": 1e-09,
+  "probes_remeasured": true,
+  "probes_device": "cuda:0",
+  "probes_dtype": "4bit",
+  "probes_dtype_matches_original": true,
+  "probes_gpu": "NVIDIA GeForce RTX 4070 SUPER",
+  "probes_gpu_matches_original": false
 }

@@ -7,7 +7,9 @@ base RetrieverPort로 over-fetch 후 rerank해 top-k를 반환한다(같은 포�
 
 from __future__ import annotations
 
+import math
 import re
+import threading
 
 from app.application.ports import Evidence, ModelGateway, RetrieverPort
 
@@ -56,6 +58,119 @@ class LlmReranker:
                 backend=e.backend,
             )
             for raw, e in scored
+        ]
+        return ordered[:top_n] if (top_n and top_n > 0) else ordered
+
+
+class CrossEncoderReranker:
+    """Local cross-encoder reranker with lazy, thread-safe model loading.
+
+    The model is loaded on the first rerank request so importing the API does not
+    download weights or reserve GPU memory.  A supplied ``model`` is supported
+    for deterministic unit tests and offline serving wrappers.
+    """
+
+    def __init__(
+        self,
+        model_name: str,
+        *,
+        device: str = "auto",
+        batch_size: int = 1,
+        max_length: int = 768,
+        dtype: str = "float16",
+        trust_remote_code: bool = False,
+        model=None,
+    ) -> None:
+        if not model_name.strip():
+            raise ValueError("model_name must not be empty")
+        if batch_size < 1:
+            raise ValueError("batch_size must be positive")
+        if max_length < 1:
+            raise ValueError("max_length must be positive")
+        if dtype not in {"auto", "float16", "bfloat16", "float32"}:
+            raise ValueError(f"unsupported reranker dtype: {dtype!r}")
+        self._model_name = model_name
+        self._device = device
+        self._batch_size = batch_size
+        self._max_length = max_length
+        self._dtype = dtype
+        self._trust_remote_code = trust_remote_code
+        self._model = model
+        self._load_lock = threading.Lock()
+
+    def _get_model(self):
+        if self._model is not None:
+            return self._model
+        with self._load_lock:
+            if self._model is not None:
+                return self._model
+            import torch
+            from sentence_transformers import CrossEncoder
+
+            dtype_map = {
+                "float16": torch.float16,
+                "bfloat16": torch.bfloat16,
+                "float32": torch.float32,
+            }
+            model_kwargs = {}
+            if self._dtype != "auto":
+                model_kwargs["dtype"] = dtype_map[self._dtype]
+            self._model = CrossEncoder(
+                self._model_name,
+                device=None if self._device == "auto" else self._device,
+                trust_remote_code=self._trust_remote_code,
+                max_length=self._max_length,
+                model_kwargs=model_kwargs,
+            )
+        return self._model
+
+    @staticmethod
+    def _unit_score(value: float) -> float:
+        if 0.0 <= value <= 1.0:
+            return value
+        value = max(-60.0, min(60.0, value))
+        return 1.0 / (1.0 + math.exp(-value))
+
+    def rerank(
+        self, query: str, evidence: list[Evidence], top_n: int | None = None
+    ) -> list[Evidence]:
+        if not evidence:
+            return []
+
+        import numpy as np
+
+        scores = self._get_model().predict(
+            [(query, item.content) for item in evidence],
+            batch_size=self._batch_size,
+            show_progress_bar=False,
+            convert_to_numpy=True,
+        )
+        scores = np.asarray(scores).reshape(-1)
+        if len(scores) != len(evidence):
+            raise RuntimeError(
+                f"reranker score count mismatch: {len(scores)} != {len(evidence)}"
+            )
+        if not np.isfinite(scores).all():
+            raise RuntimeError("reranker returned non-finite scores")
+        if len(scores) > 1 and float(np.ptp(scores)) <= 1e-8:
+            raise RuntimeError(
+                "reranker returned constant scores; checkpoint/scoring adapter mismatch"
+            )
+
+        ranked = sorted(
+            zip(scores.tolist(), evidence, strict=True),
+            key=lambda pair: pair[0],
+            reverse=True,
+        )
+        ordered = [
+            Evidence(
+                content=item.content,
+                source=item.source,
+                locator=item.locator,
+                score=self._unit_score(float(score)),
+                backend=item.backend,
+            )
+            for score, item in ranked
         ]
         return ordered[:top_n] if (top_n and top_n > 0) else ordered
 

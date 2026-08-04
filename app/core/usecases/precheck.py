@@ -102,12 +102,29 @@ def _is_missing_artifact(e: Exception) -> bool:
     return any(h in str(e) for h in _MISSING_HINTS)
 
 
-_REASON_MAP = {
-    "insurer_not_supported": ReasonCode.INSURER_NOT_SUPPORTED,
-    "no_version_at_date": ReasonCode.NO_VERSION_AT_DATE,
-    "ambiguous_product": ReasonCode.AMBIGUOUS_PRODUCT,
-    "ambiguous_product_line": ReasonCode.AMBIGUOUS_PRODUCT_LINE,
-}
+def _reason(code: str | None) -> ReasonCode | None:
+    """`NotResolved.reason_code`(문자열) → `ReasonCode`.
+
+    ★**조용한 스킵을 만들지 않는다** (CLAUDE.md §3).
+
+        전에는 `_REASON_MAP.get(code)` 였다. 표에 없는 코드가 오면 **소리 없이 `None`**
+        이 됐고, 에이전트는 `reason_code` 로 분기하므로 **왜 기권했는지 알 수 없어진다.**
+
+        실제로 걸렸다 — `documents_not_confirmed` 를 추가했더니 응답의 `reason_code` 가
+        `None` 으로 나갔다. 표를 같이 안 고쳤기 때문이다. **표가 하나 더 있는 구조 자체가
+        결함**이라, 표를 없애고 enum 을 직접 쓴다.
+
+        그래도 못 맞추면 `ValidationErr` 를 낸다 — 기권 응답에 `reason_code` 가 비는 것보다
+        **개발 중에 터지는 편이 낫다.** 이 값은 사용자 입력이 아니라 우리 코드가 만든다.
+    """
+    if not code:
+        return None
+    try:
+        return ReasonCode(code)
+    except ValueError as e:  # noqa: PERF203
+        raise ValidationErr(
+            f"알 수 없는 reason_code '{code}' — ReasonCode enum 에 추가하세요."
+        ) from e
 
 
 def run(
@@ -126,6 +143,27 @@ def run(
     """
     if not req.kcd_codes:
         raise ValidationErr("질병기호가 비어 있습니다.")
+
+    #: ★★**판정 한 건 안에서는 릴리스를 한 벌로 고정한다.**
+    #:   도중에 승인 포인터가 바뀌면 조항은 새 세대, 벡터는 옛 프로필에서 와
+    #:   **서로 다른 판의 근거가 한 답에 섞인다**(코덱스 라운드2 지적).
+    #:
+    #:   ★호출부가 이미 `pinned()` 안이면 **그 스냅샷을 물려받는다** —
+    #:     그래프(`app/workflow/precheck_graph.py`)가 판정 뒤 인용 검증을 하는데,
+    #:     거기가 밖이면 검증만 새 릴리스를 읽는다(코덱스 라운드3 지적).
+    from app.core import release
+
+    with release.pinned(release.current()):
+        return _run(req, policies=policies, clauses=clauses, versions=versions)
+
+
+def _run(
+    req: PrecheckInput,
+    *,
+    policies: PolicyVersionSourcePort,
+    clauses: ClauseSourcePort,
+    versions: list[PolicyVersionRow] | None = None,
+) -> PrecheckOutcome:
     trace = _trace_id(req)
     base = {
         "rule_engine_version": RULE_ENGINE_VERSION,
@@ -145,7 +183,7 @@ def run(
         return PrecheckOutcome(
             verdict=Verdict.NEEDS_EXPERT,
             abstained=True,
-            reason_code=_REASON_MAP.get(got.reason_code),
+            reason_code=_reason(got.reason_code),
             message=got.message,
             candidates=[_to_applied(c) for c in got.candidates],
             **base,
@@ -343,6 +381,10 @@ def _citations(pairs, status: str) -> list[CitationRef]:
                 quote=m.context[:300],
                 page_from=c.page_from,
                 page_to=c.page_to,
+                #: ★★**수록 식별자를 반드시 싣는다.** 안 실으면 인용 검증이
+                #:   "정확히 한 행" 을 확인할 방법이 없어 기권한다(코덱스 지적).
+                #:   비어 있으면 그대로 비운다 — 지어내지 않는다.
+                occurrence_id=getattr(c, "occurrence_id", ""),
                 tier=EvidenceTier.POLICY_CLAUSE,
             )
         )

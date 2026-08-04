@@ -149,6 +149,13 @@ class CohortStats:
     data_source: DataSource
     min_sample: int
     warnings: tuple[str, ...] = field(default_factory=tuple)
+    #: ★★**검증 등급별 내역.** `n` 만 보면 전부 발행처 확인된 것으로 읽힌다.
+    #:
+    #:   실제로는 대부분(또는 전부) `admin_attested` — **관리자가 보고 납득했다**는
+    #:   뜻이지 보험사가 그렇게 결정했음이 확인된 것이 아니다. 그 차이를 숫자 옆에
+    #:   붙여 두지 않으면 읽는 쪽은 구분할 방법이 없다.
+    #:   예: {"admin_attested": 5, "document_backed": 0}
+    by_verification: tuple[tuple[str, int], ...] = field(default_factory=tuple)
 
     @property
     def min_sample_met(self) -> bool:

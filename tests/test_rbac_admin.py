@@ -12,8 +12,11 @@ from app.auth.roles import ROLE_ADMIN, ROLE_USER, validate_role
 from app.core.errors import InfraError, NotFoundErr, ValidationErr
 from tests.conftest import auth_header
 
-_ADMIN_PATHS = ["/api/admin/orders", "/api/admin/events", "/api/admin/index",
-                "/api/admin/knowledge-gaps"]
+#: ★`/api/admin/orders` 는 제거했다(커머스 잔재, v4.0 §2-3). 대신 보험 대시보드가
+#:   실제로 쓰는 경로를 넣는다 — 목록이 낡으면 새 엔드포인트의 권한 검사를 놓친다.
+_ADMIN_PATHS = ["/api/admin/agents", "/api/admin/events", "/api/admin/index",
+                "/api/admin/knowledge-gaps", "/api/admin/demo/queue",
+                "/api/admin/cohort-summary"]
 
 
 def _set_role(username: str, role: str) -> None:
@@ -78,10 +81,10 @@ def test_demotion_takes_effect_immediately_with_same_token(client, unique_user):
     u, p = unique_user()
     headers = auth_header(client, u, p)
     _set_role(u, ROLE_ADMIN)
-    assert client.get("/api/admin/orders", headers=headers).status_code == 200
+    assert client.get("/api/admin/agents", headers=headers).status_code == 200
 
     _set_role(u, ROLE_USER)  # 같은 토큰 그대로 사용
-    assert client.get("/api/admin/orders", headers=headers).status_code == 403
+    assert client.get("/api/admin/agents", headers=headers).status_code == 403
 
 
 # --- 관리자 라우터 fail-closed 가드레일 ------------------------------------

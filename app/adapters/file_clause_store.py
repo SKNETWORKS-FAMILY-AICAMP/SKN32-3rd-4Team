@@ -60,27 +60,24 @@ _ACCEPTED_SCHEMA_FILE = _ROOT / "config" / "accepted_extraction.json"
 
 
 def _accepted_tag() -> str:
-    """판정에 쓸 산출 폴더 이름(`s4_pymupdf-1.28.0`).
+    """판정에 쓸 조항 산출 폴더 이름.
+
+    ★★**세대는 `app/core/release.py` 한 곳에서만 정한다.**
+      여기·적재·검색 세 곳에 각각 상수를 두었더니 서로 어긋났다(실측 2026-08-03):
+      이 저장소는 `s5` 를, 벡터 검색은 `s6` 를 보고 있었다.
+      같은 질문에 두 경로가 **다른 조항**을 준다.
 
     ★자동으로 고르지 않는다. 설정에 적힌 것만 쓴다.
       설정이 없으면 **실패한다** — 아무거나 골라 쓰느니 멈추는 편이 낫다.
     """
-    if not _ACCEPTED_SCHEMA_FILE.exists():
-        raise InfraError(
-            f"판정에 쓸 추출 버전이 지정되지 않았습니다: {_ACCEPTED_SCHEMA_FILE}\n"
-            '예: {"tag": "s4_pymupdf-1.28.0", "reason": "…", "accepted_at": "…"}\n'
-            "★'가장 최신'을 자동으로 고르지 않습니다 — 최신이 더 낫다는 보장이 없습니다."
-        )
-    cfg = json.loads(_ACCEPTED_SCHEMA_FILE.read_text(encoding="utf-8"))
-    tag = (cfg.get("tag") or "").strip()
-    if not tag:
-        raise InfraError(f"{_ACCEPTED_SCHEMA_FILE} 에 `tag` 가 비어 있습니다.")
-    if not list(_STRUCTURED.glob(f"*/{tag}")):
-        raise InfraError(
-            f"지정된 추출 버전의 산출물이 없습니다: {tag}\n"
-            "`python -m scripts.extract.run_all` 을 돌리거나 설정을 고치세요."
-        )
-    return tag
+    from app.core import release
+
+    try:
+        rel = release.current()
+        rel.ensure_ready()
+    except Exception as exc:  # noqa: BLE001
+        raise InfraError(str(exc)) from exc
+    return rel.clause_tag
 
 
 def available_tags() -> list[str]:
@@ -95,9 +92,13 @@ def available_tags() -> list[str]:
 
 
 @lru_cache(maxsize=256)
-def _load_doc(sha256: str) -> dict:
-    """조항 JSON 하나. sha 로 찾는다."""
-    tag = _accepted_tag()
+def _load_doc_cached(sha256: str, tag: str) -> dict:
+    """조항 JSON 하나. sha 로 찾는다.
+
+    ★★**캐시 키에 `tag` 가 들어간다.** 안 넣으면 승인 릴리스를 바꿔도
+      같은 프로세스가 **옛 세대 문서를 계속 돌려준다**(코덱스 지적).
+      전환은 원자적이어야 하는데 캐시가 그걸 깬다.
+    """
     hits = list(_STRUCTURED.glob(f"*/{tag}/{sha256[:12]}.clauses.json"))
     if not hits:
         raise InfraError(
@@ -107,12 +108,20 @@ def _load_doc(sha256: str) -> dict:
     return json.loads(hits[0].read_text(encoding="utf-8"))
 
 
+def _load_doc(sha256: str) -> dict:
+    """승인 릴리스를 매번 확인하고 캐시를 태운다."""
+    return _load_doc_cached(sha256, _accepted_tag())
+
+
 def _to_clause(sha256: str, c: dict, parse_status: str) -> ClauseRow:
-    reason = ""
-    if parse_status != "ok":
-        reason = f"문서 파싱 상태가 '{parse_status}'"
-    elif c.get("chunk_type") in _NON_CLAUSE:
-        reason = f"조항이 아니라 '{c.get('chunk_type')}' 청크"
+    #: ★★판정은 **공통 게이트 하나**로 한다(`app/core/domain/eligibility.py`).
+    #:   전에는 여기서 `parse_status` 와 `chunk_type` 만 봤고
+    #:   조항별 `citation_eligible` 은 **아예 보지 않았다**(코덱스 지적).
+    #:   저장소마다 규칙이 다르면 어느 것이 맞는지 아무도 모른다.
+    from app.core.domain import eligibility
+
+    v = eligibility.check(c, parse_status=parse_status)
+    reason = "" if v.usable else v.reason
     loc = c.get("locator", {})
     return ClauseRow(
         sha256=sha256,
@@ -124,9 +133,27 @@ def _to_clause(sha256: str, c: dict, parse_status: str) -> ClauseRow:
         page_from=loc.get("page_from", 0),
         page_to=loc.get("page_to", 0),
         content_hash=c.get("content_hash", ""),
-        usable=not reason,
+        usable=v.usable,
         unusable_reason=reason,
+        #: ★게이트가 본 값을 **그대로 실어 보낸다.** 하류(인용 검증)가
+        #:   같은 규칙으로 다시 검사할 수 있어야 한다.
+        citation_eligible=c.get("citation_eligible"),
+        chunk_type=c.get("chunk_type"),
+        is_statute=c.get("statute", c.get("is_statute")),
+        parse_status=parse_status,
+        ordinal=c.get("ordinal"),
+        source_kind=c.get("source_kind") or "clause",
+        release_id=_release_id(),
     )
+
+
+def _release_id() -> str:
+    from app.core import release
+
+    try:
+        return release.current().release_id
+    except Exception:  # noqa: BLE001
+        return ""
 
 
 def load_clauses(sha256: str, *, usable_only: bool = True) -> list[ClauseRow]:

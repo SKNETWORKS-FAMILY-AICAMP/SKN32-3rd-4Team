@@ -27,9 +27,12 @@ class Settings(BaseSettings):
     )
 
     # --- 브랜드 ---
-    # 몰 이름 단일 소스(RULE 3.1 하드코딩 금지). 프롬프트·API 타이틀이 전부 이 값을 참조한다.
+    # 프로젝트명 단일 소스(RULE 3.1 하드코딩 금지). 프롬프트·API 타이틀이 전부 이 값을 참조한다.
     # 프론트엔드(정적 HTML)는 app/static/common.js의 BRAND_NAME 상수가 대응하는 단일 소스다.
-    BRAND_NAME: str = "바로봄"
+    #
+    # ★쓸 수 있는 이름은 둘뿐이다 — 프로젝트명 "올바른 보험비서", 팀명 "비서단".
+    #   커머스 실습 시절의 옛 이름은 더 이상 쓰지 않는다(2026-08-04 정리).
+    BRAND_NAME: str = "올바른 보험비서"
 
     # --- LLM 프로바이더 선택 ---
     LLM_PROVIDER: Literal["local", "openai", "gemini"] = "local"
@@ -57,6 +60,12 @@ class Settings(BaseSettings):
     # 접속 정보(모델ID 아님) — userspace PG(conda pgv env). 미기동이면 접속 실패→명시 오류(무폴백).
     PGVECTOR_DSN: str = "host=127.0.0.1 port=5433 user=postgres dbname=mall_vec"
 
+    # --- 시뮬레이터가 두드릴 고객 웹 주소 ---
+    # ★가상 에이전트가 **실제 HTTP 로** 붙게 한다. 관리 프로세스 안에서 저장소를 직접
+    #   부르면 "에이전트가 접속해서 쌓는다"는 것이 시연되지 않고, 라우터·검증·멱등을
+    #   전부 건너뛴 채 파일만 늘어난다. 서버가 안 떠 있으면 **명시적으로 실패**한다(무폴백).
+    CUSTOMER_BASE_URL: str = "http://127.0.0.1:8080"
+
     # --- RAG / 임베딩 ---
     EMBEDDING_PROVIDER: Literal["local_st"] = "local_st"
     ST_EMBEDDING_MODEL: str = "jhgan/ko-sroberta-multitask"
@@ -65,6 +74,17 @@ class Settings(BaseSettings):
     RAG_TOP_K: int = 3
     # 임베딩 정규화 시 거리는 [0,2] 범위 → 이 값 초과는 무관으로 간주(방어)
     RAG_MAX_DISTANCE: float = 1.5
+    RAG_RERANK_ENABLED: bool = False
+    RERANKER_PROVIDER: Literal["cross_encoder", "llm"] = "cross_encoder"
+    # S6 fixed-candidate bake-off winner. BGE is the lower-latency fallback.
+    RERANKER_MODEL: str = "Qwen/Qwen3-Reranker-4B"
+    RERANKER_FALLBACK_MODEL: str = "BAAI/bge-reranker-v2-m3"
+    RERANKER_DEVICE: str = "auto"
+    RERANKER_DTYPE: Literal["auto", "float16", "bfloat16", "float32"] = "float16"
+    RERANKER_BATCH_SIZE: int = 1
+    RERANKER_MAX_LENGTH: int = 768
+    RERANKER_OVER_FETCH: int = 20
+    RERANKER_TRUST_REMOTE_CODE: bool = False
 
     # --- ML (감성분석) ---
     SENTIMENT_MODEL: str = "monologg/koelectra-base-finetuned-nsmc"
@@ -160,8 +180,9 @@ class Settings(BaseSettings):
     DATA_DIR: Path = ROOT_DIR / "data"
     DOCS_DIR: Path = ROOT_DIR / "data" / "docs"
     VECTOR_DIR: Path = ROOT_DIR / "data" / "vector_store"
+    DB_DIR: Path = ROOT_DIR / "data" / "db"
     # CWD 의존을 피하기 위해 절대 경로 기반 (Codex 합의)
-    DATABASE_URL: str = f"sqlite:///{(ROOT_DIR / 'data' / 'mall.db').as_posix()}"
+    DATABASE_URL: str = f"sqlite:///{(ROOT_DIR / 'data' / 'db' / 'insurance.sqlite3').as_posix()}"
 
     # --- 인증 (JWT) ---
     # SECRET_KEY는 하드코딩 금지: 미설정이면 auth 사용 시 ConfigError (RULE 3.1/3.2)

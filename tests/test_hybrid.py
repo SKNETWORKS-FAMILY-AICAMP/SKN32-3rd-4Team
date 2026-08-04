@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from app.adapters.hybrid_retriever import HybridRetriever
-from app.adapters.reranker import LlmReranker, RerankedRetriever
+from app.adapters.reranker import CrossEncoderReranker, LlmReranker, RerankedRetriever
 from app.application.ports import Evidence
 from app.core.errors import LLMOutputError
 
@@ -65,6 +65,33 @@ def test_reranked_retriever_reorders_by_reranker():
 
     res = RerankedRetriever(base, _FakeReranker(), over_fetch=10).search("q", k=1)
     assert res[0].content == "high"  # reranker가 승격
+
+
+def test_cross_encoder_reranker_orders_and_preserves_evidence():
+    class _Model:
+        def predict(self, pairs, **kwargs):
+            assert pairs == [("q", "low"), ("q", "high")]
+            assert kwargs["batch_size"] == 2
+            return [0.1, 0.9]
+
+    evs = [_ev("low", 0.8, "dense"), _ev("high", 0.2, "lexical")]
+    ranker = CrossEncoderReranker(
+        "test/model", model=_Model(), batch_size=2, dtype="auto"
+    )
+    out = ranker.rerank("q", evs, top_n=1)
+    assert out[0].content == "high"
+    assert out[0].backend == "lexical"
+    assert out[0].score == pytest.approx(0.9)
+
+
+def test_cross_encoder_reranker_rejects_constant_scores():
+    class _Model:
+        def predict(self, pairs, **kwargs):
+            return [0.5] * len(pairs)
+
+    ranker = CrossEncoderReranker("test/model", model=_Model(), dtype="auto")
+    with pytest.raises(RuntimeError, match="constant scores"):
+        ranker.rerank("q", [_ev("a", 0.1, "dense"), _ev("b", 0.2, "dense")])
 
 
 def test_llm_reranker_scores_and_orders():

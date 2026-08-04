@@ -241,14 +241,20 @@ def _index(
 
     ★번호 색인은 **list** 다. dict 로 만들면 같은 번호의 다른 조항이 덮인다
       (v1 이 그랬다 — 한 키에 96개가 뭉쳐 95개가 사라졌다).
+
+    ★★**경로 색인도 list 다.** 위 경고를 적어 놓고 바로 아래 줄에서
+      `by_path[...] = e` 로 덮어쓰고 있었다(코덱스 지적 · `feature-agent` 브랜치가
+      먼저 고쳤다). 같은 `qualified_no` 가 **여러 문서·여러 쪽**에 실린다 —
+      중복률 66% 인 코퍼스에서 이건 드문 일이 아니다.
+      덮어쓰면 뒤에 온 것만 남아, 인용문이 **앞의 것에 있어도 못 찾는다.**
     """
     by_handle: dict[str, EvidenceClause] = {}
-    by_path: dict[str, EvidenceClause] = {}
+    by_path: dict[str, list[EvidenceClause]] = defaultdict(list)
     by_no: dict[tuple[str, str], list[EvidenceClause]] = defaultdict(list)
     for e in evidence:
         if e.handle:
             by_handle[e.handle.strip().upper()] = e
-        by_path[_norm_space(e.qualified_no)] = e
+        by_path[_norm_space(e.qualified_no)].append(e)
         ref = _parse_clause_ref(_split_path(e.qualified_no)[1])
         if ref:
             by_no[ref].append(e)
@@ -286,11 +292,19 @@ def _check_one(
         return _with_quote(raw, hit, Resolution.EXACT, quotes)
 
     # ② 전체 경로 — `보통약관/제9조` 또는 `보통약관 제9조`.
-    hit = by_path.get(_norm_space(raw))
-    if hit is None and " " in raw and "/" not in raw:
-        hit = by_path.get(_norm_space(raw.replace(" ", "/", 1)))
-    if hit is not None:
-        return _with_quote(raw, hit, Resolution.EXACT, quotes)
+    cands = list(by_path.get(_norm_space(raw)) or ())
+    if not cands and " " in raw and "/" not in raw:
+        cands = list(by_path.get(_norm_space(raw.replace(" ", "/", 1))) or ())
+    if cands:
+        #: ★후보가 여럿이면 **인용문이 실제로 든 것**을 고른다.
+        #:   앞서는 dict 라 뒤에 온 것만 남았고, 인용문이 앞의 것에 있으면
+        #:   `quote_mismatch` 가 났다 — 근거가 있는데 없다고 말한 것이다.
+        checks = [_with_quote(raw, h, Resolution.EXACT, quotes) for h in cands]
+        for c in checks:
+            if not c.quote_mismatch:
+                return c
+        #: 전부 어긋나면 첫 번째 결과를 그대로 돌려준다(사유가 남는다).
+        return checks[0]
 
     section, tail = _split_path(raw)
 

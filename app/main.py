@@ -7,7 +7,7 @@
 대시보드를 별도 서비스/포트/서브도메인으로 나누고, 관리자 쪽은 VPN·사내망 뒤에 둔다. 여기서는
 세 가지 앱을 제공한다:
   - `app`          : 전체(모든 라우터) — 테스트·개발 편의용 기본.
-  - `customer_app` : **관리자 + 운영/내부 API 라우터(rag/nlp/lab/mcp/workflow) 미포함** + 운영
+  - `customer_app` : **관리자 + 운영/내부 API 라우터(rag/bounty/workflow) 미포함** + 운영
                      페이지 정적 차단 → 공개 포트(8080)용. 이 포트에서 `/api/admin/*`·`/api/rag/*`
                      등은 **물리적으로 404**(라우터가 없음).
   - `admin_app`    : 전체(관리자 대시보드 + 운영 도구) → 내부 포트(8081)용.
@@ -32,9 +32,9 @@ from app.routers import (
     bounty,
     chat,
     cohort,
+    demo,
     face,
     health,
-    lab,
     precheck,
     rag,
     terms,
@@ -43,7 +43,7 @@ from app.routers import (
 )
 
 #: ★커머스 라우터(products/orders/payments)와 이름만 A2A 인 `a2a` 라우터는
-#:   저장소 루트 `legacy/v3_commerce/` 로 옮겼다.
+#:   저장소 루트 `legacy/v3_commerce.zip` 으로 옮겼다.
 #:   코드는 보존하되 **API 표면에서 뺀다** — 보험 API 문서에 `/api/products` 가
 #:   섞이면 쓰는 사람이 혼란스럽다. 되살리려면 여기서 다시 import 하면 된다.
 
@@ -54,9 +54,11 @@ _STATIC_DIR = Path(__file__).resolve().parent / "static"
 #:   `mcp.html`·`orders.html` 은 레거시로 갔는데 목록에 남아 있었다 —
 #:   목록만 보면 "막고 있다"로 읽히지만 실은 막을 것이 없었다.
 #:   `tests/test_static_ui.py` 가 목록과 실제 파일을 대조한다.
+#: ★`rag.html`·`rag.js` 는 2026-08-03 에 `legacy/v6_rag_ui.zip` 으로 격리했다.
+#:   커머스 RAG 화면(`/api/rag/qa`·`/api/rag/search`)이라 보험 서비스와 무관하다.
+#:   **없는 파일을 차단 목록에 남기면 "막고 있다"로 읽힌다** — 막을 것이 없으므로 뺀다.
 _OPS_STATIC = {
     "admin.html", "admin.js", "facebench.html", "facebench.js",
-    "rag.html", "rag.js",
 }
 
 
@@ -74,11 +76,30 @@ def create_app(role: str = "full") -> FastAPI:
     suffix = {"customer": " (고객)", "admin": " (운영)", "full": ""}.get(role, "")
     app = FastAPI(
         #: 커머스 실습에서 보험 판정으로 도메인이 바뀌었다.
-        title=f"{settings.BRAND_NAME} 보험 보장 판정 에이전트{suffix}",
+        title=f"{settings.BRAND_NAME}{suffix}",   #: BRAND_NAME 이 곧 프로젝트명이다
         version="0.3.0",
         lifespan=lifespan,
     )
     app.add_middleware(TraceMiddleware)
+
+    #: ★정적 자산은 **매번 되물어 보게** 한다.
+    #:
+    #:   실측 2026-08-04: `/static/common.js` 를 `Cache-Control` 없이 내보내고 있었다.
+    #:   그러면 브라우저가 `Last-Modified` 로 **제 마음대로 유효기간을 정한다**(heuristic).
+    #:   그날 저장소 전체에서 옛 브랜드명을 지웠는데, 화면 제목에는 계속 옛 이름이 떴다 —
+    #:   서버는 새 파일을 주고 있었고 브라우저가 옛 파일을 쓰고 있었다.
+    #:
+    #:   `no-cache` 는 "캐시 금지"가 아니라 **"쓰기 전에 반드시 확인"** 이다.
+    #:   ETag 가 같으면 304 라 전송량은 그대로고, 바뀌면 즉시 반영된다.
+    #:   ★버전 박은 파일명(`app.a1b2c3.js`)을 쓰면 `immutable` 이 맞지만
+    #:     이 프로젝트는 파일명을 고정으로 쓰므로 그 선택지가 없다.
+    @app.middleware("http")
+    async def _no_stale_static(request, call_next):
+        response = await call_next(request)
+        if request.url.path.startswith("/static/"):
+            response.headers["Cache-Control"] = "no-cache"
+        return response
+
     register_exception_handlers(app)
 
     # 고객 웹이 실제로 호출하는 공개 라우터(shop/video/mypage/AI상담 = 상품·주문·결제·에이전트·
@@ -88,6 +109,9 @@ def create_app(role: str = "full") -> FastAPI:
     #: 보험 보장 사전판정 — 이 프로젝트의 본체다.
     app.include_router(precheck.router)
     app.include_router(cohort.router)
+    #: ★합성 트랙 제출. 실제 제출(`precheck.router` 의 `/v1/observations`)과
+    #:   **라우터 파일부터 갈라 둔다** — 스위치 하나로 가르면 언젠가 섞인다(§5-1).
+    app.include_router(demo.router)
     #: 용어 설명 — 판정과 **다른 유스케이스**다. 응답에 verdict 가 없다.
     app.include_router(terms.router)
     #: 용어 챗봇 — ★보장 여부는 답하지 않는다. 판정 양식으로 넘긴다.
@@ -95,12 +119,11 @@ def create_app(role: str = "full") -> FastAPI:
     app.include_router(voice.router)
     app.include_router(face.router)
 
-    # 운영/내부 API 라우터: 분석·프로토콜·개발 도구(rag/nlp/lab/mcp/workflow)와 관리자(admin).
+    # 운영/내부 API 라우터: 분석·프로토콜 도구(rag/bounty/workflow)와 관리자(admin).
     # 고객 앱에는 **싣지 않는다** → 고객 포트에서 이들 경로는 물리적으로 404(무인증 노출·DoS 표면
     # 축소). 어떤 고객 페이지도 이 엔드포인트들을 호출하지 않는다(rag/mcp는 운영 페이지 전용).
     if role != "customer":
         app.include_router(rag.router)
-        app.include_router(lab.router)
         app.include_router(bounty.router)
         app.include_router(workflow.router)
         app.include_router(admin.router)
@@ -124,6 +147,59 @@ def create_app(role: str = "full") -> FastAPI:
     #:   **없는 것을 있는 척하지 않는다** — 무엇이 없는지 말하고 API 로 안내한다.
     #: ★보험 화면이 생겼다. 앞서 여기 `shop.html`(커머스)이 남아 500 이 났었다.
     landing = {"admin": "admin.html"}.get(role, "insurance.html")
+
+    #: ★`llms.txt` — **에이전트가 먼저 읽는 안내문**(MVP §6).
+    #:
+    #:   OpenAPI 는 "어떤 엔드포인트가 있나"를 말하지만 "무엇을 조심해야 하나"는
+    #:   말하지 않는다. 이 도메인에서 위험한 것은 스키마 오용이 아니라
+    #:   **기권을 오류로 읽는 것**과 **합성을 실제로 읽는 것**이다. 그건 문장으로만 전할 수 있다.
+    @app.get("/llms.txt", include_in_schema=False)
+    def llms_txt():
+        return PlainTextResponse(
+            f"""# {settings.BRAND_NAME}
+
+> 가입 약관 원문 조항을 근거로 보장 여부를 **사전검토**하고, 같은 조건의
+> 과거 청구 결과 분포를 제공합니다. 보험금 지급을 확정하지 않습니다.
+
+## 에이전트가 반드시 알아야 할 것
+
+- **기권은 오류가 아니다.** `verdict="needs_expert"` + `abstained=true` 는 HTTP 200 이다.
+  근거 조항을 못 댈 때 추측하지 않는 것이 설계다. 재시도해도 같은 답이 나온다.
+- **면책 목록에 없다 ≠ 보장된다.** 실손 약관은 보장 대상을 질병코드로 나열하지 않고
+  면책만 나열한다. 그래서 "보장됨"을 조항으로 증명할 수 없는 경우가 많다.
+- **`data_source` 를 절대 무시하지 마라.** `synthetic` 은 시연용 생성 데이터다.
+  `verified_real` 과 합치지 마라.
+- **표본 미달이면 비율이 `null` 이다.** 직접 계산하지 마라 — 최소표본 미만에서
+  비율을 말하지 않는 것이 정책이다.
+- **`by_verification` 을 읽어라.** `admin_attested` 는 관리자 교차검증이며
+  보험사·발행처에 조회해 확인한 것이 아니다.
+- **제출은 검증이 아니다.** `/v1/observations` 로 보낸 결과는 `unverified` 로 접수되고
+  검수를 거쳐야 통계에 반영된다. `verification` 을 직접 지정해도 무시된다.
+- **지원범위를 먼저 확인하라.** `/v1/support-manifest` 밖의 보험사를 물으면 기권만 돌아온다.
+  `identification_mode.auto_approve` 가 참이면 사람 최종승인을 거치지 않은 약관으로 판정한 것이다.
+
+## API
+
+- `GET  /v1/support-manifest` 지원 범위·판정 모드
+- `POST /v1/prechecks` 보장 사전검토 (4단 판정 + 근거 조항 인용)
+- `GET  /v1/cohorts?code=` 실제 검증분 코호트
+- `GET  /v1/demo/cohorts?code=` 합성(시연) 코호트
+- `POST /v1/observations` 청구 결과 보고
+- `GET  /openapi.json` 전체 스키마
+
+## MCP
+
+`python -m app.mcp.server` (stdio). 도구 3종 — `precheck` · `cohort_stats` ·
+`submit_observation`. 리소스 — `insurance://support-manifest` ·
+`insurance://runtime-config`.
+
+## 하지 않는 것
+
+보험금 지급 확정 · 자동 청구 · 보험상품 권유·판매 · 의료 진단 ·
+개인 예상 지급액 산정(과거 분포만 제시)
+""",
+            media_type="text/plain; charset=utf-8",
+        )
 
     @app.get("/", include_in_schema=False)
     def index():

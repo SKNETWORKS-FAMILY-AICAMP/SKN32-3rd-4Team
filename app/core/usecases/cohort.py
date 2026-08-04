@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from app.core.domain.insurance import CohortStats, DataSource, KcdCode
 from app.core.errors import ValidationErr
@@ -102,14 +102,11 @@ class CohortQuery:
         if data_source is DataSource.SYNTHETIC:
             warnings = ("합성 데이터입니다. 실제 지급 통계가 아닙니다.",) + warnings
 
-        enriched = CohortStats(
-            n=stats.n,
-            approved_n=stats.approved_n,
-            denied_n=stats.denied_n,
-            data_source=stats.data_source,
-            min_sample=self._min_sample,
-            warnings=warnings,
-        )
+        #: ★필드를 하나씩 옮겨 적는 재구성이라 **새 필드를 빠뜨리기 쉽다.**
+        #:   실제로 `by_verification` 을 추가했더니 어댑터는 채웠는데 여기서
+        #:   흘려서 화면에 `{}` 로 나갔다(2026-08-04). `replace` 로 바꿔
+        #:   "바꾸는 것만 적고 나머지는 그대로 간다"를 구조로 만든다.
+        enriched = replace(stats, min_sample=self._min_sample, warnings=warnings)
 
         rate = enriched.approval_rate() if enriched.min_sample_met else None
         ci = enriched.rate_interval() if enriched.min_sample_met else None

@@ -29,21 +29,35 @@ def test_조립_지점이_기본으로_파일을_고른다(monkeypatch):
 
     인덱스 A 적재는 CPU 로 4~5시간이라 기계마다 상태가 다르다.
     쓰려면 `CLAUSE_STORE=pg` 로 명시하게 한다.
-    """
-    import importlib
 
+    ★★계약이 하나 더 붙었다(2026-08-03) — **명시만으로는 부족하고
+      승인된 임베딩 프로필이 있어야 한다.** 벡터가 없는데 PG 를 고르면
+      "근거 없음"과 "적재 안 함"을 구분할 수 없다.
+    """
     import app.composition as comp
 
+    #: ★`importlib.reload` 를 쓰지 않는다. 조립 지점이 **부를 때** 환경을 읽는다 —
+    #:   reload 로 우회하던 옛 방식은 모듈 상태를 남겨 뒤 테스트를 오염시켰다.
     monkeypatch.delenv("CLAUSE_STORE", raising=False)
-    importlib.reload(comp)
     assert comp.build_precheck()["clauses"].__name__.endswith("file_clause_store")
 
-    monkeypatch.setenv("CLAUSE_STORE", "pg")
-    importlib.reload(comp)
-    assert comp.build_precheck()["clauses"].__name__.endswith("pg_clause_store")
 
-    monkeypatch.delenv("CLAUSE_STORE", raising=False)
-    importlib.reload(comp)
+def test_승인_프로필이_있으면_pg_를_고른다(monkeypatch):
+    """명시 + 승인된 프로필이면 PG 를 고른다. 계약의 나머지 절반."""
+    import app.composition as comp
+    from app.core import release
+
+    real = release.load()
+    with_profile = release.AcceptedRelease(
+        release_id=real.release_id, page_tag=real.page_tag,
+        clause_tag=real.clause_tag, document_count=real.document_count,
+        embed_profile=release.EmbedProfile(
+            model="fake/model", dim=768, max_seq_length=512,
+            chunk_budget=448, overlap=80),
+    )
+    monkeypatch.setattr(release, "load", lambda *a, **k: with_profile)
+    monkeypatch.setenv("CLAUSE_STORE", "pg")
+    assert comp.build_precheck()["clauses"].__name__.endswith("pg_clause_store")
 
 
 # ---------------------------------------------------------------- PG 필요
@@ -76,7 +90,7 @@ def _sha_with_current_index(conn):
                JOIN policy_clause_chunk c ON c.content_hash = o.content_hash
                WHERE o.index_generation = %s AND c.embed_model = %s
                GROUP BY 1 ORDER BY count(*) DESC LIMIT 1""",
-            (ix.CURRENT_GENERATION, ix.current_embed_model()),
+            (ix.current_generation(), ix.current_embed_model()),
         )
         row = cur.fetchone()
     return row[0] if row else None
@@ -105,12 +119,33 @@ def test_적재된_약관을_읽고_찾는다():
 
     sha = "e" * 64
     h = "통합저장소테스트해시"
-    vec = [0.0] * 768
+    #: ★차원은 승인 프로필에서 온다(상수 금지 — test_clause_index.py 의 같은 자리 주석 참조).
+    vec = [0.0] * ix.embed_dim()
     vec[3] = 1.0
     body = "회사는 피보험자가 상해로 인하여 의료기관에 입원하여 치료를 받은 경우 보상합니다."
     ix.upsert_content(conn, [(h, body, 1)])
     ix.upsert_chunks(conn, [(h, 0, 1, body, vec)])
+    #: ★★게이트 값 **없이** 먼저 넣는다. 이 테스트가 지켜야 할 성질이 그것이다 —
+    #:   `eligibility` 규칙은 "모르면 못 쓴다"(fail-closed)다. 전에는 8튜플만 넣고
+    #:   바로 `len(rows) == 1` 을 기대했는데, 게이트가 생긴 뒤로는 그게 **틀린 기대**다.
+    #:   0건이 나온 것은 결함이 아니라 **설계대로 막힌 것**이었다(2026-08-04).
     ix.upsert_occurrences(conn, [(h, sha, "테스트보험", "보통약관/3.", "보통약관", "보상내용", 7, 7)])
+    conn.commit()
+
+    assert pg_clause_store.load_clauses(sha) == [], (
+        "인용 게이트 값이 없는데 조항이 근거로 나왔다 — fail-open 이다."
+    )
+    unfiltered = pg_clause_store.load_clauses(sha, usable_only=False)
+    assert len(unfiltered) == 1 and unfiltered[0].usable is False
+    assert "모른다" in unfiltered[0].unusable_reason
+
+    #: ★게이트를 채우면(같은 키라 ON CONFLICT 로 갱신된다) 비로소 근거가 된다.
+    ix.upsert_occurrences(
+        conn,
+        [(h, sha, "테스트보험", "보통약관/3.", "보통약관", "보상내용", 7, 7, "clause",
+          {"citation_eligible": True, "chunk_type": None,
+           "is_statute": False, "parse_status": "ok"})],
+    )
     conn.commit()
 
     rows = pg_clause_store.load_clauses(sha)
@@ -155,7 +190,7 @@ def test_짧은_질의가_긴_조각에서_찾아진다():
     conn.close()
     if not sha:
         pytest.skip(
-            f"현재 프로필(세대 {ix.CURRENT_GENERATION} × 모델 "
+            f"현재 프로필(세대 {ix.current_generation()} × 모델 "
             f"{ix.current_embed_model()})로 색인된 문서가 없습니다 — 적재 미실행"
         )
     hits = pg_clause_store.search(sha, "보험금의 지급사유", limit=5)
@@ -177,7 +212,7 @@ def test_현황이_조회_결과와_어긋나지_않는다():
     conn.close()
     if not sha:
         pytest.skip(
-            f"현재 프로필(세대 {ix.CURRENT_GENERATION} × 모델 "
+            f"현재 프로필(세대 {ix.current_generation()} × 모델 "
             f"{ix.current_embed_model()})로 색인된 문서가 없습니다 — 적재 미실행"
         )
     st = pg_clause_store.stats(sha)

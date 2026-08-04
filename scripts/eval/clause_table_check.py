@@ -27,7 +27,23 @@ _ROOT = Path(__file__).resolve().parents[2]
 _CODE = re.compile(r"[A-Z]\d{2}(?:\.\d)?")
 _WS = re.compile(r"\s+")
 
-CLAUSE_TAG = "s6_pymupdf-1.28.0"
+def _clause_tag() -> str:
+    """★세대를 여기 박지 않는다. 승인 릴리스에서 읽는다.
+
+    평가 스크립트가 상수를 들고 있으면 **승인을 바꿔도 옛 세대를 채점한다** —
+    그러면 "좋아졌다"가 무엇에 대한 말인지 알 수 없다.
+    `--clause-tag` 로 shadow 세대를 명시할 수 있다.
+    """
+    import argparse
+
+    ap = argparse.ArgumentParser(add_help=False)
+    ap.add_argument("--clause-tag", default="")
+    a, _ = ap.parse_known_args()
+    if a.clause_tag:
+        return a.clause_tag
+    from app.core import release
+
+    return release.load().clause_tag
 
 
 def _norm(s: str) -> str:
@@ -44,7 +60,9 @@ def main() -> int:
     gold = json.loads((_ROOT / "data" / "eval" / "table_gold.json").read_text(encoding="utf-8"))
     by_id = {t["id"]: t for t in gold["tables"]}
 
-    tot = hit = miss = mispair = 0
+    tag = _clause_tag()
+    print(f"[세대] {tag}")
+    tot = hit = miss = mispair = n_extra = 0
     for t in gold["tables"]:
         ref = by_id[t["same_as"]] if t.get("same_as") else t
         recs = ref["records"]
@@ -52,19 +70,30 @@ def main() -> int:
         page1 = t["page_0based"] + 1        # 조항 JSON 은 1-based
 
         paths = list((_ROOT / "data" / "structured").glob(
-            f"*/{CLAUSE_TAG}/{t['sha12']}.clauses.json"))
+            f"*/{tag}/{t['sha12']}.clauses.json"))
         if not paths:
             print(f"[건너뜀] 조항 JSON 없음 {t['id']}")
             continue
         doc = json.loads(paths[0].read_text(encoding="utf-8"))
 
         #: ★조항과 부록을 **둘 다** 본다. 표가 어디에 실렸는지 가정하지 않는다.
+        #: ★`table_id` 로 **중복을 뺀다.** 같은 표가 조항과 부록에 둘 다 붙으면
+        #:   레코드가 두 벌 들어와 "정답 22 · 실린 44" 처럼 보인다.
+        #:   그건 표가 두 개라는 뜻이 아니라 **한 표가 두 번 붙었다**는 뜻이다.
+        seen_tid: set[str] = set()
         got: list[dict] = []
+        n_attach = 0
         for key in ("clauses", "annexes"):
             for x in doc.get(key) or []:
                 for tb in x.get("tables") or []:
-                    if tb.get("page") == page1:
-                        got.extend(tb.get("records") or [])
+                    if tb.get("page") != page1:
+                        continue
+                    n_attach += 1
+                    tid = tb.get("table_id") or f"{tb.get('panel')}-{tb.get('method')}"
+                    if tid in seen_tid:
+                        continue
+                    seen_tid.add(tid)
+                    got.extend(tb.get("records") or [])
         if not got:
             print(f"{t['id']}\n    p{page1} 에 실린 표 레코드 **0개** — 파이프라인에 안 실렸다")
             tot += len(recs)

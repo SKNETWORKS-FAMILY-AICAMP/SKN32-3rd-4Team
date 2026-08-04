@@ -42,7 +42,10 @@ def test_지정된_버전의_산출물이_실제로_있다():
 
 def test_설정이_없으면_실패한다(monkeypatch, tmp_path):
     """★아무거나 골라 쓰느니 멈추는 편이 낫다."""
-    monkeypatch.setattr(store, "_ACCEPTED_SCHEMA_FILE", tmp_path / "없음.json")
+    #: ★진실원이 `app/core/release.py` 로 옮겨졌다. 저장소는 그걸 읽을 뿐이다.
+    from app.core import release
+
+    monkeypatch.setattr(release, "_FILE", tmp_path / "없음.json")
     with pytest.raises(InfraError) as e:
         store._accepted_tag()
     assert "지정되지 않았습니다" in str(e.value)
@@ -50,8 +53,10 @@ def test_설정이_없으면_실패한다(monkeypatch, tmp_path):
 
 def test_없는_버전을_지정하면_실패한다(monkeypatch, tmp_path):
     bad = tmp_path / "accepted.json"
-    bad.write_text(json.dumps({"tag": "s99_없는추출기"}), encoding="utf-8")
-    monkeypatch.setattr(store, "_ACCEPTED_SCHEMA_FILE", bad)
+    bad.write_text(json.dumps({"clause_tag": "s99_없는추출기"}), encoding="utf-8")
+    from app.core import release
+
+    monkeypatch.setattr(release, "_FILE", bad)
     with pytest.raises(InfraError) as e:
         store._accepted_tag()
     assert "산출물이 없습니다" in str(e.value)

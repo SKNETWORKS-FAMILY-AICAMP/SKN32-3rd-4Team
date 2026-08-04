@@ -126,12 +126,11 @@ def test_add_documents_incremental_chunked():
     assert any(r["source"] == "exchange.txt" for r in results)
 
 
-def test_search_knowledge_base_tool():
-    from app.tools.commerce_tools import search_knowledge_base
-
-    r = search_knowledge_base(None, "에이전트 무한루프를 어떻게 막나요?")
-    assert r["ok"] is True
-    assert r["count"] >= 1
+# ★`test_search_knowledge_base_tool` 삭제(2026-08-04).
+#   대상이던 `app/tools/commerce_tools.py` 는 v4.0 §2-3 에서 **폐기 확정**된 커머스 도구이고
+#   `legacy/v3_commerce.zip` 에 들어갔다. 마커로 빼면 "인프라만 갖추면 도는 테스트"처럼
+#   보이지만 사실은 **영구히 안 도는 테스트**다. 그래서 마커가 아니라 삭제한다.
+#   검색 자체는 위 `test_add_documents_incremental_chunked` 가 계속 지킨다.
 
 
 def test_summarize_single_chunk_mock():

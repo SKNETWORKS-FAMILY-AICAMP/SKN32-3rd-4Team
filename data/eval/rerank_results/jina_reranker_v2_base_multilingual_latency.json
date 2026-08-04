@@ -1,0 +1,52 @@
+{
+  "schema_version": "reranker-latency-v1",
+  "model": "jinaai/jina-reranker-v2-base-multilingual",
+  "input": "/workspace/rerank/input/s6_arctic_ko_top20_rerank.json",
+  "top_k": 20,
+  "profiles": {
+    "1": {
+      "microbatch_requests": 1,
+      "samples": 24,
+      "requests": 24,
+      "pairs": 480,
+      "latency_seconds_p50": 0.1441,
+      "latency_seconds_p95": 0.1489,
+      "latency_seconds_max": 0.1539,
+      "effective_requests_per_second": 6.9211,
+      "effective_pairs_per_second": 138.4215
+    },
+    "2": {
+      "microbatch_requests": 2,
+      "samples": 12,
+      "requests": 24,
+      "pairs": 480,
+      "latency_seconds_p50": 0.2805,
+      "latency_seconds_p95": 0.2894,
+      "latency_seconds_max": 0.2902,
+      "effective_requests_per_second": 7.0937,
+      "effective_pairs_per_second": 141.8739
+    },
+    "4": {
+      "microbatch_requests": 4,
+      "samples": 6,
+      "requests": 24,
+      "pairs": 480,
+      "latency_seconds_p50": 0.5564,
+      "latency_seconds_p95": 0.5628,
+      "latency_seconds_max": 0.5637,
+      "effective_requests_per_second": 7.1805,
+      "effective_pairs_per_second": 143.6091
+    }
+  },
+  "provenance": {
+    "gpu": "NVIDIA RTX 4000 Ada Generation",
+    "python": "3.12.3",
+    "torch": "2.8.0+cu128",
+    "sentence_transformers": "5.6.0",
+    "dtype": "float16",
+    "max_length": 768,
+    "pair_batch_size": 1,
+    "load_seconds": 8.017,
+    "peak_vram_mb": 560.5
+  }
+}

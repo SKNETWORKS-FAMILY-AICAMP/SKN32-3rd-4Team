@@ -1,93 +1,168 @@
-"""Phase 8 — TEST-MCP-PARITY-001: REST와 MCP가 같은 결과를 낸다.
+"""MCP ↔ REST 동등성 — 도구 3종(MVP §6).
 
-parity의 의미: 같은 기능을 두 인터페이스가 **서로 다른 구현으로 두 번** 만들지 않는다.
-결정론 확보를 위해 유스케이스(LLM·Retriever 포함)를 고정 Fake로 주입하고 두 경로의
-응답 dict가 **완전히 동일**한지 비교한다(Codex 권고: 실모델 없이 DTO 동등성 검증).
+★parity 의 의미가 **바뀌었다**
+
+    커머스 시절에는 MCP 서버가 서비스·도구를 각자 래핑했고, 그래서 "두 구현이
+    같은 답을 내는가"를 시험해야 했다. 지금은 **MCP 가 REST 라우터 함수를 그대로 부른다** —
+    파생 구현이 아예 없다. 그래서 이 파일이 지키는 것은 "두 구현의 일치"가 아니라
+    **"파생 구현이 생기지 않았음"** 이다.
+
+    두 시험을 둔다:
+      1. 같은 입력에 REST 와 MCP 응답이 **완전히 같다**(고정 Fake 유스케이스로 결정론 확보).
+      2. MCP 서버 소스가 유스케이스·어댑터를 **직접 부르지 않는다**(래핑 재발 방지).
+
+★`app/mcp` 는 2026-08-04 에 되살아났다
+
+    v3 커머스와 함께 레거시로 격리돼 있었고, 그동안 이 파일은 `mcp` 마커로 빠져
+    **아무것도 보증하지 않았다.** 보험 도구 3종으로 다시 만들면서 마커를 뗀다 —
+    stdio 서브프로세스를 쓰지 않으므로 CI 에서 그냥 돈다.
 """
 
 from __future__ import annotations
 
 import asyncio
+import io
+import json
+import pathlib
+import tokenize
 
 import pytest
 
-from app.application.answer_question import AnswerResult, Citation
-
-pytestmark = pytest.mark.mcp
+from app.core.domain.precheck_result import PrecheckOutcome
 
 
 def _run(coro):
     return asyncio.run(coro)
 
 
-#: 고정 결과 — 어느 인터페이스로 부르든 같은 유스케이스가 이걸 낸다.
-_FIXED = AnswerResult(
-    answer="단순 변심 반품은 수령 후 7일 이내 가능합니다.",
-    sources=[
-        Citation(source="환불교환정책.pdf", locator="3"),
-        Citation(source="loop_safety.txt", locator=None),  # page 없음 → None
-    ],
+def _text(result) -> str:
+    """FastMCP `call_tool` 결과에서 본문 텍스트를 꺼낸다(SDK 반환형 방어)."""
+    if isinstance(result, tuple):
+        result = result[-1]
+    if isinstance(result, list):
+        return result[0].text
+    return getattr(result, "text", str(result))
+
+
+#: 고정 판정 결과 — 어느 인터페이스로 부르든 이걸 낸다.
+_FIXED = PrecheckOutcome(
+    verdict="unlikely",
+    abstained=False,
+    reason_code="excluded_by_clause",
+    message="",
+    applied_policy=None,
+    per_code=(),
+    citations=(),
+    candidates=(),
+    rule_engine_version="rules-test",
+    extractor="test",
+    trace_id="trace-fixed",
+    warnings=(),
 )
 
 
 @pytest.fixture
-def _fixed_use_case(monkeypatch):
-    """REST·MCP 양쪽이 타고 들어가는 composition을 고정 Fake로 대체.
+def _fixed_graph(monkeypatch):
+    """판정 흐름을 고정 Fake 로 대체 — 실모델·PG 없이 DTO 동등성만 본다."""
+    from app.routers import precheck as router
 
-    주의(바인딩 시점 차이): REST 라우터는 모듈 로드 시 `build_answer_question`을 import해
-    이름을 **조기 바인딩**하고, MCP 도구는 호출 시점에 import해 **지연 바인딩**한다.
-    그래서 두 참조를 모두 교체해야 한다. 운영 동작은 동일하지만 테스트에서는 구분해야 한다.
-    """
-    import app.composition as composition
-    import app.routers.rag as rag_router
+    class _Graph:
+        def invoke(self, _body):
+            return _FIXED, {}
 
-    def _fake_build(top_k=None):
-        def _uc(question):
-            return _FIXED
-
-        return _uc
-
-    monkeypatch.setattr(composition, "build_answer_question", _fake_build)
-    monkeypatch.setattr(rag_router, "build_answer_question", _fake_build)
+    monkeypatch.setattr(router, "_graph", lambda: _Graph())
 
 
-def test_rest_and_mcp_rag_qa_are_identical(client, _fixed_use_case):
-    question = "단순 변심 반품 기한은?"
-
-    rest = client.post("/api/rag/qa", json={"question": question, "top_k": 3}).json()
-
+def test_precheck_는_rest_와_mcp_가_완전히_같은_응답을_낸다(client, _fixed_graph):
     from app.mcp.server import mcp
 
-    _blocks, mcp_out = _run(mcp.call_tool("rag_qa", {"question": question, "top_k": 3}))
+    payload = {"insurer": "NH농협생명", "enrolled_on": "20160301", "kcd_codes": ["N39.4"]}
 
-    # 두 인터페이스의 응답이 완전히 동일해야 한다(구현이 1벌이므로).
-    assert rest == mcp_out, f"REST/MCP parity 위반:\nREST={rest}\nMCP ={mcp_out}"
-    # 계약 고정: page는 1-based int이거나 None
-    assert rest["sources"] == [
-        {"source": "환불교환정책.pdf", "page": 3},
-        {"source": "loop_safety.txt", "page": None},
-    ]
+    rest = client.post("/v1/prechecks", json={**payload, "client_ref": "mcp"}).json()
+    mcp_out = json.loads(_text(_run(mcp.call_tool("precheck", payload))))
 
-
-def test_shared_view_is_single_conversion():
-    """변환이 1벌인지 구조로 확인 — REST 라우터와 MCP가 같은 rag_view를 쓴다."""
-    from app.adapters.rag_view import answer_to_dict
-
-    expected = answer_to_dict(_FIXED)
-    assert expected["sources"][0]["page"] == 3  # locator "3" → 1-based page
-    assert expected["sources"][1]["page"] is None  # locator None → None
+    assert rest == mcp_out, f"REST/MCP 응답이 다릅니다:\nREST={rest}\nMCP ={mcp_out}"
+    #: 계약 고정 — 기권 여부를 에이전트가 필드로 읽을 수 있어야 한다.
+    assert mcp_out["verdict"] == "unlikely"
+    assert mcp_out["abstained"] is False
+    assert mcp_out["trace_id"] == "trace-fixed"
 
 
-def test_runtime_config_exposes_no_secrets():
-    """TEST-MCP-NOSECRET-001: 런타임 설정 리소스에 키/시크릿이 없어야 한다."""
-    import json
+def test_cohort_도_rest_와_같은_응답을_낸다(client):
+    from app.mcp.server import mcp
 
+    rest = client.get("/v1/cohorts", params={"code": "S72.0"}).json()
+    mcp_out = json.loads(_text(_run(mcp.call_tool(
+        "cohort_stats", {"code": "S72.0", "data_source": "verified_real"}))))
+
+    assert rest == mcp_out
+    #: ★출처와 등급 내역은 **절대 빠지면 안 되는 필드**다.
+    assert mcp_out["data_source"] == "verified_real"
+    assert "by_verification" in mcp_out
+
+
+def test_잘못된_data_source_는_예외가_아니라_구조화된_오류다():
+    """★에이전트는 분기해야 한다. 예외만 던지면 무엇을 고칠지 알 수 없다."""
+    from app.mcp.server import mcp
+
+    out = json.loads(_text(_run(mcp.call_tool(
+        "cohort_stats", {"code": "S72.0", "data_source": "무엇이든"}))))
+
+    assert out["ok"] is False
+    assert out["http_status"] == 422
+    #: 입력 잘못은 재시도해도 소용없다 — 그걸 알려 준다.
+    assert out["retryable"] is False
+
+
+def test_도구는_정확히_세_개다():
+    """★늘어나기 시작하면 "전체 parity"로 번진다. MVP §6 은 3종으로 못박았다."""
+    from app.mcp.server import mcp
+
+    names = {t.name for t in _run(mcp.list_tools())}
+    assert names == {"precheck", "cohort_stats", "submit_observation"}
+
+
+def test_mcp_서버는_유스케이스를_직접_부르지_않는다():
+    """★★**파생 구현이 생기지 않았는지** 구조로 확인한다.
+
+    커머스 시절 MCP 서버는 서비스를 각자 래핑했고 그래서 두 경로가 어긋났다.
+    라우터만 부르면 어긋날 자리가 없다.
+    """
+    from app.mcp import server
+
+    src = pathlib.Path(server.__file__).read_text(encoding="utf-8")
+    code = "".join(
+        t.string
+        for t in tokenize.generate_tokens(io.StringIO(src).readline)
+        if t.type not in (tokenize.COMMENT, tokenize.STRING)
+    )
+    for banned in ("app.core.usecases", "app.adapters", "app.workflow"):
+        assert banned not in code, (
+            f"MCP 서버가 {banned} 를 직접 부릅니다 — 라우터를 거쳐야 파생 구현이 안 생깁니다."
+        )
+
+
+def test_런타임_설정_리소스에_시크릿이_없다():
+    """TEST-MCP-NOSECRET-001."""
     from app.mcp.server import runtime_config
 
-    payload = json.loads(runtime_config())
+    payload = runtime_config()
     keys = {k.lower() for k in payload}
-    for banned in ("api_key", "openai_api_key", "gemini_api_key", "secret_key", "token"):
+    for banned in ("api_key", "openai_api_key", "google_api_key", "secret_key", "token"):
         assert banned not in keys
-    # 값에도 키처럼 보이는 문자열이 없어야 한다
-    blob = json.dumps(payload).lower()
+
+    blob = json.dumps(payload, ensure_ascii=False).lower()
     assert "sk-" not in blob and "secret" not in blob
+
+
+def test_llms_txt_가_에이전트_주의사항을_담는다(client):
+    """★OpenAPI 는 "무엇을 조심해야 하나"를 말하지 못한다. 그건 문장이어야 한다."""
+    resp = client.get("/llms.txt")
+    assert resp.status_code == 200
+    body = resp.text
+
+    #: 이 도메인에서 가장 위험한 오해 네 가지가 반드시 적혀 있어야 한다.
+    assert "기권은 오류가 아니다" in body
+    assert "면책 목록에 없다" in body
+    assert "data_source" in body
+    assert "admin_attested" in body

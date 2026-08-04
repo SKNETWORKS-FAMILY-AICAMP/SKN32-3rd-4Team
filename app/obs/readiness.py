@@ -28,7 +28,7 @@ def check_readiness() -> dict[str, object]:
     index_ready = (vector_dir / "index.faiss").exists() and (vector_dir / "index.pkl").exists()
 
     db_ready = not missing_tables
-    return {
+    out: dict[str, object] = {
         "ready": db_ready and index_ready,
         "db_tables_ready": db_ready,
         "missing_tables": missing_tables,
@@ -37,3 +37,67 @@ def check_readiness() -> dict[str, object]:
         if (db_ready and index_ready)
         else "먼저 `python -m scripts.manage migrate && python -m scripts.manage ingest` 실행",
     }
+    clause = _clause_index_state()
+    out["clause_index"] = clause
+    #: ★**지금 쓰는 저장소가 요구하는 것만** 준비 조건에 넣는다.
+    #:
+    #:   `CLAUSE_STORE=file` 이면 인덱스 A 가 비어도 판정은 돈다 —
+    #:   그때 `ready:false` 로 만들면 늘 미준비라 아무도 안 본다.
+    #:   반대로 `pg` 인데 색인이 어긋나면 **검색이 전부 실패**하므로
+    #:   `ready:true` 라고 말하면 거짓이다.
+    #:   실측 2026-08-03: 하위는 false 인데 상위가 true 였다.
+    from app.composition import _clause_store_kind
+
+    if _clause_store_kind() == "pg" and not clause.get("ready"):
+        out["ready"] = False
+        out["hint"] = clause.get("hint") or "인덱스 A 가 준비되지 않았습니다."
+    return out
+
+
+def _clause_index_state() -> dict[str, object]:
+    """인덱스 A 가 **승인 릴리스와 맞나.**
+
+    ★왜 여기서도 보나 — 검색 경로가 막아 주기는 하지만, 그건 **요청이 와야**
+      드러난다. 실측 2026-08-03 에 승인 세대 's5' 로 적재된 행이 0건인 채
+      한참 있었는데 아무도 몰랐다. 준비 상태는 **묻기 전에** 말해야 한다.
+
+    ★PG 가 없거나 못 붙어도 여기서 죽지 않는다 — 이 함수는 **보고**다.
+      다만 "확인 못 함"과 "준비됨"을 **구분해서** 적는다. 섞으면 폴백이다.
+    """
+    #: ★★**절대 매달리지 않는다.** 준비 상태는 **보고**이지 작업이 아니다.
+    #:
+    #:   실측 2026-08-03 — 이 함수가 연 연결이 `idle in transaction` 으로
+    #:   **3시간 9분** 남아 `policy_clause_chunk` 에 읽기 락을 쥐고 있었다.
+    #:   그 뒤로 병행 트랙의 `ALTER TABLE ... ADD COLUMN` 이 막히고,
+    #:   그 뒤로 다시 이 함수의 조회 **12개**가 줄줄이 밀렸다.
+    #:   그 상태로 테스트를 돌리니 **64% 에서 15분 넘게 멈췄다.**
+    #:
+    #:   세 가지가 겹쳤다 —
+    #:     ① 읽고 나서 트랜잭션을 **안 닫았다**(SELECT 도 트랜잭션을 연다)
+    #:     ② 시간 제한이 **없었다** — 락을 만나면 영원히 기다린다
+    #:     ③ `pg` 마커가 없는 테스트 경로에서 **PG 를 요구했다**
+    try:
+        from app.adapters import pgvector_clause_index as ix
+        from app.adapters.pgvector_index import get_conn
+
+        conn = get_conn()
+        try:
+            #: ★락을 만나면 **기다리지 않고 실패한다.** 보고하려다 남을 막으면 안 된다.
+            with conn.cursor() as cur:
+                cur.execute("SET LOCAL lock_timeout = '2s'")
+                cur.execute("SET LOCAL statement_timeout = '5s'")
+            st = ix.index_state(conn)
+        finally:
+            #: ★**읽기만 했어도 닫는다.** 이걸 안 해서 3시간짜리 락이 생겼다.
+            try:
+                conn.rollback()
+            finally:
+                conn.close()
+    except Exception as exc:  # noqa: BLE001
+        #: ★"확인 못 함"과 "준비됨"을 **구분해서** 적는다. 섞으면 그게 폴백이다.
+        return {"checked": False, "reason": f"{type(exc).__name__}: {exc}"[:200]}
+    st["checked"] = True
+    if not st["ready"]:
+        st["hint"] = ("승인 릴리스와 색인이 어긋납니다. "
+                      "`python -m scripts.index.build_clause_index` 로 다시 적재하세요.")
+    return st
