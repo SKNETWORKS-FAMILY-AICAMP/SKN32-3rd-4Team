@@ -1,0 +1,9 @@
+{
+  "환불교환정책.pdf": {
+    "valid_from": "2026-07-21",
+    "review_by": "2027-07-21",
+    "source_url": "internal://generated/scripts/gen_policy_pdf.py",
+    "collected_at": "2026-07-21",
+    "note": "우리가 생성한 가상 정책 문서. 실제 약관이 아니며 대외 고지용이 아니다."
+  }
+}

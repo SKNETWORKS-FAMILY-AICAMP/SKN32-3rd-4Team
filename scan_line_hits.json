@@ -1,0 +1,32 @@
+[
+ {
+  "ins": "hyundaimarine",
+  "file": "data/extracted\\hyundaimarine\\s5_pymupdf-1.28.0\\09db07e32346.json",
+  "page": 3,
+  "table_id": "p3-1-선",
+  "method": "선",
+  "cols": 7,
+  "rows": 46,
+  "is_table": null
+ },
+ {
+  "ins": "hyundaimarine",
+  "file": "data/extracted\\hyundaimarine\\s5_pymupdf-1.28.0\\4e39dccf59ce.json",
+  "page": 3,
+  "table_id": "p3-1-선",
+  "method": "선",
+  "cols": 7,
+  "rows": 46,
+  "is_table": null
+ },
+ {
+  "ins": "hyundaimarine",
+  "file": "data/extracted\\hyundaimarine\\s5_pymupdf-1.28.0\\b3b339438e49.json",
+  "page": 3,
+  "table_id": "p3-1-선",
+  "method": "선",
+  "cols": 7,
+  "rows": 46,
+  "is_table": null
+ }
+]

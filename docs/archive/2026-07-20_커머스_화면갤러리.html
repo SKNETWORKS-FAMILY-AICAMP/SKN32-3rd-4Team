@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>옛 브랜드명 AI 커머스 에이전트 — 화면 캡처</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", "Malgun Gothic", sans-serif;
+      margin: 0; background: #f5f6fa; color: #1e272e;
+    }
+    header { background: #2f3640; color: #fff; padding: 24px 28px; }
+    header h1 { margin: 0 0 6px; font-size: 24px; }
+    header p { margin: 0; color: #c7cdd6; font-size: 14px; }
+    header .meta { margin-top: 10px; font-size: 12.5px; color: #9aa5b3; }
+    header .meta code {
+      background: #1e272e; padding: 1px 6px; border-radius: 4px; color: #dcdde1;
+    }
+    main { max-width: 1100px; margin: 0 auto; padding: 28px 20px 60px; }
+
+    nav.jump {
+      display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 28px;
+      background: #fff; border: 1px solid #dcdde1; border-radius: 8px; padding: 12px 14px;
+    }
+    nav.jump a {
+      font-size: 12.5px; color: #4a69bd; text-decoration: none; padding: 4px 10px;
+      border: 1px solid #dfe4ea; border-radius: 999px;
+    }
+    nav.jump a:hover { background: #eef1fb; }
+
+    .group { margin-bottom: 8px; }
+    .group h2 {
+      font-size: 15px; color: #2f3640; border-bottom: 2px solid #4a69bd;
+      padding-bottom: 6px; margin: 36px 0 16px;
+    }
+    .group h2 .count { font-weight: 400; color: #7f8c8d; font-size: 12.5px; }
+
+    .shots { display: grid; grid-template-columns: 1fr; gap: 22px; }
+    figure {
+      margin: 0; background: #fff; border: 1px solid #dcdde1; border-radius: 10px;
+      overflow: hidden; box-shadow: 0 1px 3px rgba(30,39,46,.06);
+    }
+    figure img { display: block; width: 100%; border-bottom: 1px solid #eceff3; }
+    figcaption { padding: 12px 16px 14px; }
+    figcaption .title { font-weight: 700; font-size: 14px; color: #2f3640; }
+    figcaption .desc { font-size: 12.5px; color: #576574; margin-top: 4px; line-height: 1.5; }
+    figcaption .route {
+      display: inline-block; margin-top: 6px; font-family: Consolas, monospace; font-size: 11px;
+      background: #f1f2f6; color: #4a69bd; padding: 2px 8px; border-radius: 5px;
+    }
+
+    .callout {
+      background: #fff8e6; border: 1px solid #f5d78e; border-radius: 8px;
+      padding: 14px 18px; margin: 36px 0; font-size: 13px; color: #7a5c00; line-height: 1.6;
+    }
+    .callout strong { color: #4a3800; }
+
+    footer {
+      margin-top: 48px; padding-top: 16px; border-top: 1px solid #dcdde1;
+      font-size: 12px; color: #7f8c8d;
+    }
+  </style>
+</head>
+<body>
+<div style="background:#7f1d1d;color:#fff;padding:16px 20px;font:15px/1.6 system-ui;border-bottom:4px solid #450a0a">
+<strong>☠ 이 페이지는 폐기된 과거 기록입니다 — 현재 제품이 아닙니다.</strong><br>
+여기 실린 화면(장바구니·주문·MCP·화상상담)은 <b>쇼핑몰 실습 시절</b>의 것입니다.
+캡처 <b>2026-07-30</b>. 이 저장소는 그 뒤 <b>실손보험 보장 사전판정</b>으로 전환했고,
+주문·MCP·커머스 경로는 <code>legacy/v3_commerce.zip</code> 으로 격리됐습니다.
+<code>/api/admin/orders</code> 는 2026-08-04 에 제거됐습니다.<br>
+현재 상태는 <a href="../index.html" style="color:#fecaca">docs/index.html</a> 을 보세요.
+<br><br><b>지우지 않고 남기는 이유</b> — 이 스크린샷들은 그 시점에 실제로 돌던 것을 증명합니다.
+지우면 "그때 뭐가 됐었나"를 아무도 답할 수 없게 됩니다.
+</div>
+
+  <header>
+    <h1>🛍️ 옛 브랜드명 AI 커머스 에이전트 — 실제 구현 화면</h1>
+    <p>_unified_mall_2 · v3.2 계획 Phase 0–10 완료 · 아래 화면은 전부 실제로 띄운 서버에
+      실제 클릭·입력으로 얻은 스크린샷입니다(목업 아님, <code>scripts/capture_screenshots*.py</code>).</p>
+    <p class="meta">캡처: 2026-07-20 · 커밋 <code>9fd81b1</code> · <code>27ba9b6</code>
+      · 앱 실행: <code>python scripts/run_dev_server.py</code> → http://localhost:8080/static/index.html</p>
+  </header>
+
+  <main>
+    <nav class="jump">
+      <a href="#chat">💬 에이전트 채팅</a>
+      <a href="#rag">🔎 RAG 검색</a>
+      <a href="#orders">🛒 주문·승인</a>
+      <a href="#admin">🛡️ 관리자</a>
+      <a href="#mcp">🔌 MCP</a>
+    </nav>
+
+    <div class="callout">
+      ⚠ <strong>정직한 참고</strong> — 이 화면들은 원래 원본 프로젝트에서 승계된 채팅 UI 하나뿐이었고
+      Phase 1~10에서 만든 하이브리드/그래프 RAG, 승인 루프, MCP, 관리자 기능은 화면에 전혀 반영돼
+      있지 않았습니다. 이 페이지를 만들면서 5개 정적 페이지(<code>app/static/*.html</code>)를 새로
+      추가해 실제 API와 연결하고, 그 위에서 실제로 캡처했습니다.
+    </div>
+
+    <section class="group" id="chat">
+      <h2>💬 에이전트 채팅 <span class="count">(원본 승계 화면)</span></h2>
+      <div class="shots">
+        <figure>
+          <img src="screenshots/01_agent_chat.png" alt="에이전트 채팅 화면 — P0001 가격 질문에 대한 응답" />
+          <figcaption>
+            <div class="title">ReAct 에이전트 채팅</div>
+            <div class="desc">로컬 Gemma 모델로 실제 질의응답. 로컬 모델은 구조화 도구호출을 지원하지
+              않아 <code>&lt;tool_call&gt;</code> 문법을 텍스트로 그대로 출력하는 실제 한계까지 가감없이
+              캡처했습니다(OpenAI/Gemini 키가 있으면 실제 도구 실행으로 이어집니다).</div>
+            <span class="route">POST /api/agent/chat</span>
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="group" id="rag">
+      <h2>🔎 RAG 검색 <span class="count">(Phase 1·3·4·5 — FAISS/pgvector/Hybrid/GraphRAG)</span></h2>
+      <div class="shots">
+        <figure>
+          <img src="screenshots/02_rag_vector_search.png" alt="벡터 검색 결과" />
+          <figcaption>
+            <div class="title">벡터 검색 (임베딩만, LLM 불필요)</div>
+            <div class="desc">환불교환정책.pdf에서 관련 청크를 거리순으로 반환.</div>
+            <span class="route">POST /api/rag/search</span>
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="screenshots/03_rag_qa_hybrid.png" alt="Hybrid backend 근거기반 답변" />
+          <figcaption>
+            <div class="title">근거 기반 답변 — backend=hybrid</div>
+            <div class="desc">pgvector + pg_trgm RRF 결합 검색 위에서 실 로컬 Gemma가 생성한 답변.
+              같은 질문을 faiss/graph로도 바꿔 비교할 수 있습니다(graph는 결합 근거가 길어 로컬
+              데모 모델 컨텍스트를 넘기면 503으로 명시 실패 — 무폴백 설계).</div>
+            <span class="route">POST /api/rag/qa {"backend":"hybrid"}</span>
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="group" id="orders">
+      <h2>🛒 주문·승인 <span class="count">(Phase 6 — 미리보기·멱등·거부경로)</span></h2>
+      <div class="shots">
+        <figure>
+          <img src="screenshots/04_orders_preview.png" alt="주문 미리보기" />
+          <figcaption>
+            <div class="title">회원가입 → 상품 목록 → 미리보기</div>
+            <div class="desc">미리보기는 읽기전용 — DB를 변경하지 않고 총액·재고충족 여부만 계산합니다.</div>
+            <span class="route">POST /api/orders/preview</span>
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="screenshots/05_orders_approve_idempotent.png" alt="정상 승인 및 멱등 재생" />
+          <figcaption>
+            <div class="title">① 정상 승인 → ② 같은 키 재요청(멱등 재생)</div>
+            <div class="desc">Idempotency-Key로 승인한 뒤 같은 키로 재요청하면 재고를 다시 차감하지
+              않고 동일 주문번호를 그대로 반환합니다.</div>
+            <span class="route">POST /api/orders (Idempotency-Key)</span>
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="screenshots/06_orders_reject_no_key_422.png" alt="키 없이 승인 시도 422" />
+          <figcaption>
+            <div class="title">거부 ③ — Idempotency-Key 없이 승인 시도</div>
+            <div class="desc">서버가 키를 임의로 생성해 조용히 넘어가지 않고 422로 명시 거부합니다.</div>
+            <span class="route">422 validation_error</span>
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="screenshots/07_orders_reject_conflict_409.png" alt="같은 키 다른 payload 409" />
+          <figcaption>
+            <div class="title">거부 ④ — 같은 키·다른 수량으로 재요청</div>
+            <div class="desc">요청 지문(fingerprint)이 달라 같은 키를 재사용할 수 없음을 409로 거부.</div>
+            <span class="route">409 conflict</span>
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="screenshots/08_orders_reject_oversell_and_list.png" alt="재고초과 거부 및 주문 목록" />
+          <figcaption>
+            <div class="title">거부 ⑤ — 재고 초과 수량 + 내 주문 목록</div>
+            <div class="desc">재고를 초과하는 수량은 422로 거부. 하단은 앞서 승인된 주문 1건이 실제로
+              남아있는 것을 보여줍니다.</div>
+            <span class="route">422 validation_error · GET /api/orders</span>
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="group" id="admin">
+      <h2>🛡️ 관리자 <span class="count">(Phase 9 — RBAC 사다리)</span></h2>
+      <div class="shots">
+        <figure>
+          <img src="screenshots/09_admin_401_unauthenticated.png" alt="401 미인증" />
+          <figcaption>
+            <div class="title">401 — 로그인하지 않은 상태로 호출</div>
+            <span class="route">GET /api/admin/orders → 401</span>
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="screenshots/10_admin_403_forbidden.png" alt="403 일반 사용자" />
+          <figcaption>
+            <div class="title">403 — 일반 사용자(USER)로 로그인 후 호출</div>
+            <div class="desc">관리자 승격은 CLI 전용(<code>scripts.manage promote</code>)입니다 — UI에는
+              자기 자신을 관리자로 만드는 버튼이 없습니다(권한 상승 사고 방지).</div>
+            <span class="route">GET /api/admin/orders → 403</span>
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="screenshots/11_admin_200_orders.png" alt="200 관리자 전체 주문 조회" />
+          <figcaption>
+            <div class="title">200 — 사전에 CLI로 승격한 관리자 계정으로 호출</div>
+            <div class="desc">role은 JWT가 아니라 매 요청 DB에서 조회하므로, 같은 토큰이라도 DB에서
+              강등하면 다음 요청부터 즉시 403으로 바뀝니다(재발급 불필요).</div>
+            <span class="route">GET /api/admin/orders → 200</span>
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="screenshots/12_admin_index_status.png" alt="인덱스 상태" />
+          <figcaption>
+            <div class="title">RAG 인덱스·DB 준비 상태</div>
+            <span class="route">GET /api/admin/index</span>
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="group" id="mcp">
+      <h2>🔌 MCP 연동 <span class="count">(Phase 8 — REST parity)</span></h2>
+      <div class="shots">
+        <figure>
+          <img src="screenshots/13_mcp_tools_list.png" alt="MCP 도구 목록" />
+          <figcaption>
+            <div class="title">등록된 MCP 도구 10개 조회</div>
+            <span class="route">POST /api/mcp/tools</span>
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="screenshots/14_mcp_call_get_price.png" alt="MCP get_price 호출 결과" />
+          <figcaption>
+            <div class="title">get_price 도구 실 호출</div>
+            <div class="desc">REST GET /api/products/{code}와 같은 commerce_tools 함수를 공유해
+              항상 동일한 결과를 냅니다. 임베딩이 필요한 도구(vector_search 등)는 실 stdio 경로에서
+              알려진 지연 이슈가 있어 우회 수정을 적용했습니다(reports/2026-07-20_1451 참조).</div>
+            <span class="route">POST /api/mcp/call {"name":"get_price"}</span>
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="group" id="customer">
+      <h2>🛍️ 고객·부가 서비스 화면 <span class="count">(추가 서비스 제안 구현)</span></h2>
+      <div class="shots">
+        <figure>
+          <img src="screenshots/15_shop_cart.png" alt="고객 스토어프론트 · 장바구니" />
+          <figcaption>
+            <div class="title">고객 스토어프론트 (상품·장바구니·주문)</div>
+            <div class="desc">상품 그리드·검색/분류·장바구니·주문 흐름(로그인/2FA→미리보기→결제
+              승인). 기존 커머스 백엔드(Phase 6) 재사용.</div>
+            <span class="route">GET /api/products · POST /api/orders</span>
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="screenshots/16_mypage_face_login.png" alt="마이페이지 얼굴 로그인" />
+          <figcaption>
+            <div class="title">얼굴 로그인 2차 인증 (마이페이지)</div>
+            <div class="desc">비밀번호 로그인 + 선택적 얼굴 2차 인증(패시브 라이브니스). 인식은
+              AdaFace IR-101(DirectML 가속), 저품질 특화.</div>
+            <span class="route">POST /auth/login/face · /api/face/register</span>
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="screenshots/17_video_consult.png" alt="화상 상담 아바타" />
+          <figcaption>
+            <div class="title">화상 상담 (웹캠 + AI 아바타)</div>
+            <div class="desc">고객 웹캠 + AI 아바타(TTS 재생 중 입 애니메이션). STT/TTS는 로컬
+              faster-whisper/pyttsx3.</div>
+            <span class="route">POST /api/voice/stt · /api/voice/tts</span>
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="screenshots/18_facebench.png" alt="얼굴인식 백엔드 성능 비교" />
+          <figcaption>
+            <div class="title">얼굴인식 백엔드 성능 비교 + 선택</div>
+            <div class="desc">insightface·AdaFace·LVFace를 같은 얼굴로 코사인·지연 실측 비교하고,
+              활성 백엔드를 관리자 전용으로 전환.</div>
+            <span class="route">POST /api/face/benchmark · PUT /api/face/backend</span>
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <footer>
+      📐 <strong>시스템 아키텍처 설계 보고서(다이어그램 포함)</strong>:
+      <a href="architecture.md">architecture.md</a> (Mermaid — GitHub에서 렌더)<br />
+      화면 재캡처: <code>python scripts/run_dev_server.py</code> 기동 후
+      <code>python -m scripts.capture_screenshots && python -m scripts.capture_screenshots_admin
+      && python -m scripts.capture_screenshots_mcp && python -m scripts.capture_screenshots_customer</code><br />
+      테스트: CI 325 · MCP 12 · PG 10 (전부 통과) — 상세는 <a href="../reports/">../reports/</a>,
+      요구사항 매트릭스는 <a href="../tests/requirements_matrix.yaml">../tests/requirements_matrix.yaml</a>
+    </footer>
+  </main>
+</body>
+</html>

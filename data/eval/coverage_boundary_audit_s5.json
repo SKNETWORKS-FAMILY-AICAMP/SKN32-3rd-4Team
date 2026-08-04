@@ -1,0 +1,751 @@
+{
+  "schema_version": "coverage-boundary-audit-merged-v1",
+  "validation": {
+    "shard_hashes_valid": true,
+    "insurer_shards_disjoint": true,
+    "documents_complete": true,
+    "expected_documents": 1367,
+    "shards": 6
+  },
+  "totals": {
+    "candidate_pages": 4332,
+    "documents": 1367,
+    "records": 10726,
+    "recovered": 4,
+    "status_ok": 4466,
+    "status_partial": 1152,
+    "status_unparsed": 5108,
+    "suspected_before": 20,
+    "unresolved": 16,
+    "value_amount": 5475,
+    "value_limit_token": 77,
+    "value_no_value": 5031,
+    "value_rate": 3219,
+    "value_split_rate": 1469
+  },
+  "per_insurer": {
+    "dbins": {
+      "candidate_pages": 400,
+      "documents": 236,
+      "records": 877,
+      "recovered": 0,
+      "status_ok": 68,
+      "status_partial": 28,
+      "status_unparsed": 781,
+      "suspected_before": 0,
+      "unresolved": 0,
+      "value_amount": 95,
+      "value_limit_token": 23,
+      "value_no_value": 758,
+      "value_rate": 69,
+      "value_split_rate": 3
+    },
+    "heungkukfire": {
+      "candidate_pages": 913,
+      "documents": 194,
+      "records": 2285,
+      "recovered": 0,
+      "status_ok": 1114,
+      "status_partial": 199,
+      "status_unparsed": 972,
+      "suspected_before": 2,
+      "unresolved": 2,
+      "value_amount": 1293,
+      "value_no_value": 972,
+      "value_rate": 813,
+      "value_split_rate": 394
+    },
+    "heungkuklife": {
+      "candidate_pages": 75,
+      "documents": 15,
+      "records": 61,
+      "recovered": 0,
+      "status_ok": 25,
+      "status_partial": 35,
+      "status_unparsed": 1,
+      "suspected_before": 0,
+      "unresolved": 0,
+      "value_amount": 60,
+      "value_no_value": 1,
+      "value_rate": 60
+    },
+    "hyundaimarine": {
+      "candidate_pages": 726,
+      "documents": 228,
+      "records": 2069,
+      "recovered": 0,
+      "status_ok": 710,
+      "status_partial": 424,
+      "status_unparsed": 935,
+      "suspected_before": 10,
+      "unresolved": 10,
+      "value_amount": 1125,
+      "value_limit_token": 1,
+      "value_no_value": 934,
+      "value_rate": 657,
+      "value_split_rate": 93
+    },
+    "kbinsure": {
+      "candidate_pages": 147,
+      "documents": 28,
+      "records": 321,
+      "recovered": 4,
+      "status_ok": 234,
+      "status_partial": 42,
+      "status_unparsed": 45,
+      "suspected_before": 4,
+      "unresolved": 0,
+      "value_amount": 266,
+      "value_no_value": 45,
+      "value_rate": 172,
+      "value_split_rate": 68
+    },
+    "lotteins": {
+      "candidate_pages": 221,
+      "documents": 92,
+      "records": 724,
+      "recovered": 0,
+      "status_ok": 562,
+      "status_partial": 80,
+      "status_unparsed": 82,
+      "suspected_before": 0,
+      "unresolved": 0,
+      "value_amount": 584,
+      "value_no_value": 82,
+      "value_rate": 338,
+      "value_split_rate": 264
+    },
+    "meritzfire": {
+      "candidate_pages": 35,
+      "documents": 9,
+      "records": 80,
+      "recovered": 0,
+      "status_ok": 6,
+      "status_partial": 2,
+      "status_unparsed": 72,
+      "suspected_before": 0,
+      "unresolved": 0,
+      "value_amount": 8,
+      "value_no_value": 72,
+      "value_rate": 7
+    },
+    "myangel": {
+      "candidate_pages": 68,
+      "documents": 13,
+      "records": 306,
+      "recovered": 0,
+      "status_ok": 102,
+      "status_partial": 15,
+      "status_unparsed": 189,
+      "suspected_before": 0,
+      "unresolved": 0,
+      "value_amount": 117,
+      "value_no_value": 189,
+      "value_rate": 66,
+      "value_split_rate": 40
+    },
+    "nhfire": {
+      "candidate_pages": 30,
+      "documents": 12,
+      "records": 39,
+      "recovered": 0,
+      "status_ok": 5,
+      "status_partial": 3,
+      "status_unparsed": 31,
+      "suspected_before": 0,
+      "unresolved": 0,
+      "value_amount": 8,
+      "value_limit_token": 1,
+      "value_no_value": 30,
+      "value_rate": 8
+    },
+    "nhlife": {
+      "candidate_pages": 148,
+      "documents": 52,
+      "records": 384,
+      "recovered": 0,
+      "status_ok": 276,
+      "status_partial": 20,
+      "status_unparsed": 88,
+      "suspected_before": 0,
+      "unresolved": 0,
+      "value_amount": 295,
+      "value_no_value": 88,
+      "value_rate": 175,
+      "value_split_rate": 83
+    },
+    "samsungfire": {
+      "candidate_pages": 773,
+      "documents": 288,
+      "records": 1957,
+      "recovered": 0,
+      "status_ok": 496,
+      "status_partial": 274,
+      "status_unparsed": 1187,
+      "suspected_before": 4,
+      "unresolved": 4,
+      "value_amount": 756,
+      "value_limit_token": 51,
+      "value_no_value": 1136,
+      "value_rate": 392,
+      "value_split_rate": 148
+    },
+    "samsunglife": {
+      "candidate_pages": 796,
+      "documents": 200,
+      "records": 1623,
+      "recovered": 0,
+      "status_ok": 868,
+      "status_partial": 30,
+      "status_unparsed": 725,
+      "suspected_before": 0,
+      "unresolved": 0,
+      "value_amount": 868,
+      "value_limit_token": 1,
+      "value_no_value": 724,
+      "value_rate": 462,
+      "value_split_rate": 376
+    }
+  },
+  "recovered_rows": [
+    {
+      "insurer": "kbinsure",
+      "sha12": "224bd44994c3",
+      "page": 6,
+      "value_kind": [
+        "amount",
+        "rate"
+      ],
+      "recovery": {
+        "method": "adjacent_table_row_exact",
+        "previous_page": 5,
+        "current_page": 6,
+        "original_amount": 5000,
+        "recovered_amount": 15000,
+        "value_invention": false
+      },
+      "locator": {
+        "page_from": 5,
+        "page_to": 6,
+        "table_id": "p6-tables-1",
+        "row": 0,
+        "담보종목_출처": "바깥격자",
+        "source": "pages[].tables"
+      }
+    },
+    {
+      "insurer": "kbinsure",
+      "sha12": "774fe73371b7",
+      "page": 6,
+      "value_kind": [
+        "amount",
+        "rate"
+      ],
+      "recovery": {
+        "method": "adjacent_table_row_exact",
+        "previous_page": 5,
+        "current_page": 6,
+        "original_amount": 5000,
+        "recovered_amount": 15000,
+        "value_invention": false
+      },
+      "locator": {
+        "page_from": 5,
+        "page_to": 6,
+        "table_id": "p6-tables-1",
+        "row": 0,
+        "담보종목_출처": "바깥격자",
+        "source": "pages[].tables"
+      }
+    },
+    {
+      "insurer": "kbinsure",
+      "sha12": "90c98bcf78e7",
+      "page": 6,
+      "value_kind": [
+        "amount",
+        "rate"
+      ],
+      "recovery": {
+        "method": "adjacent_table_row_exact",
+        "previous_page": 5,
+        "current_page": 6,
+        "original_amount": 5000,
+        "recovered_amount": 15000,
+        "value_invention": false
+      },
+      "locator": {
+        "page_from": 5,
+        "page_to": 6,
+        "table_id": "p6-tables-1",
+        "row": 0,
+        "담보종목_출처": "바깥격자",
+        "source": "pages[].tables"
+      }
+    },
+    {
+      "insurer": "kbinsure",
+      "sha12": "b72125685437",
+      "page": 6,
+      "value_kind": [
+        "amount",
+        "rate"
+      ],
+      "recovery": {
+        "method": "adjacent_table_row_exact",
+        "previous_page": 5,
+        "current_page": 6,
+        "original_amount": 5000,
+        "recovered_amount": 15000,
+        "value_invention": false
+      },
+      "locator": {
+        "page_from": 5,
+        "page_to": 6,
+        "table_id": "p6-tables-1",
+        "row": 0,
+        "담보종목_출처": "바깥격자",
+        "source": "pages[].tables"
+      }
+    }
+  ],
+  "unresolved_rows": [
+    {
+      "insurer": "samsungfire",
+      "sha12": "99cedca23be0",
+      "page": 40,
+      "value_kind": [
+        "amount",
+        "split_rate"
+      ],
+      "amount_raw": "제12조및제13 하는금액과 비급여20% 에해당하는 금액의합산 액) 중큰금 액 1만5천원과 공제기준금 액(보상대상 의료비의급 여10%에해 당하는금액 한방병원, 요양병원 과비급여 20%에해당 하는금액의 합산액) 중 큰금액",
+      "institution_raw": "원, 조에따른보건소,",
+      "reasons": [
+        "기관종별 사전에 없는 표기",
+        "기관명이 어절 중간에서 시작 — 쪽 경계 절단 의심"
+      ],
+      "locator": {
+        "page_from": 40,
+        "page_to": 40,
+        "table_id": "p40-1-2열짝짓기",
+        "row": 0,
+        "담보종목_출처": null,
+        "source": "tables_coords"
+      }
+    },
+    {
+      "insurer": "samsungfire",
+      "sha12": "99cedca23be0",
+      "page": 45,
+      "value_kind": [
+        "amount",
+        "split_rate"
+      ],
+      "amount_raw": "제12조및제13 하는금액과 비급여20% 에해당하는 금액의합산 액) 중큰금 액 1만5천원과 공제기준금 액(보상대상 의료비의급 여10%에해 당하는금액 한방병원, 요양병원 과비급여 20%에해당 하는금액의 합산액) 중 큰금액",
+      "institution_raw": "원, 조에따른보건소,",
+      "reasons": [
+        "기관종별 사전에 없는 표기",
+        "기관명이 어절 중간에서 시작 — 쪽 경계 절단 의심"
+      ],
+      "locator": {
+        "page_from": 45,
+        "page_to": 45,
+        "table_id": "p45-1-2열짝짓기",
+        "row": 0,
+        "담보종목_출처": null,
+        "source": "tables_coords"
+      }
+    },
+    {
+      "insurer": "samsungfire",
+      "sha12": "aa569398ab0a",
+      "page": 40,
+      "value_kind": [
+        "amount",
+        "split_rate"
+      ],
+      "amount_raw": "제12조및제13 하는금액과 비급여20% 에해당하는 금액의합산 액) 중큰금 액 1만5천원과 공제기준금 액(보상대상 의료비의급 여10%에해 당하는금액 한방병원, 요양병원 과비급여 20%에해당 하는금액의 합산액) 중 큰금액",
+      "institution_raw": "원, 조에따른보건소,",
+      "reasons": [
+        "기관종별 사전에 없는 표기",
+        "기관명이 어절 중간에서 시작 — 쪽 경계 절단 의심"
+      ],
+      "locator": {
+        "page_from": 40,
+        "page_to": 40,
+        "table_id": "p40-1-2열짝짓기",
+        "row": 0,
+        "담보종목_출처": null,
+        "source": "tables_coords"
+      }
+    },
+    {
+      "insurer": "samsungfire",
+      "sha12": "aa569398ab0a",
+      "page": 45,
+      "value_kind": [
+        "amount",
+        "split_rate"
+      ],
+      "amount_raw": "제12조및제13 하는금액과 비급여20% 에해당하는 금액의합산 액) 중큰금 액 1만5천원과 공제기준금 액(보상대상 의료비의급 여10%에해 당하는금액 한방병원, 요양병원 과비급여 20%에해당 하는금액의 합산액) 중 큰금액",
+      "institution_raw": "원, 조에따른보건소,",
+      "reasons": [
+        "기관종별 사전에 없는 표기",
+        "기관명이 어절 중간에서 시작 — 쪽 경계 절단 의심"
+      ],
+      "locator": {
+        "page_from": 45,
+        "page_to": 45,
+        "table_id": "p45-1-2열짝짓기",
+        "row": 0,
+        "담보종목_출처": null,
+        "source": "tables_coords"
+      }
+    },
+    {
+      "insurer": "hyundaimarine",
+      "sha12": "376a4fd64aa3",
+      "page": 13,
+      "value_kind": [
+        "rate"
+      ],
+      "amount_raw": "대상 의료비의\n20%중 큰 금액",
+      "institution_raw": "병원, 병원, 치과병원, 한방병원, 요양병원",
+      "reasons": [
+        "기관명이 어절 중간에서 시작 — 쪽 경계 절단 의심"
+      ],
+      "locator": {
+        "page_from": 13,
+        "page_to": 13,
+        "table_id": "p13-tables-1",
+        "row": 0,
+        "담보종목_출처": null,
+        "source": "pages[].tables"
+      }
+    },
+    {
+      "insurer": "hyundaimarine",
+      "sha12": "49e2b5c69ff8",
+      "page": 17,
+      "value_kind": [
+        "no_value"
+      ],
+      "amount_raw": "큰 금액",
+      "institution_raw": "원",
+      "reasons": [
+        "금액·비율을 하나도 못 읽음",
+        "기관종별 사전에 없는 표기",
+        "기관명이 어절 중간에서 시작 — 쪽 경계 절단 의심"
+      ],
+      "locator": {
+        "page_from": 17,
+        "page_to": 17,
+        "table_id": "p17-tables-1",
+        "row": 0,
+        "담보종목_출처": null,
+        "source": "pages[].tables"
+      }
+    },
+    {
+      "insurer": "hyundaimarine",
+      "sha12": "4f66da84400c",
+      "page": 16,
+      "value_kind": [
+        "rate"
+      ],
+      "amount_raw": "의료비의 20%중\n큰 금액",
+      "institution_raw": "원, 치과의원, 한의원, 같은 항 제2 호에 따른\n조산원, 「지역보건법」 제10 조, 제12 조 및\n제13 조에 따른 보건소, 보건의료원 및 보건\n지소, 「농어촌 등 보건의료를 위한 특별조치\n법」 제15 조에 따른 보건진료소",
+      "reasons": [
+        "기관명이 어절 중간에서 시작 — 쪽 경계 절단 의심"
+      ],
+      "locator": {
+        "page_from": 16,
+        "page_to": 16,
+        "table_id": "p16-tables-0",
+        "row": 0,
+        "담보종목_출처": null,
+        "source": "pages[].tables"
+      }
+    },
+    {
+      "insurer": "hyundaimarine",
+      "sha12": "7521555256c1",
+      "page": 16,
+      "value_kind": [
+        "rate"
+      ],
+      "amount_raw": "대상 의료비의\n20%중 큰 금액",
+      "institution_raw": "병원, 병원, 치과병원, 한방병원, 요양병원",
+      "reasons": [
+        "기관명이 어절 중간에서 시작 — 쪽 경계 절단 의심"
+      ],
+      "locator": {
+        "page_from": 16,
+        "page_to": 16,
+        "table_id": "p16-tables-1",
+        "row": 0,
+        "담보종목_출처": null,
+        "source": "pages[].tables"
+      }
+    },
+    {
+      "insurer": "hyundaimarine",
+      "sha12": "9189077ea457",
+      "page": 16,
+      "value_kind": [
+        "rate"
+      ],
+      "amount_raw": "대상 의료비의\n20%중 큰 금액",
+      "institution_raw": "병원, 병원, 치과병원, 한방병원, 요양병원",
+      "reasons": [
+        "기관명이 어절 중간에서 시작 — 쪽 경계 절단 의심"
+      ],
+      "locator": {
+        "page_from": 16,
+        "page_to": 16,
+        "table_id": "p16-tables-1",
+        "row": 0,
+        "담보종목_출처": null,
+        "source": "pages[].tables"
+      }
+    },
+    {
+      "insurer": "hyundaimarine",
+      "sha12": "b4d9a1f3117f",
+      "page": 23,
+      "value_kind": [
+        "no_value"
+      ],
+      "amount_raw": "",
+      "institution_raw": ", 안검내반등을치료하기위한시력개 ), 코성형수술융비술( ), 유방확대다만( , 유 )ㆍ축소술지방흡입술주름살제거술등, ,",
+      "reasons": [
+        "금액 셀이 비어 있음",
+        "기관종별 사전에 없는 표기",
+        "표에 금액 열이 없음",
+        "기관명이 어절 중간에서 시작 — 쪽 경계 절단 의심"
+      ],
+      "locator": {
+        "page_from": 23,
+        "page_to": 23,
+        "table_id": "p23-2-2열짝짓기",
+        "row": 1,
+        "담보종목_출처": null,
+        "source": "tables_coords"
+      }
+    },
+    {
+      "insurer": "hyundaimarine",
+      "sha12": "b4d9a1f3117f",
+      "page": 23,
+      "value_kind": [
+        "no_value"
+      ],
+      "amount_raw": "",
+      "institution_raw": ", 보험요율은나이의증가, 의",
+      "reasons": [
+        "금액 셀이 비어 있음",
+        "기관종별 사전에 없는 표기",
+        "표에 금액 열이 없음",
+        "기관명이 어절 중간에서 시작 — 쪽 경계 절단 의심"
+      ],
+      "locator": {
+        "page_from": 23,
+        "page_to": 23,
+        "table_id": "p23-2-2열짝짓기",
+        "row": 9,
+        "담보종목_출처": null,
+        "source": "tables_coords"
+      }
+    },
+    {
+      "insurer": "hyundaimarine",
+      "sha12": "b4d9a1f3117f",
+      "page": 29,
+      "value_kind": [
+        "no_value"
+      ],
+      "amount_raw": "",
+      "institution_raw": ", 보험요율은나이의증가, 의 , .",
+      "reasons": [
+        "금액 셀이 비어 있음",
+        "기관종별 사전에 없는 표기",
+        "표에 금액 열이 없음",
+        "기관명이 어절 중간에서 시작 — 쪽 경계 절단 의심"
+      ],
+      "locator": {
+        "page_from": 29,
+        "page_to": 29,
+        "table_id": "p29-2-2열짝짓기",
+        "row": 6,
+        "담보종목_출처": null,
+        "source": "tables_coords"
+      }
+    },
+    {
+      "insurer": "hyundaimarine",
+      "sha12": "b4d9a1f3117f",
+      "page": 29,
+      "value_kind": [
+        "no_value"
+      ],
+      "amount_raw": "",
+      "institution_raw": ", 갱신계약의제회보험료를갱1 14일보험기간이( 1년미만인경우에는 7일) 이 ( ) ( ) ( )",
+      "reasons": [
+        "금액 셀이 비어 있음",
+        "기관종별 사전에 없는 표기",
+        "표에 금액 열이 없음",
+        "기관명이 어절 중간에서 시작 — 쪽 경계 절단 의심"
+      ],
+      "locator": {
+        "page_from": 29,
+        "page_to": 29,
+        "table_id": "p29-2-2열짝짓기",
+        "row": 9,
+        "담보종목_출처": null,
+        "source": "tables_coords"
+      }
+    },
+    {
+      "insurer": "hyundaimarine",
+      "sha12": "e60800b07069",
+      "page": 13,
+      "value_kind": [
+        "rate"
+      ],
+      "amount_raw": "대상 의료비의\n20%중 큰 금액",
+      "institution_raw": "병원, 병원, 치과병원, 한방병원, 요양병원",
+      "reasons": [
+        "기관명이 어절 중간에서 시작 — 쪽 경계 절단 의심"
+      ],
+      "locator": {
+        "page_from": 13,
+        "page_to": 13,
+        "table_id": "p13-tables-1",
+        "row": 0,
+        "담보종목_출처": null,
+        "source": "pages[].tables"
+      }
+    },
+    {
+      "insurer": "heungkukfire",
+      "sha12": "6849e266d502",
+      "page": 14,
+      "value_kind": [
+        "no_value"
+      ],
+      "amount_raw": "",
+      "institution_raw": "소, 농어촌 등 보건의료를 위한 특\n별조치법 제15조에 의한 보건진료소",
+      "reasons": [
+        "금액 셀이 비어 있음",
+        "기관명이 어절 중간에서 시작 — 쪽 경계 절단 의심"
+      ],
+      "locator": {
+        "page_from": 14,
+        "page_to": 14,
+        "table_id": "p14-tables-0",
+        "row": 1,
+        "담보종목_출처": null,
+        "source": "pages[].tables"
+      }
+    },
+    {
+      "insurer": "heungkukfire",
+      "sha12": "8318d88c88e1",
+      "page": 56,
+      "value_kind": [
+        "no_value"
+      ],
+      "amount_raw": "",
+      "institution_raw": "·",
+      "reasons": [
+        "금액 셀이 비어 있음",
+        "기관종별 사전에 없는 표기",
+        "표에 금액 열이 없음",
+        "기관명이 어절 중간에서 시작 — 쪽 경계 절단 의심"
+      ],
+      "locator": {
+        "page_from": 56,
+        "page_to": 56,
+        "table_id": "p56-1-2열짝짓기",
+        "row": 1,
+        "담보종목_출처": "같은쪽유일",
+        "source": "tables_coords"
+      }
+    }
+  ],
+  "shard_provenance": [
+    {
+      "file": "audit_rp1.json",
+      "sha256": "6c10c86d1be9d85f776234c2bf141abeef87843ff892e4ecf5120aae6636cc4a",
+      "payload_sha256": "5cbe986ebae17a14941ad57a2f2ff49f11c90eaa612a81487630fcdbff96ba4e",
+      "host": "5c0398fc2186",
+      "workers": 6,
+      "seconds": 0.783,
+      "insurers": [
+        "samsungfire"
+      ]
+    },
+    {
+      "file": "audit_rp2.json",
+      "sha256": "5c00357e659d870636e9c59d9cdbd5aa0e9fe591a4a7c8a1ed45e4d23d378295",
+      "payload_sha256": "936670811a5370f6ff869f98aa98c412d6eae40681859a3d296034126c5f7043",
+      "host": "0d5308b7ac34",
+      "workers": 6,
+      "seconds": 0.971,
+      "insurers": [
+        "dbins",
+        "nhlife"
+      ]
+    },
+    {
+      "file": "audit_rp3.json",
+      "sha256": "302ccf624e5001b769c2584b1aa817f6a52687a4df249c9f5c8f29c228eeed3b",
+      "payload_sha256": "801513f816c137bc34563301105bf51898daff6a7db2cd30573fd867e87c0394",
+      "host": "60d73731751e",
+      "workers": 18,
+      "seconds": 0.439,
+      "insurers": [
+        "hyundaimarine",
+        "meritzfire"
+      ]
+    },
+    {
+      "file": "audit_rp4.json",
+      "sha256": "6be33b1aeaca357830d35ca33e3bc7ca9225cdf9efcab3356b50dfd3e84999cf",
+      "payload_sha256": "a312ae5ec4f4b9367f9330e350ae56364a6f2f0b5ee5645c5dd8bd850c12e0fb",
+      "host": "ff93dc05e440",
+      "workers": 12,
+      "seconds": 0.476,
+      "insurers": [
+        "nhfire",
+        "samsunglife"
+      ]
+    },
+    {
+      "file": "audit_rp5.json",
+      "sha256": "b613734ed18d280b93bda2f375f7212c523267bbf8b7c9689ea2d5c957132d28",
+      "payload_sha256": "639161e803828a071b426461b0ba02dde5dbcdfbf8e0916a9947a4773af8f7ce",
+      "host": "cdaf3390128f",
+      "workers": 6,
+      "seconds": 0.836,
+      "insurers": [
+        "heungkukfire",
+        "heungkuklife"
+      ]
+    },
+    {
+      "file": "audit_x600.json",
+      "sha256": "146d46ddc9aa11fd9cc4fb65899cc19558bab2f4f7461916cb41bd94032ee65c",
+      "payload_sha256": "e74eafca73036c15e027e6001e8b174d046e76ae4f86e70c4787cff34f0c6d7c",
+      "host": "x600_251214",
+      "workers": 6,
+      "seconds": 0.457,
+      "insurers": [
+        "kbinsure",
+        "lotteins",
+        "myangel"
+      ]
+    }
+  ],
+  "payload_sha256": "5435cf3a7818f13e4bf32a76b64cbd48bef3b501cc8c3954dcc12d865d7e1a82"
+}

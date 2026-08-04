@@ -1,0 +1,69 @@
+{
+  "accepted_clause_mismatch": 0,
+  "artifact_digests": {
+    "accepted_release_config_sha256": "ff5e1d23d8f9a7bc96a422d336d7339b874494d2b71c9b24456d986f7181010a",
+    "candidate_payload_tree_sha256": "f27fe433a732b23e0257e7fe50c7f43dce68a3bf5660630b7fa8f3a24a57fce9",
+    "s7_clause_tree_sha256": "35d32b03918667ec9e463ff37c4c97ddd234fe1ae23292da5093bbca9db49a00",
+    "s7_page_tree_sha256": "981499e5929acfe9acd2e9f482f381c779b2a889335b12c85451df77f49eb7c6"
+  },
+  "candidate_count": 4562,
+  "candidate_documents": 601,
+  "candidate_ids_unique": 4562,
+  "candidates_by_category": {
+    "missed": 4562
+  },
+  "candidates_by_insurer": {
+    "dbins": 54,
+    "heungkukfire": 1154,
+    "heungkuklife": 55,
+    "hyundaimarine": 718,
+    "kbinsure": 122,
+    "lotteins": 28,
+    "meritzfire": 5,
+    "myangel": 67,
+    "nhfire": 6,
+    "nhlife": 101,
+    "samsungfire": 1030,
+    "samsunglife": 1222
+  },
+  "counts": {
+    "amount_tokens_supported_native_exact": 4172,
+    "amount_tokens_total": 4172,
+    "citation_eligible": 0,
+    "exact_alias_expanded_candidates": 1911,
+    "facts_all_tokens_supported_native_exact": 4562,
+    "facts_with_tokens": 4562,
+    "invalid_table_bbox": 0,
+    "rate_tokens_supported_native_exact": 4124,
+    "rate_tokens_total": 4124,
+    "serving_eligible": 0,
+    "tokens_supported_native_exact": 8296,
+    "tokens_total": 8296
+  },
+  "critical_checks": {
+    "accepted_clauses_unchanged": true,
+    "candidate_citation_eligible_zero": true,
+    "candidate_ids_match_s7": true,
+    "candidate_serving_eligible_zero": true,
+    "s7_problems_zero": true,
+    "table_bbox_invalid_zero": true
+  },
+  "model_revisions": {
+    "bff20d4ae2bf202df9f45284b4d43681555a97ed": 4562
+  },
+  "native_documents_checked": 573,
+  "s7_documents_checked": 1367,
+  "s7_problems": {},
+  "schema_version": "s7-candidate-audit-v1",
+  "validation_reasons": {
+    "known_domain_ocr_suspect": 238,
+    "missing_plan": 2858,
+    "missing_service": 170,
+    "non_korean_cjk": 7,
+    "page_boundary_continuation": 1538
+  },
+  "validation_status": {
+    "review_required": 3172,
+    "shadow_pass": 1390
+  }
+}
