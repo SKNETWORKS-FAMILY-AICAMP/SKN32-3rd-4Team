@@ -18,7 +18,6 @@ RAG 기반 문서 질의응답을 코어로, 커머스 승인 루프·AI 에이�
 ```bash
 pip install -r requirements.txt
 python -m scripts.manage migrate      # 테이블 생성(기동 시 자동 생성하지 않음)
-python -m scripts.manage seed         # 상품·재고 시드
 python -m scripts.manage ingest       # 문서 임베딩 → FAISS 인덱스
 ```
 
@@ -117,5 +116,5 @@ pytest -m "pg"                                          # 실 PostgreSQL 필요
 | `tests/` | 테스트 + 요구사항↔테스트 매트릭스 |
 | `scripts/` | 실행·운영 스크립트(서버 기동, DB 관리, 데모, 캡처) |
 | `docs/` | **모든 문서** — 아키텍처·계획(`plans/`)·이력(`history/`)·리포트(`reports/`)·화면 갤러리 |
-| `data/` | 시드 데이터·문서 코퍼스·평가셋 |
+| `data/` | 보험 데이터·문서 코퍼스·평가셋 |
 | `legacy/` | 대체·폐기된 코드 보존 |

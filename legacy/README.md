@@ -24,6 +24,7 @@
 | `v6_rag_ui.zip` | 활성 static에서 제거한 커머스 RAG 화면 `rag.html`·`rag.js` |
 | `v7_lab_experiments.zip` | 보험 제품 경로와 분리된 프롬프트·프로토콜 Lab API와 단위 테스트 |
 | `v8_mall_db.zip` | `data/mall.db` 빈 SQLite 파일의 제거 직전 스냅샷(원래 상대 경로 보존) |
+| `v9_commerce_seed_cli.zip` | 활성 트리에서 제거한 커머스 CSV 시더와 제거 직전 관리 CLI |
 
 ### `v3_commerce.zip` 안에 든 것
 
@@ -70,8 +71,12 @@ Expand-Archive -LiteralPath legacy\v8_mall_db.zip -DestinationPath . -Force
 현재 기본 설정은 `data/db/insurance.sqlite3`를 가리킨다. 이 과거 파일을 복원해 사용하려면
 `DATABASE_URL`을 명시적으로 `sqlite:///./data/mall.db`로 지정해야 한다.
 
+`v9_commerce_seed_cli.zip`은 `app/db/seed.py`와 제거 직전 `scripts/manage.py`를 원래 상대
+경로로 보존한다. 현행 보험 애플리케이션은 `products.csv`·`inventory.csv`를 요구하지 않으며,
+활성 `scripts.manage`에는 커머스 `seed` 명령이 없다. 과거 커머스 데모를 복원할 때만
+`v3_commerce.zip`의 CSV와 함께 별도 작업 트리에 푼다.
+
 ## 남겨 둔 것 (옮기지 않음)
 
-`app/db/models.py` · `app/db/seed.py` 에는 커머스 테이블이 있지만
-인증·감사 등 현행 코드가 같은 파일을 쓴다.
+`app/db/models.py` 에는 아직 커머스 테이블이 있지만 인증·감사 등 현행 코드가 같은 파일을 쓴다.
 분리는 백엔드 담당이 보험 DB 스키마를 새로 짤 때 함께 한다.

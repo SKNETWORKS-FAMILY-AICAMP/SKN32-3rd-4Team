@@ -2,7 +2,6 @@
 
 사용:
     python -m scripts.manage migrate   # 테이블 생성(멱등)
-    python -m scripts.manage seed      # 상품 시딩(멱등)
     python -m scripts.manage ingest    # RAG 인덱스 빌드(없거나 stale일 때)
     python -m scripts.manage ready      # readiness 상태 출력
 
@@ -65,18 +64,6 @@ def cmd_migrate() -> None:
     if added:
         print(f"[migrate] 컬럼 추가: {', '.join(added)}")
     print("[migrate] 테이블 생성·스키마 검증 완료(멱등).")
-
-
-def cmd_seed() -> None:
-    from app.db.database import SessionLocal
-    from app.db.seed import seed_products
-
-    db = SessionLocal()
-    try:
-        result = seed_products(db)
-    finally:
-        db.close()
-    print(f"[seed] 완료: {result}")
 
 
 def cmd_ingest() -> None:
@@ -175,7 +162,7 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="운영 관리 명령")
     parser.add_argument(
         "command",
-        choices=["migrate", "seed", "ingest", "ready", "promote", "demote", "purge-gaps"],
+        choices=["migrate", "ingest", "ready", "promote", "demote", "purge-gaps"],
     )
     parser.add_argument("target", nargs="?", help="promote/demote의 username")
     parser.add_argument("--days", type=int, default=90, help="purge-gaps 보존기간(일)")
@@ -189,7 +176,7 @@ def main(argv: list[str] | None = None) -> None:
     if args.command == "purge-gaps":
         cmd_purge_gaps(args.days)
         return
-    {"migrate": cmd_migrate, "seed": cmd_seed, "ingest": cmd_ingest, "ready": cmd_ready}[
+    {"migrate": cmd_migrate, "ingest": cmd_ingest, "ready": cmd_ready}[
         args.command
     ]()
 
