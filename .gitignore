@@ -175,3 +175,21 @@ data/exports/kcd_catalog.json
 # 파인튜닝 어댑터 바이너리 — 합성 데이터 산출물이고 66MB 다.
 # peft save_pretrained 가 베이스 토크나이저(2.3M줄)까지 복사한다. 로컬에만 둔다.
 artifacts/finetune/*/adapter/
+
+# ★평가용으로 조 전체 본문을 채워 넣은 후보셋은 **약관 원문 파생물**이다.
+#   `data/extracted/`·`data/structured/` 를 막아 둔 것과 같은 이유로 커밋하지 않는다
+#   (CLAUDE.md §2 — 약관 원문은 저작물이다).
+#
+#   ★2026-08-05 실제로 커밋될 뻔했다. 38.8MB · 조 전체 8,285쌍이 들어 있었고,
+#     origin 에 올라가기 직전에 잡았다. 지표만 담은 `rerank_results/*.json` 은
+#     약관 어휘 0건이라 그대로 둔다 — 막는 것은 **본문이 실린 것**뿐이다.
+#   재생성: scripts/eval/fill_fulltext.py 로 로컬 PG 에서 다시 채운다.
+data/eval/*fulltext*.json
+data/eval/*_top20_rerank_fulltext.json
+
+# 스캔 산출물 — 전처리 조사용 임시 출력이고 재생성된다(최대 949KB).
+scan_grid_ok.json
+scan_hits.json
+scan_line_hits.json
+scan_selfpay_pages.json
+scan_selfpay_tables.json
