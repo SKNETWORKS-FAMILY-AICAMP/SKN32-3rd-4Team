@@ -39,7 +39,11 @@ def test_signup_preflight_no_user_created(monkeypatch):
             #:   이 테스트만 옛 경로를 붙들고 있어 격리 이후 계속 실패하고 있었다.
             from app.schemas.auth import SignupRequest
 
-            auth_router.signup(SignupRequest(username=username, password="pass1234"), db=db)
+            #: ★인자 이름이 `db` → `store` 로 바뀌었다(PgAuthStore 도 받게 되면서).
+            #:   `db=` 로 부르면 `TypeError` 가 나는데, 이 시험은 `ConfigError` 만
+            #:   잡으므로 **다른 이유로 실패한 것을 통과로 착각**할 뻔했다.
+            #:   위치인자로 넘겨 이름 변경에 흔들리지 않게 한다.
+            auth_router.signup(SignupRequest(username=username, password="pass1234"), db)
         except ConfigError:
             raised = True
         assert raised
