@@ -68,7 +68,18 @@ def _ymd(s: str | None) -> str:
 
 
 def product_line(name: str, profiles: dict) -> str:
-    """상품 라인(standard / senior / simplified_issue / travel)."""
+    """상품 라인(standard / senior / simplified_issue / travel).
+
+    ★★**공백을 지우고 본다.**
+
+        보험사가 「무배당수호천사온라인 **실손 의료비**보장보험」처럼 낱말 사이에
+        공백을 넣는다. 표지가 `실손의료비` 라 그대로 대조하면 안 걸리고,
+        그러면 세대 축이 없는 `unknown` 으로 빠진다.
+        실측 2026-08-05 — 동양생명 3건이 이 공백 하나로 분류 실패했다.
+    """
+    import re as _re
+
+    name = _re.sub(r"\s+", "", name or "")
     types = profiles["product_types"]
     #: ★일반 실손보다 **특수 라인을 먼저** 본다.
     #:   `노후실손의료비보험` 은 `실손의료비` 도 포함하므로 순서가 중요하다.
@@ -89,7 +100,19 @@ def generation_of(sale_start: str, line: str, profiles: dict) -> dict | None:
     for g in profiles["generations"]:
         if line not in g.get("applies_to", []):
             continue
-        lo = _ymd(g.get("effective_from"))
+        #: ★★**상품라인마다 세대 시작일이 다를 수 있다.**
+        #:
+        #:   유병력자(간편)실손은 **2018-04 출시**라 표준실손 3세대 시작(2017-04-01)을
+        #:   그대로 쓰면 출시 전 구간이 열린다. 1·2세대는 아예 없다.
+        #:   4·5세대 경계는 표준실손과 **같다**(2021-07-01 · 2026-05-06).
+        #:
+        #:   근거: https://myside.kr/insurance/1660 (유병자 실손 세대별 정리) ·
+        #:   우리 데이터 173건 중 2018-04 이전 **0건**으로 출시일과 일치.
+        #:
+        #:   ★`senior`(노후실손)는 여기 넣지 않았다 — 2014-08 출시는 확인됐지만
+        #:     「노후실손 3·4·5세대」라는 공식 구간을 못 찾았다. 모르면 안 붙인다(§0).
+        by_line = g.get("effective_from_by_line") or {}
+        lo = _ymd(by_line.get(line) or g.get("effective_from"))
         hi = _ymd(g.get("effective_to"))
         if lo and sale_start < lo:
             continue
@@ -146,13 +169,44 @@ def main() -> None:
             for k in ("generation", "generation_label", "generation_note"):
                 r.pop(k, None)
 
+            #: ★★**문서 근거로 정정한 세대는 지우지 않는다.**
+            #:
+            #:   판매일이 「판매월 2026.05」처럼 **월까지만** 알려진 문서가 있다.
+            #:   5세대 시행일이 2026-05-06 이라 1일인지 6일 이후인지로 세대가 갈리는데,
+            #:   그 날짜를 지어내면 안 된다(§1 지어내지 않는다).
+            #:
+            #:   대신 **약관 본문이 세대를 말해 준다** — 5세대는 비급여를 중증/비중증으로
+            #:   나눈다. 실측 2026-08-05: NH농협생명·NH농협손해보험 6건이 본문에
+            #:   「비중증」을 19~22회 담고 있는데 매니페스트는 4세대였다.
+            #:
+            #:   ★그래서 `generation_override` 를 두고 **근거를 함께** 적는다.
+            #:     날짜는 모르는 채로 두고, 세대만 근거를 대고 고친다.
+            ov = r.get("generation_override")
+            if ov:
+                r["generation"] = ov
+                r["generation_label"] = f"{ov}세대"
+                r["generation_confidence"] = "exact"
+                dist[f"{ov}세대(문서근거 정정)"] += 1
+                continue
+
             start = (r.get("sale_start") or "").strip()
             if not start or len(start) < 8 or start == "00000000":
                 r["generation_confidence"] = "unknown"
                 dist["날짜모름"] += 1
                 continue
-            if line != "standard":
-                #: ★특수 라인은 일반 실손의 세대 축이 아니다.
+            #: ★★**어느 라인에 세대 축이 있는지는 프로필이 정한다.**
+            #:
+            #:   전에는 `line != "standard"` 를 코드에 박아 두어 유병력자실손 173건이
+            #:   통째로 `not_applicable` 이었다. 그런데 **유병자실손에도 세대가 있다** —
+            #:   3세대(2018-04~) · 4세대(2021-07~) · 5세대(2026-05-06~)이고
+            #:   4·5세대 경계는 표준실손과 같다.
+            #:   근거: https://myside.kr/insurance/1660 · 우리 데이터 173건 중
+            #:   2018-04 이전 0건(출시일과 일치).
+            #:
+            #:   ★`senior`(노후실손)는 여전히 축이 없다 — 공식 구간을 못 찾았다.
+            #:     프로필의 `applies_to` 에 안 넣었으므로 여기서 자동으로 걸린다.
+            #:     코드에 라인 이름을 박지 않으니, 근거가 생기면 **프로필만** 고치면 된다.
+            if not any(line in g.get("applies_to", []) for g in profiles["generations"]):
                 r["generation_confidence"] = "not_applicable"
                 dist[f"{line}(세대축 아님)"] += 1
                 continue
@@ -165,6 +219,21 @@ def main() -> None:
 
             r["generation"] = g["generation"]
             r["generation_label"] = g["label"]
+            #: ★★**근거를 값 옆에 남긴다**(CLAUDE.md §1 — 채운다면 무엇을 근거로 채웠는지).
+            #:
+            #:   `generation_confidence` 는 **날짜 정확도**만 말한다. 그것만으로는
+            #:   「이 상품라인에 이 세대 축을 적용해도 되는가」라는 **다른 판단**이 안 보인다.
+            #:   실측 2026-08-05 — 유병력자실손 173건에 세대를 붙였는데
+            #:   `generation_note` 가 0건이었다. 무엇을 근거로 붙였는지 어디에도 없었다.
+            basis = [f"{line} 라인 · sale_start={start}({r.get('date_source') or '출처미상'})"]
+            by_line = g.get("effective_from_by_line") or {}
+            if line in by_line:
+                #: ★라인별 시작일은 **표준 구간을 그대로 쓴 것이 아니다.** 그 사실을 적는다.
+                basis.append(f"이 라인의 {g['generation']}세대 시작 {by_line[line]}")
+            note = g.get(f"note_{line}")
+            if note:
+                basis.append(note)
+            r["generation_basis"] = " | ".join(basis)
             date_conf = r.get("date_confidence", "exact")
             if date_conf == "month" and start[:6] in boundary:
                 gc = "ambiguous"

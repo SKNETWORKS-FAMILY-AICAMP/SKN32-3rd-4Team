@@ -193,3 +193,4 @@ scan_hits.json
 scan_line_hits.json
 scan_selfpay_pages.json
 scan_selfpay_tables.json
+backups/manifests_*/
