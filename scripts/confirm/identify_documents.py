@@ -114,6 +114,31 @@ _NAME_ALIASES: dict[str, tuple[str, ...]] = {
 }
 
 
+def _gen_for(yyyymmdd: str) -> int | None:
+    for gen, a, b in _generation_ranges():
+        if (a is None or yyyymmdd >= a) and (b is None or yyyymmdd <= b):
+            return gen
+    return None
+
+
+def _gen_splits_month(ss: str) -> bool:
+    """그 달 **안에서** 세대가 갈리는가 — 갈리면 월 정밀도 날짜로는 못 가린다.
+
+    ★5세대 경계가 `2026-05-06` 이다. 경계가 달 가운데 있으면 「1일」로 채운 값이
+      경계 앞뒤 어느 쪽에도 놓일 수 있다. 그 값으로 모순을 선언할 수 없다.
+
+    ☠**말일을 `31` 로 고정하면 안 된다.** 처음 그렇게 썼더니 2009-09 가 갈린다고
+      나왔다 — 1세대 경계는 `2009-09-30` 이라 9월은 갈리지 않는데, 있지도 않은
+      `20090931` 이 문자열 비교로 경계를 넘었다. **없는 날짜를 채워 결론을 만든 것**이
+      이 함수가 막으려던 바로 그 잘못이다.
+    """
+    import calendar
+
+    y, m = int(ss[:4]), int(ss[4:6])
+    last = calendar.monthrange(y, m)[1]
+    return _gen_for(f"{y:04d}{m:02d}01") != _gen_for(f"{y:04d}{m:02d}{last:02d}")
+
+
 def _norm(s: str) -> str:
     return re.sub(r"[^0-9A-Za-z가-힣]", "", unicodedata.normalize("NFKC", s or "")).lower()
 
@@ -127,8 +152,10 @@ def full_name_key(product_name: str) -> str:
     return _norm(_NAME_DATE_PREFIX.sub("", product_name or ""))
 
 
-def _rivals(row: dict, flat_doc: str, siblings: list[dict]) -> list[str]:
+def _rivals(row: dict, flat_doc: str, siblings: list[dict]) -> tuple[list[str], list[str]]:
     """이 문서 안에서 **같은 보험사의 다른 상품명**도 통째로 확인되는가.
+
+    반환: `(독립적으로 확인된 본약관, 내 이름을 삼키는 더 긴 상품명)`
 
     ★★**토큰 커버리지는 유일성을 보장하지 않는다**(코덱스 지적 · 2026-08-04 실측으로 확인).
 
@@ -140,27 +167,61 @@ def _rivals(row: dict, flat_doc: str, siblings: list[dict]) -> list[str]:
           낱말 경계 대조         504건(60.1%)
           ★전체 이름 연속 대조   297건(31.4%)  ← 지금 쓰는 것
 
-        전체 이름 연속 대조로도 297건이 남고, 그중 **166건은 상대가 본약관**이다.
-        `(계약전환용)2101` 과 `2101`, `단체전환용_26.05` 와 `26.01` 처럼
-        **자기부담금·적용대상이 다른 상품**이 한 문서에 같이 언급된다.
+    ★★그런데 그 「경쟁」의 3분의 2는 **경쟁이 아니었다**(2026-08-11 전수 재측정).
 
-    ★그래서 **조용히 통과시키지 않는다.** 상대를 세어서 남기고, 본약관 상대가 있으면
+        모호 240건의 실제 성격 —
+          ★상대명이 **내 이름 안에** 있음     161 (67.1%)  ← 매처가 자기 그림자를 밟았다
+          내가 특약 · 상대는 내 적용대상        23 ( 9.6%)
+          상대명이 「적용대상」 문맥에 있음      24 (10.0%)
+          ☠내 이름이 상대 이름의 부분            0 ( 0.0%)
+          진짜 모호                           32 (13.3%)
+
+        실제 —
+          나  : 무배당 흥국화재 다이렉트 실손의료보험(25.07)  →  …실손의료보험2507
+          상대: 무배당 흥국화재 다이렉트 실손의료보험        →  …실손의료보험
+
+        `_norm()` 이 괄호·점을 지우므로 **상대 키가 내 키의 접두사**가 된다.
+        그러면 `k in flat_doc` 은 내 이름이 문서에 있다는 사실만으로 **반드시 참**이다.
+        정보량이 0인 것을 증거로 센 것이다 — 이건 기준의 문제가 아니라 **결함**이다.
+
+    ★★방향이 반대면 정반대로 위험하다.
+
+          나  : …실손의료보험          (짧다)
+          상대: …실손의료보험(25.07)   (내 이름을 **포함**한다)
+
+        이때는 `me in flat` 이 상대 이름 때문에 참이 된다 — **내 이름이 확인된 게 아니다.**
+        문서는 상대 것일 수 있으므로 **자동 확정을 막아야 한다.**
+
+        ☠실측 0건이다. 그래도 남긴다 — 없다는 것을 **재고 나서** 하는 말이라야 하고,
+          매니페스트에 상품명이 하나 추가되면 언제든 생길 수 있다.
+
+    ★남은 것은 **조용히 통과시키지 않는다.** 독립적으로 확인된 본약관 상대가 있으면
       자동 확정하지 않는다(`ambiguous`). 특약만 상대인 경우는 정상이다 —
       `resolve()` 가 본약관을 우선하므로 섞이지 않는다.
     """
     from app.core.domain.policy_naming import looks_like_rider
 
     me = full_name_key(row.get("product_name", ""))
-    out = []
+    out: list[str] = []
+    shadowed: list[str] = []
     for o in siblings:
         if o.get("sha256") == row.get("sha256"):
             continue
         k = full_name_key(o.get("product_name", ""))
         if not k or k == me or k not in flat_doc:
             continue
+        if k in me:
+            #: ★내 이름 안에 든 짧은 이름. 내 이름이 확인된 순간 **반드시** 걸린다.
+            #:   증거가 아니므로 세지 않는다. 이건 완화가 아니라 잘못된 증거 제거다.
+            continue
+        if me in k:
+            #: ☠거꾸로다. 내 이름이 이 긴 이름 때문에 걸렸을 수 있다 — **막는다.**
+            #:   ★`continue` 로 빼면 안 된다. 그러면 오히려 통과한다(코덱스 초안의 결함).
+            shadowed.append(o.get("product_name") or "")
+            continue
         if not looks_like_rider(o.get("product_name") or ""):
             out.append(o.get("product_name") or "")
-    return out
+    return out, shadowed
 
 
 def _token_in(tok: str, flat: str) -> bool:
@@ -330,15 +391,38 @@ def verify(row: dict, *, page_tag: str, clause_tag: str,
     #:   상품이라 비어 있는 게 정상인데 결함으로 셌다.
     #:
     #:   ★**값이 있는데 규칙과 다른 것**은 여전히 막는다. 그건 모름이 아니라 모순이다.
+    #:
+    #: ★★단, **모순이라고 말하려면 규칙 쪽이 확정적이어야 한다.**
+    #:
+    #:   실측 2026-08-11 — 3건이 이 규칙으로 떨어졌다.
+    #:     (무)헤아림다이렉트실손의료비보험(전환계약용)2605  매니페스트 5 · 규칙 4
+    #:
+    #:   판매일은 `20260501` 인데 `date_confidence="month"` 다. 출처는 **상품명 코드**
+    #:   (`2605` = 2026년 5월)라 **일(日)을 모른다.** 5세대 경계는 `2026-05-06` 으로
+    #:   **그 달 가운데**에 있다. 즉 모르는 일자를 1일로 채운 뒤 그 값으로
+    #:   「규칙은 4세대」라고 선언한 것이다 — 채운 값이 결론을 만들었다.
+    #:
+    #:   ★그래서 **그 달 안에서 세대가 갈리면 날짜는 아무것도 말해 주지 않는다.**
+    #:     모순이 아니라 **판정 불가**다. 판정 불가를 모순으로 부르면 안 된다.
     if g is not None and exp is not None and g != exp:
-        out["reasons"].append(f"세대가 규칙과 다르다: 매니페스트 {g} · 규칙 {exp}")
+        if (row.get("date_confidence") or "") == "month" and _gen_splits_month(ss):
+            #: 날짜로는 가릴 수 없다. 막지 않되 **적어 둔다** — 조용히 넘기지 않는다.
+            out["generation_expected"] = f"{exp}?(월 안에서 갈림)"
+        else:
+            out["reasons"].append(f"세대가 규칙과 다르다: 매니페스트 {g} · 규칙 {exp}")
 
     #: ── ④ 경쟁 상품명 — **유일하게 식별되는가** ──
     #:
     #: ★이름이 맞는 것과 **그 이름만 맞는 것**은 다르다. 약관집에 본약관과 특약이
     #:   같이 실리므로, 같은 보험사의 다른 **본약관**까지 통째로 나오면 자동 확정하지 않는다.
     #:   (특약만 상대인 경우는 정상 — `resolve()` 가 본약관을 우선한다.)
-    out["rivals"] = _rivals(row, flat, siblings or []) if (me and me in flat) else []
+    out["rivals"], out["shadowed_by"] = (
+        _rivals(row, flat, siblings or []) if (me and me in flat) else ([], []))
+    if out["shadowed_by"]:
+        #: ☠이름 대조 자체가 성립하지 않는다. 확정률보다 **먼저** 막는다.
+        out["reasons"].append(
+            f"내 상품명이 더 긴 상품명 {len(out['shadowed_by'])}건에 삼켜져 있다 — "
+            f"이 문서가 그쪽 것일 수 있다: {out['shadowed_by'][:2]}")
     if out["rivals"]:
         out["reasons"].append(
             f"같은 문서에서 다른 본약관 {len(out['rivals'])}건도 확인된다 — 사람이 골라야 한다"
@@ -347,7 +431,9 @@ def verify(row: dict, *, page_tag: str, clause_tag: str,
     out["ok"] = not out["reasons"]
     #: ★근거 등급. 문서 안에서 판매일까지 확인되면 한 단 강하다.
     if not out["ok"]:
-        out["evidence"] = "ambiguous" if out["rivals"] else "-"
+        #: ☠「삼켜짐」은 모호와 다르다 — 모호는 둘 중 고르는 것이고 이건 대조가 안 된 것이다.
+        out["evidence"] = ("shadowed" if out["shadowed_by"]
+                           else "ambiguous" if out["rivals"] else "-")
     elif out["extraction_blocked"]:
         #: 식별은 됐지만 **인용은 못 한다.** 판정 쪽이 이 사실을 말할 수 있어야 한다.
         out["evidence"] = "extraction_blocked"

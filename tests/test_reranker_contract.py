@@ -188,11 +188,14 @@ def test_설정으로_조_전체_채점을_되살릴_수_있다():
     assert cap.seen == ["조 전체입니다. 다만 예외가 있습니다"]
 
 
-def test_조각이_비면_조_전체로_떨어진다():
-    """조각은 늘 있지만, 혹시 비면 채점할 것이 없어진다."""
-    cap = _Capture()
-    rerank_hits(cap, "질의", [_hit("제1조", "", full="조 전체입니다")])
-    assert cap.seen == ["조 전체입니다"]
+def test_조각이_비면_조_전체로_대신_채점하지_않는다():
+    """★조용한 폴백이었다(코덱스 지적 2026-08-05).
+
+    응답은 `score_body=chunk` 라고 말하는데 실제로는 조 전체로 채점한 상태가 되고,
+    그 질의만 다른 기준으로 줄 세워진다. 어느 본문으로 쟀는지가 결과를 5%p 가른다.
+    """
+    with pytest.raises(ValueError, match="채점할 본문이 비었습니다"):
+        rerank_hits(_Capture(), "질의", [_hit("제1조", "", full="조 전체입니다")])
 
 
 def test_모르는_score_body_는_거절한다():

@@ -35,6 +35,9 @@ class ClauseSearchResult:
     provenance: dict = field(default_factory=dict)
     #: 본문이 없어 제외한 조각 수. 0 이 아니면 적재가 반쪽이라는 신호다.
     dropped_incomplete: int = 0
+    #: 채점할 본문(`score_body`)이 비어 재정렬에서 뺀 수.
+    #: ★다른 본문으로 대신 채점하지 않는다 — 그러면 질의마다 기준이 달라진다.
+    dropped_unscorable: int = 0
 
 
 def search(
@@ -100,9 +103,19 @@ def search(
     if reranker is None:
         return ClauseSearchResult(usable[:final_k], False, provenance, dropped)
 
+    #: ★채점할 본문이 빈 후보를 **미리 걸러 센다.** 어댑터에서 다른 본문으로
+    #:   대신 채점하면 그 질의만 다른 기준으로 줄 세워지고, 응답은 그 사실을 말하지 못한다.
+    #:   한 건 때문에 요청 전체를 503 으로 떨어뜨리지도 않는다 — 빼고, 센다.
+    def _body_of(h) -> str:
+        return ((h.text if score_body == "chunk" else h.citable_text) or "").strip()
+
+    scorable = [h for h in usable if _body_of(h)]
+    unscorable = len(usable) - len(scorable)
+    provenance["candidates_scorable"] = len(scorable)
+
     try:
-        ordered = rerank_hits(reranker, query, usable, top_n=final_k,
+        ordered = rerank_hits(reranker, query, scorable, top_n=final_k,
                               score_body=score_body, score_chars=score_chars)
     except Exception as exc:  # noqa: BLE001 — 원인을 감추지 않고 그대로 올린다
         raise RerankUnavailable(f"{type(exc).__name__}: {exc}") from exc
-    return ClauseSearchResult(ordered, True, provenance, dropped)
+    return ClauseSearchResult(ordered, True, provenance, dropped, unscorable)

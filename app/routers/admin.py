@@ -583,8 +583,20 @@ def admin_kcd_codes(
 #   응답에 verdict 류 필드를 만들지 않는 이유다(코덱스 지적).
 # ─────────────────────────────────────────────────────────────────────────
 
-#: 4B 리랭커는 GPU 를 통째로 쓴다. 겹쳐 돌면 OOM 이라 문 앞에서 하나만 통과시킨다.
-_RERANK_GATE = asyncio.Semaphore(1)
+#: 4B 리랭커는 GPU 를 통째로 쓴다. 겹쳐 돌면 OOM 이라 문 앞에서 막는다.
+#: ★`Semaphore(1)` 로 **박아** 뒀었다. 그러면 `CLAUSE_RERANK_CONCURRENCY` 는
+#:   설정에만 있고 아무 일도 안 하는 값이 된다 — 고쳐도 안 바뀌는 손잡이다
+#:   (코덱스 지적 2026-08-05). 설정에서 읽되, 한 번 만든 뒤엔 재사용한다.
+_RERANK_GATE: "asyncio.Semaphore | None" = None
+
+
+def _rerank_gate() -> asyncio.Semaphore:
+    global _RERANK_GATE
+    if _RERANK_GATE is None:
+        from app.core.config import get_settings
+
+        _RERANK_GATE = asyncio.Semaphore(max(1, get_settings().CLAUSE_RERANK_CONCURRENCY))
+    return _RERANK_GATE
 
 
 class ClauseSearchRequest(BaseModel):
@@ -621,7 +633,9 @@ async def admin_clause_search(body: ClauseSearchRequest) -> dict:
             )
         from app.adapters.reranker import CrossEncoderReranker
 
-        reranker = CrossEncoderReranker(
+        #: ★생성이 `try` 밖에 있었다. 무게추 적재·설정 오류가 **500** 으로 나가
+        #:   「서버 버그」처럼 보였다(코덱스 지적). 리랭커를 못 쓰는 것은 503 이다.
+        _build = lambda: CrossEncoderReranker(
             st.RERANKER_MODEL,
             device=st.RERANKER_DEVICE,
             batch_size=st.RERANKER_BATCH_SIZE,
@@ -631,6 +645,13 @@ async def admin_clause_search(body: ClauseSearchRequest) -> dict:
             dtype=st.RERANKER_DTYPE,
             trust_remote_code=st.RERANKER_TRUST_REMOTE_CODE,
         )
+        try:
+            reranker = _build()
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"리랭커를 준비하지 못했습니다: {type(exc).__name__}: {exc}",
+            ) from exc
 
     def _run():
         with get_conn() as conn:
@@ -653,7 +674,7 @@ async def admin_clause_search(body: ClauseSearchRequest) -> dict:
         if reranker is None:
             result = await asyncio.to_thread(_run)
         else:
-            async with _RERANK_GATE:
+            async with _rerank_gate():
                 result = await asyncio.to_thread(_run)
     except ValidationErr as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
@@ -674,6 +695,8 @@ async def admin_clause_search(body: ClauseSearchRequest) -> dict:
         "provenance": result.provenance,
         #: 본문이 없어 뺀 조각 수. 0 이 아니면 적재가 반쪽이라는 신호다.
         "dropped_incomplete": result.dropped_incomplete,
+        #: 채점 본문이 비어 재정렬에서 뺀 수. 다른 본문으로 대신 채점하지 않는다.
+        "dropped_unscorable": result.dropped_unscorable,
         "settings": {"score_body": st.CLAUSE_RERANK_SCORE_BODY,
                      "max_length": st.CLAUSE_RERANK_MAX_LENGTH,
                      "rerank_enabled": st.INSURANCE_CLAUSE_RERANK_ENABLED},

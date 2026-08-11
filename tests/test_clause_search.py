@@ -195,3 +195,27 @@ def test_재정렬하면_그_사실을_남긴다(patched):
     assert [h.qualified_no for h in r.hits] == ["제2조", "제1조"]
     assert r.provenance["index_generation"] == "s6"
     assert r.provenance["query_embed_profile"].startswith("m@")
+
+
+def test_채점할_본문이_빈_후보는_빼고_센다(patched):
+    """★어댑터가 다른 본문으로 대신 채점하지 않도록 **여기서** 걸러 센다.
+
+    한 건 때문에 요청 전체를 503 으로 떨어뜨리지도 않는다 — 빼고, 센다.
+    """
+    from app.adapters.pgvector_clause_index import ClauseHit
+
+    def _h(no, chunk, full="조 전체"):
+        return ClauseHit(content_hash=f"h{no}", chunk_ix=0, text=chunk, distance=0.4,
+                         sha256="a" * 64, insurer="삼성화재", qualified_no=no,
+                         section="보통약관", title="t", page_from=1, page_to=2, full_text=full)
+
+    patched["hits"] = [_h("제1조", "조각"), _h("제2조", "  "), _h("제3조", "조각3")]
+
+    class _Pass:
+        def rerank(self, query, evidence, top_n=None): return evidence
+
+    r = clause_search.search(**_deps(patched), conn=None, embedder=_embedder(), query="질의",
+                             scope_sha256s=["a"], reranker=_Pass())
+    assert r.dropped_unscorable == 1
+    assert [h.qualified_no for h in r.hits] == ["제1조", "제3조"]
+    assert r.provenance["candidates_scorable"] == 2

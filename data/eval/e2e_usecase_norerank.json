@@ -1,0 +1,130 @@
+{
+ "schema_version": "clause-search-e2e-v1",
+ "query": "치과치료 보철료는 보상하나요",
+ "rerank_requested": false,
+ "settings": {
+  "INSURANCE_CLAUSE_RERANK_ENABLED": false,
+  "CLAUSE_RERANK_SCORE_BODY": "chunk",
+  "CLAUSE_RERANK_MAX_LENGTH": 1536,
+  "RERANKER_MODEL": "Qwen/Qwen3-Reranker-4B"
+ },
+ "checks": [
+  {
+   "name": "고객앱에 경로 없음",
+   "ok": null,
+   "detail": "HTTP 계층 미기동 — 라우터 테스트가 덮는다"
+  },
+  {
+   "name": "질의 임베더 생성",
+   "ok": true,
+   "detail": "dragonkue/snowflake-arctic-embed-l-v2.0-ko@55ec6e9358a5|d1024|L8192"
+  },
+  {
+   "name": "색인 세대·모델 확인",
+   "ok": true,
+   "detail": "s6 / dragonkue/snowflake-arctic-embed-l-v2.0-"
+  },
+  {
+   "name": "검색 요청(rerank=False)",
+   "ok": true,
+   "detail": "HTTP 200 · 133.9초"
+  },
+  {
+   "name": "근거 후보를 찾음",
+   "ok": true,
+   "detail": "5건"
+  },
+  {
+   "name": "재정렬 여부가 요청과 일치",
+   "ok": true,
+   "detail": "reranked=False"
+  },
+  {
+   "name": "어느 색인으로 찾았는지 남김",
+   "ok": true,
+   "detail": "s6"
+  },
+  {
+   "name": "판정처럼 읽히는 필드 없음",
+   "ok": true,
+   "detail": ""
+  }
+ ],
+ "http_layer_exercised": false,
+ "elapsed_seconds": 133.9,
+ "body": {
+  "reranked": false,
+  "provenance": {
+   "index_generation": "s6",
+   "index_embed_model": "dragonkue/snowflake-arctic-embed-l-v2.0-ko|55ec6e9358a56d56af759bc8372e970caf8c305f|d1024|L8192|c448|o80",
+   "query_embed_profile": "dragonkue/snowflake-arctic-embed-l-v2.0-ko@55ec6e9358a5|d1024|L8192",
+   "candidates_requested": 20,
+   "candidates_found": 20,
+   "scope": "global",
+   "rerank_score_body": null
+  },
+  "dropped_incomplete": 0,
+  "dropped_unscorable": 0
+ },
+ "hits": [
+  {
+   "clause_id": "ad392f2da4fe/보통약관/4-1.#bb3b31d8",
+   "insurer": "DB손해보험",
+   "section": "보통약관",
+   "qualified_no": "보통약관/4-1.",
+   "title": "보상하지 않는 사항",
+   "page_from": 41,
+   "page_to": 45,
+   "distance": 0.9512649584582853,
+   "sha256": "ad392f2da4fe0928172d845a07b27c22d9500a04613a5ee09e1fabd5b10c8667"
+  },
+  {
+   "clause_id": "35cf9fe7bfef/보통약관/4.#40253bbd",
+   "insurer": "DB손해보험",
+   "section": "보통약관",
+   "qualified_no": "보통약관/4.",
+   "title": "보상하지 않는 사항",
+   "page_from": 39,
+   "page_to": 44,
+   "distance": 0.9524479634546114,
+   "sha256": "35cf9fe7bfefb3100e786e75be0ac6bfb6faad20efdddc8ee4a987b9b08f6fa7"
+  },
+  {
+   "clause_id": "921cf7ed4818/보통약관/4.#63637620",
+   "insurer": "DB손해보험",
+   "section": "보통약관",
+   "qualified_no": "보통약관/4.",
+   "title": "보상하지 않는 사항",
+   "page_from": 39,
+   "page_to": 44,
+   "distance": 0.9525223061560412,
+   "sha256": "921cf7ed4818eb89726ec19f02c79d76d907c6cfe9b003cf21e058c666684652"
+  },
+  {
+   "clause_id": "446b6637fd09/상급병실료 차액보장B 특별약관/제3조#95204dfb",
+   "insurer": "삼성화재",
+   "section": "상급병실료 차액보장B 특별약관",
+   "qualified_no": "상급병실료 차액보장B 특별약관/제3조",
+   "title": "보상하지 않는 사항",
+   "page_from": 97,
+   "page_to": 101,
+   "distance": 0.9530179948618906,
+   "sha256": "446b6637fd093f31eed523ea7d36b5b6a3a95db88632888253f9180a83d49009"
+  },
+  {
+   "clause_id": "e080fd19f4cf/보통약관/4.#60e42635",
+   "insurer": "DB손해보험",
+   "section": "보통약관",
+   "qualified_no": "보통약관/4.",
+   "title": "보상하지 않는 사항",
+   "page_from": 39,
+   "page_to": 44,
+   "distance": 0.954454089411935,
+   "sha256": "e080fd19f4cf51559e7a168528fe3afe9758f73deddcfdff967e7ae4edeca27e"
+  }
+ ],
+ "all_ok": true,
+ "skipped": [
+  "고객앱에 경로 없음"
+ ]
+}

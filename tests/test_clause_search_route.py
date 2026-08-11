@@ -169,3 +169,43 @@ def test_기본_설정이_실측_우세값이다():
     assert s.CLAUSE_RERANK_SCORE_BODY == "chunk"      # +5.04%p (2026-08-05 실측)
     assert s.CLAUSE_RERANK_MAX_LENGTH == 1536         # constant scores 실패 제거
     assert s.INSURANCE_CLAUSE_RERANK_ENABLED is False  # 켜는 것은 사람이 정한다
+
+
+# ── 코덱스 독립 검증에서 나온 결함들(2026-08-05) ────────────────────────
+
+def test_리랭커를_준비하지_못하면_503이다(monkeypatch):
+    """★생성이 try 밖에 있어 500 으로 나갔다. 리랭커를 못 쓰는 것은 인프라 문제다."""
+    import app.adapters.reranker as rr
+
+    class _Boom:
+        def __init__(self, *a, **k): raise RuntimeError("no CUDA")
+
+    monkeypatch.setattr(rr, "CrossEncoderReranker", _Boom)
+    with _admin_app(monkeypatch, INSURANCE_CLAUSE_RERANK_ENABLED=True) as c:
+        r = c.post("/api/admin/clause-search",
+                   json={"query": "치과치료", "scope_sha256s": ["a" * 64], "rerank": True})
+    assert r.status_code == 503
+    assert "리랭커를 준비하지 못했습니다" in r.json()["detail"]
+
+
+def test_동시성_설정이_실제로_쓰인다(monkeypatch):
+    """★`Semaphore(1)` 이 박혀 있어 CLAUSE_RERANK_CONCURRENCY 가 죽은 손잡이였다."""
+    import app.routers.admin as ad
+
+    monkeypatch.setattr(ad, "_RERANK_GATE", None)
+    with _admin_app(monkeypatch, CLAUSE_RERANK_CONCURRENCY=3):
+        assert ad._rerank_gate()._value == 3
+    monkeypatch.setattr(ad, "_RERANK_GATE", None)
+
+
+def test_채점_못한_후보_수를_응답이_말한다(monkeypatch):
+    """빼고 세되, 뺐다는 사실을 감추지 않는다."""
+    from app.core.usecases import clause_search
+
+    monkeypatch.setattr(clause_search, "search", lambda **_kw: clause_search.ClauseSearchResult(
+        hits=[], reranked=True, provenance={}, dropped_incomplete=1, dropped_unscorable=2))
+    with _admin_app(monkeypatch) as c:
+        body = c.post("/api/admin/clause-search",
+                      json={"query": "치과치료", "scope_sha256s": ["a" * 64]}).json()
+    assert body["dropped_incomplete"] == 1
+    assert body["dropped_unscorable"] == 2

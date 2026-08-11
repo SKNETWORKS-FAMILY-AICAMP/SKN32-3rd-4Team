@@ -81,10 +81,24 @@ def rerank_hits(
         raise ValueError(f"score_body 는 chunk|full_clause 여야 합니다: {score_body!r}")
 
     def _body(h: ClauseHit) -> str:
-        #: ★조각이 비면 조 전체로 떨어진다. 그 반대는 하지 않는다 —
-        #:   조각은 항상 있지만, `full_text` 는 적재가 반쪽이면 빈다.
-        text = (h.text if score_body == "chunk" else h.citable_text) or h.citable_text
-        return (text or "")[:score_chars]
+        """★**대체하지 않는다.** 고른 본문이 비면 멈춘다.
+
+        처음엔 조각이 비면 조 전체로 떨어지게 해 뒀다. 그건 **조용한 폴백**이다
+        (코덱스 지적 2026-08-05) — 응답은 `score_body=chunk` 라고 말하는데
+        실제로는 조 전체로 채점한 상태가 되고, 그 질의만 다른 기준으로 줄 세워진다.
+        어느 본문으로 쟀는지가 결과를 5%p 가르는 마당에 섞이면 안 된다.
+
+        빈 본문은 부르는 쪽(`clause_search`)이 **미리 걸러 세어 보고**한다.
+        여기까지 왔다는 것은 거르지 못했다는 뜻이므로 감추지 않고 올린다.
+        """
+        text = h.text if score_body == "chunk" else h.citable_text
+        text = (text or "").strip()
+        if not text:
+            raise ValueError(
+                f"채점할 본문이 비었습니다(score_body={score_body!r}): {h.clause_id}. "
+                f"다른 본문으로 대신 채점하지 않습니다 — 질의마다 기준이 달라집니다."
+            )
+        return text[:score_chars]
 
     evidence = [
         Evidence(

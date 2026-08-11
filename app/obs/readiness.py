@@ -17,25 +17,54 @@ from app.db.database import engine
 #:   (products · orders 는 커머스 실습 테이블이다 — legacy 로 옮겼다)
 #:   지금 판정은 파일을 읽으므로 필수 테이블이 없다. DB 적재 후 다시 채운다.
 _REQUIRED_TABLES: tuple[str, ...] = ()
+_SQLITE_AUTH_TABLES = ("users", "face_credentials")
+_SQLITE_OPS_TABLES = ("run_events", "knowledge_gaps")
+
+
+def _required_sqlite_tables(settings) -> tuple[str, ...]:
+    """Return tables required by the active SQLite-backed application paths."""
+    required = (
+        set(_REQUIRED_TABLES)
+        if getattr(settings, "SQLITE_LEGACY_ENABLED", True)
+        else set()
+    )
+    if getattr(settings, "AUTH_PERSISTENCE", "sqlite") == "sqlite":
+        required.update(_SQLITE_AUTH_TABLES)
+    if getattr(settings, "OPS_PERSISTENCE", "sqlite") == "sqlite":
+        required.update(_SQLITE_OPS_TABLES)
+    return tuple(sorted(required))
 
 
 def check_readiness() -> dict[str, object]:
     """DB 테이블·RAG 인덱스 준비 상태를 보고한다(실 모델 호출 없음)."""
     settings = get_settings()
-    existing = set(inspect(engine).get_table_names())
-    missing_tables = [t for t in _REQUIRED_TABLES if t not in existing]
+    sqlite_enabled = getattr(settings, "SQLITE_LEGACY_ENABLED", True)
+    required_sqlite_tables = _required_sqlite_tables(settings)
+    if sqlite_enabled:
+        existing = set(inspect(engine).get_table_names())
+    else:
+        existing = set()
+    missing_tables = [t for t in required_sqlite_tables if t not in existing]
+    sqlite_configuration_error = not sqlite_enabled and bool(required_sqlite_tables)
     vector_dir = settings.VECTOR_DIR
     index_ready = (vector_dir / "index.faiss").exists() and (vector_dir / "index.pkl").exists()
 
     db_ready = not missing_tables
+    if sqlite_configuration_error:
+        readiness_hint = (
+            "SQLite 저장 경로가 선택되어 있습니다. SQLite를 사용하려면 "
+            "`SQLITE_LEGACY_ENABLED=true`로 설정하세요."
+        )
+    elif db_ready and index_ready:
+        readiness_hint = None
+    else:
+        readiness_hint = "먼저 `python -m scripts.manage migrate && python -m scripts.manage ingest` 실행"
     out: dict[str, object] = {
         "ready": db_ready and index_ready,
         "db_tables_ready": db_ready,
         "missing_tables": missing_tables,
         "vector_index_ready": index_ready,
-        "hint": None
-        if (db_ready and index_ready)
-        else "먼저 `python -m scripts.manage migrate && python -m scripts.manage ingest` 실행",
+        "hint": readiness_hint,
     }
     clause = _clause_index_state()
     out["clause_index"] = clause

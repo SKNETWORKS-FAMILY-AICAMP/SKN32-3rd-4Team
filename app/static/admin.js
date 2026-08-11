@@ -324,6 +324,15 @@
     }
   }
 
+  function formatLoadFailure(label, reason) {
+    const message = reason && typeof reason.message === "string"
+      ? reason.message.trim()
+      : "";
+    return message
+      ? `${label}: ${message}`
+      : `${label} 데이터를 불러오지 못했습니다.`;
+  }
+
   async function refreshDashboard({ silent = false } = {}) {
     if (state.loading) {
       return;
@@ -378,7 +387,7 @@
     } else {
       state.indexStatus = null;
       renderReadinessError();
-      failures.push("준비 상태");
+      failures.push(formatLoadFailure("준비 상태", indexResult.reason));
       handlePossibleAuthenticationError(indexResult.reason);
     }
 
@@ -389,7 +398,7 @@
     } else {
       state.agents = [];
       renderAgentsError();
-      failures.push("에이전트");
+      failures.push(formatLoadFailure("에이전트", agentsResult.reason));
       handlePossibleAuthenticationError(agentsResult.reason);
     }
 
@@ -400,7 +409,7 @@
     } else {
       state.reviewQueue = [];
       renderReviewQueueError();
-      failures.push("검수 큐");
+      failures.push(formatLoadFailure("검수 큐", queueResult.reason));
       handlePossibleAuthenticationError(queueResult.reason);
     }
 
@@ -409,7 +418,7 @@
       renderUsers(state.users);
     } else {
       renderUsersError();
-      failures.push("사용자 목록");
+      failures.push(formatLoadFailure("사용자 목록", usersResult.reason));
       handlePossibleAuthenticationError(usersResult.reason);
     }
 
@@ -418,7 +427,7 @@
       renderMode(state.mode);
     } else {
       renderMode(null);
-      failures.push("판정 모드");
+      failures.push(formatLoadFailure("판정 모드", modeResult.reason));
       handlePossibleAuthenticationError(modeResult.reason);
     }
 
@@ -427,7 +436,7 @@
       renderRealQueue(state.realQueue);
     } else {
       renderRealQueue(null);
-      failures.push("실제 검수 큐");
+      failures.push(formatLoadFailure("실제 검수 큐", realQueueResult.reason));
       handlePossibleAuthenticationError(realQueueResult.reason);
     }
 
@@ -440,7 +449,7 @@
       }
     } else {
       renderSimulation(null);
-      failures.push("시뮬레이션 상태");
+      failures.push(formatLoadFailure("시뮬레이션 상태", simResult.reason));
       handlePossibleAuthenticationError(simResult.reason);
     }
 
@@ -450,7 +459,7 @@
     } else {
       state.cohort = null;
       renderCohortError();
-      failures.push("코호트");
+      failures.push(formatLoadFailure("코호트", cohortResult.reason));
       handlePossibleAuthenticationError(cohortResult.reason);
     }
 
@@ -460,7 +469,7 @@
     } else {
       state.events = [];
       renderEventsError();
-      failures.push("이벤트");
+      failures.push(formatLoadFailure("이벤트", eventsResult.reason));
       handlePossibleAuthenticationError(eventsResult.reason);
     }
 
@@ -477,7 +486,7 @@
       state.knowledgeGaps = [];
       renderKnowledgeGapsError();
       renderGapSummaryError();
-      failures.push("지식갭");
+      failures.push(formatLoadFailure("지식갭", gapsResult.reason));
       handlePossibleAuthenticationError(gapsResult.reason);
     }
 
@@ -486,9 +495,7 @@
     elements.refreshButton.textContent = "새로고침";
 
     if (failures.length > 0) {
-      showError(
-        `${failures.join(", ")} 데이터를 불러오지 못했습니다.`
-      );
+      showError(failures.join(" · "));
     }
 
     if (requests.some((result) => result.status === "fulfilled")) {
@@ -518,8 +525,15 @@
 
     if (!result || !result.ok) {
       const status = result ? result.status : 0;
-      const error = new Error(`API 요청 실패: HTTP ${status}`);
+      const body = result && result.body;
+      const serverMessage = body && typeof body.message === "string"
+        ? body.message.trim()
+        : body && typeof body.detail === "string"
+          ? body.detail.trim()
+          : "";
+      const error = new Error(serverMessage || `API 요청 실패: HTTP ${status}`);
       error.status = status;
+      error.errorCode = body && body.error_code ? body.error_code : "";
       throw error;
     }
 
@@ -1363,8 +1377,17 @@
             ? ` (95% CI ${(track.approval_ci[0] * 100).toFixed(0)}~${(track.approval_ci[1] * 100).toFixed(0)}%)`
             : "");
 
+    const approved = Number(track.approved_n) || 0;
+    const denied = Number(track.denied_n) || 0;
+    const total = Number(track.n) || 0;
+    const other = Math.max(0, total - approved - denied);
+    const otherText = other > 0
+      ? ` · 일부지급·처리중 ${formatInteger(other)}`
+      : "";
+
     noteEl.textContent =
-      `지급 ${track.approved_n} · 부지급 ${track.denied_n} · ${gate} · ${rate}\n${suffix}`;
+      `지급 ${formatInteger(approved)} · 부지급 ${formatInteger(denied)}` +
+      `${otherText} · ${gate} · ${rate}\n${suffix}`;
   }
 
   function renderCohortError() {

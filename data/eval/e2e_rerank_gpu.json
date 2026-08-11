@@ -1,0 +1,136 @@
+{
+ "schema_version": "clause-search-e2e-v1",
+ "query": "치과치료 보철료는 보상하나요",
+ "rerank_requested": true,
+ "settings": {
+  "INSURANCE_CLAUSE_RERANK_ENABLED": false,
+  "CLAUSE_RERANK_SCORE_BODY": "chunk",
+  "CLAUSE_RERANK_MAX_LENGTH": 1536,
+  "RERANKER_MODEL": "Qwen/Qwen3-Reranker-4B"
+ },
+ "checks": [
+  {
+   "name": "고객앱에 경로 없음",
+   "ok": null,
+   "detail": "HTTP 계층 미기동 — 라우터 테스트가 덮는다"
+  },
+  {
+   "name": "질의 임베더 생성",
+   "ok": true,
+   "detail": "dragonkue/snowflake-arctic-embed-l-v2.0-ko@55ec6e9358a5|d1024|L8192"
+  },
+  {
+   "name": "색인 세대·모델 확인",
+   "ok": true,
+   "detail": "s6 / dragonkue/snowflake-arctic-embed-l-v2.0-"
+  },
+  {
+   "name": "검색 요청(rerank=True)",
+   "ok": true,
+   "detail": "HTTP 200 · 42.6초"
+  },
+  {
+   "name": "근거 후보를 찾음",
+   "ok": true,
+   "detail": "5건"
+  },
+  {
+   "name": "재정렬 여부가 요청과 일치",
+   "ok": true,
+   "detail": "reranked=True"
+  },
+  {
+   "name": "어느 색인으로 찾았는지 남김",
+   "ok": true,
+   "detail": "s6"
+  },
+  {
+   "name": "판정처럼 읽히는 필드 없음",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "채점 본문이 설정대로",
+   "ok": true,
+   "detail": "chunk"
+  }
+ ],
+ "http_layer_exercised": false,
+ "elapsed_seconds": 42.6,
+ "body": {
+  "reranked": true,
+  "provenance": {
+   "index_generation": "s6",
+   "index_embed_model": "dragonkue/snowflake-arctic-embed-l-v2.0-ko|55ec6e9358a56d56af759bc8372e970caf8c305f|d1024|L8192|c448|o80",
+   "query_embed_profile": "dragonkue/snowflake-arctic-embed-l-v2.0-ko@55ec6e9358a5|d1024|L8192",
+   "candidates_requested": 20,
+   "candidates_found": 20,
+   "scope": "global",
+   "rerank_score_body": "chunk",
+   "candidates_scorable": 20
+  },
+  "dropped_incomplete": 0,
+  "dropped_unscorable": 0
+ },
+ "hits": [
+  {
+   "clause_id": "b873dd057c44/머리말/제4조#2819a91b",
+   "insurer": "흥국화재",
+   "section": "머리말",
+   "qualified_no": "머리말/제4조",
+   "title": "보상하지 않는 사항",
+   "page_from": 40,
+   "page_to": 49,
+   "distance": 0.959328770222613,
+   "sha256": "b873dd057c449536697dc655c69ad05f237ecb3369e457f067a9227535f8773b"
+  },
+  {
+   "clause_id": "195ddf053f6d/머리말/제4조#40139317",
+   "insurer": "흥국화재",
+   "section": "머리말",
+   "qualified_no": "머리말/제4조",
+   "title": "보상하지 않는 사항",
+   "page_from": 40,
+   "page_to": 49,
+   "distance": 0.9606528442060359,
+   "sha256": "195ddf053f6d53e1cec9d2ea80b1ed7734d0ed1c6464815c2ab6579bc8da597f"
+  },
+  {
+   "clause_id": "002496fe7873/무배당동양실손의료비보장특약/제4조#be52d6c1",
+   "insurer": "동양생명",
+   "section": "무배당동양실손의료비보장특약",
+   "qualified_no": "무배당동양실손의료비보장특약/제4조",
+   "title": "보상하지 않는 사항",
+   "page_from": 90,
+   "page_to": 99,
+   "distance": 0.9593416935112627,
+   "sha256": "002496fe787314f00738e5d6389dc07241166b6df89d2abf5223f0690de3cd62"
+  },
+  {
+   "clause_id": "21b40ddc9987/머리말/제4조#efd38bbf",
+   "insurer": "NH농협생명",
+   "section": "머리말",
+   "qualified_no": "머리말/제4조",
+   "title": "보상하지 않는 사항",
+   "page_from": 33,
+   "page_to": 42,
+   "distance": 0.9593878555679105,
+   "sha256": "21b40ddc9987b948daea1156040b7e3c54bd4c0af5b29512a1d8b48a2854e7f9"
+  },
+  {
+   "clause_id": "446b6637fd09/상급병실료 차액보장B 특별약관/제3조#95204dfb",
+   "insurer": "삼성화재",
+   "section": "상급병실료 차액보장B 특별약관",
+   "qualified_no": "상급병실료 차액보장B 특별약관/제3조",
+   "title": "보상하지 않는 사항",
+   "page_from": 97,
+   "page_to": 101,
+   "distance": 0.9530179635903689,
+   "sha256": "446b6637fd093f31eed523ea7d36b5b6a3a95db88632888253f9180a83d49009"
+  }
+ ],
+ "all_ok": true,
+ "skipped": [
+  "고객앱에 경로 없음"
+ ]
+}
