@@ -82,6 +82,27 @@ _MARKERS = {
     5: (re.compile(r"비중증"), 3),
 }
 
+#: ★★**표지를 쓰면 안 되는 상품라인이 있다.**
+#:
+#:   실측 2026-08-05 — 2026-05-06 이후 노후실손 19건 중 **16건이 「비중증」 0회**다.
+#:   「중증」은 4~15회 쓰면서 「비중증」은 안 쓴다. 5세대 표준실손의 중증/비중증
+#:   분리가 **노후실손에는 그대로 적용되지 않는다**는 뜻이다.
+#:
+#:   그런데 삼성생명 노후실손 2건에서 「비중증」이 10회 나왔다. 문맥을 열어 보니 —
+#:
+#:     중지가능 보장종목 (노후실손) | 보장종목 (단체)
+#:     질병보장                  | 질병급여형, 중증질병비급여형, **비중증**질병비급여형
+#:
+#:   **오른쪽은 단체실손**이다. 노후실손 약관이 **다른 상품의 보장종목을 설명**한
+#:   표에서 걸린 것이다.
+#:
+#:   ★이건 앞서 겪은 오탐과 **같은 패턴**이다 — 계약전환용 약관이 전환 대상인
+#:     구세대를 설명해서 「표준화이전」 용어 판정이 정확도 11% 였던 그 일.
+#:     **약관은 자기 얘기만 하지 않는다.**
+#:
+#:   → 노후실손에는 이 표지를 쓰지 않는다. 날짜 근거만 쓴다.
+_MARKER_SKIP_LINES = frozenset({"senior"})
+
 #: 여러 세대를 **대상으로 삼는다**고 적은 것.
 _SPANS = re.compile(r"표준화\s*실손[^\n]{0,40}(계약|보험)")
 
@@ -204,7 +225,7 @@ def gen_of(ymd: str) -> int | None:
     return None
 
 
-def scan_one(text: str) -> dict:
+def scan_one(text: str, product_line: str = "") -> dict:
     """한 문서에서 세대 근거를 모은다. **판정하지 않고 근거를 낸다.**"""
     out: dict = {"sale_dates": [], "says_gen": [], "markers": {}, "spans_generations": False,
                  "sale_context": []}
@@ -222,10 +243,11 @@ def scan_one(text: str) -> dict:
             out["sale_context"].append(f"{y}{mo}{dd} ← …{ctx}…")
     out["sale_dates"] = sorted(set(out["sale_dates"]))
     out["says_gen"] = sorted({int(m.group(1)) for m in _SAYS_GEN.finditer(text)})
-    for g, (pat, need) in _MARKERS.items():
-        n = len(pat.findall(text))
-        if n >= need:
-            out["markers"][str(g)] = n
+    if product_line not in _MARKER_SKIP_LINES:
+        for g, (pat, need) in _MARKERS.items():
+            n = len(pat.findall(text))
+            if n >= need:
+                out["markers"][str(g)] = n
     out["spans_generations"] = bool(_SPANS.search(text))
     #: ★걸치는 세대를 **구체적으로** 뽑는다. 「해당 없음」으로 뭉개지 않는다.
     out["target_generations"] = _target_generations(text)
@@ -312,7 +334,7 @@ def main(argv: list[str] | None = None) -> int:
             continue
         d = json.loads(hits[0].read_text(encoding="utf-8"))
         text = "\n".join((p.get("text") or "") for p in (d.get("pages") or []))
-        ev = scan_one(text)
+        ev = scan_one(text, r.get("product_line") or "")
         g, conf, why = decide(ev)
         results.append({
             "sha256": r["sha256"], "insurer": r["insurer"],
