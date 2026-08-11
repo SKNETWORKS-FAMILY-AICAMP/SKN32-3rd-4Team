@@ -45,6 +45,8 @@ import re
 import sys
 import time
 
+from app.core.domain.clause_text import normalize, term_pattern
+
 _ROOT = pathlib.Path(__file__).resolve().parents[2]
 _OUT = _ROOT / "data" / "exports" / "generation_evidence.json"
 
@@ -78,8 +80,11 @@ _SAYS_GEN = re.compile(r"([1-5])\s*세대\s*실손")
 #:   `비중증` 은 5세대에서 처음 생겼다. 비급여를 중증/비중증으로 나누고
 #:   비중증 자기부담률을 50%로 올린 것이 5세대의 핵심이다.
 #:   실측: 5세대 약관에 23~54회 나오고 4세대 이하에는 0회다.
+#: ★★공백에 흔들리지 않게 **도메인 정규화**를 쓴다(`app/core/domain/clause_text.py`).
+#:   실측 2026-08-05 — 「우선 공제」를 `우선공제` 로 찾아 0건이 나왔고
+#:   그걸 「구조가 바뀌었다」고 읽어 **결론이 뒤집혔다.**
 _MARKERS = {
-    5: (re.compile(r"비중증"), 3),
+    5: (term_pattern("비중증"), 3),
 }
 
 #: ★★**표지를 쓰면 안 되는 상품라인이 있다.**
@@ -334,7 +339,8 @@ def main(argv: list[str] | None = None) -> int:
             continue
         d = json.loads(hits[0].read_text(encoding="utf-8"))
         text = "\n".join((p.get("text") or "") for p in (d.get("pages") or []))
-        ev = scan_one(text, r.get("product_line") or "")
+        #: ★찾기 전에 정규화한다 — 줄바꿈이 낱말을 자른 것을 「없다」로 읽지 않는다.
+        ev = scan_one(normalize(text), r.get("product_line") or "")
         g, conf, why = decide(ev)
         results.append({
             "sha256": r["sha256"], "insurer": r["insurer"],
