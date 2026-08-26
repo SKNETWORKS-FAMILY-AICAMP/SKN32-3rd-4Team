@@ -1,0 +1,22 @@
+{
+  "received_review_records": 240,
+  "unique_items": 239,
+  "parts_received": [
+    1,
+    2,
+    4,
+    5
+  ],
+  "missing_part": 3,
+  "mixed_candidate_generations": true,
+  "collisions": [
+    {
+      "item_id": "B:823789501858",
+      "discarded_part": "4",
+      "kept_part": "5",
+      "rule": "최신 후보 묶음인 Part 5 우선"
+    }
+  ],
+  "raw_combined": "qa_pilot_review_parts1_2_4_5_completed_240_records.jsonl",
+  "recommended_combined": "qa_pilot_review_parts1_2_4_5_completed_239_unique.jsonl"
+}
